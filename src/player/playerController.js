@@ -286,9 +286,11 @@ export class PlayerController {
             this.yawObject.position.copy(newPosition);
         }
 
-        // Damping
-        this.velocity.x *= 0.9;
-        this.velocity.z *= 0.9;
+        // Damping only when not moving
+        if (moveDirection.length() === 0) {
+            this.velocity.x *= 0.9;
+            this.velocity.z *= 0.9;
+        }
     }
 
     getPosition() {

@@ -48,6 +48,7 @@ export class WeaponManager {
             // Fire on left mouse button (button 0) when pointer is locked
             if (document.pointerLockElement && e.button === 0) {
                 e.preventDefault();
+                e.stopPropagation();
                 this.startFiring();
             }
         };
@@ -55,13 +56,30 @@ export class WeaponManager {
         const handleMouseUp = (e) => {
             if (document.pointerLockElement && e.button === 0) {
                 e.preventDefault();
+                e.stopPropagation();
                 this.stopFiring();
             }
         };
 
         // Add listeners to document for pointer lock mode
-        document.addEventListener('mousedown', handleMouseDown);
-        document.addEventListener('mouseup', handleMouseUp);
+        document.addEventListener('mousedown', handleMouseDown, true);
+        document.addEventListener('mouseup', handleMouseUp, true);
+        
+        // Also handle clicks on the game container canvas
+        const gameContainer = document.getElementById('game-container');
+        if (gameContainer) {
+            gameContainer.addEventListener('mousedown', (e) => {
+                // If pointer is locked, fire weapon
+                if (document.pointerLockElement && e.button === 0) {
+                    this.startFiring();
+                }
+            });
+            gameContainer.addEventListener('mouseup', (e) => {
+                if (document.pointerLockElement && e.button === 0) {
+                    this.stopFiring();
+                }
+            });
+        }
 
         // Reload button
         const reloadBtn = document.getElementById('btn-reload');
