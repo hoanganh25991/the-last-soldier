@@ -25,6 +25,9 @@ export class PlayerController {
         this.touchRotation = { x: 0, y: 0 };
         this.lastTouch = null;
         
+        // Bind mouse move handler once so we can properly remove it
+        this.boundMouseMoveHandler = this.onMouseMove.bind(this);
+        
         this.initControls();
     }
 
@@ -62,15 +65,23 @@ export class PlayerController {
         // Pointer lock change
         const handlePointerLockChange = () => {
             if (document.pointerLockElement === this.container) {
-                document.addEventListener('mousemove', this.onMouseMove.bind(this));
+                document.addEventListener('mousemove', this.boundMouseMoveHandler);
             } else {
-                document.removeEventListener('mousemove', this.onMouseMove.bind(this));
+                document.removeEventListener('mousemove', this.boundMouseMoveHandler);
             }
         };
         document.addEventListener('pointerlockchange', handlePointerLockChange);
         document.addEventListener('pointerlockerror', () => {
             console.debug('Pointer lock error');
         });
+
+        // ESC key handler to release pointer lock
+        const handleEscKey = (e) => {
+            if (e.code === 'Escape' && document.pointerLockElement === this.container) {
+                document.exitPointerLock();
+            }
+        };
+        document.addEventListener('keydown', handleEscKey);
 
         // Keyboard controls - use capture phase to ensure we get the events
         const handleKeyDown = (e) => {

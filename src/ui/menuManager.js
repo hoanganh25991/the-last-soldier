@@ -304,6 +304,19 @@ export class MenuManager {
             // Resume game if it already exists
             this.gameInstance.start();
         }
+        
+        // Auto-capture mouse (pointer lock) when game starts
+        const gameContainer = document.getElementById('game-container');
+        if (gameContainer) {
+            // Small delay to ensure game container is visible
+            setTimeout(() => {
+                if (!document.pointerLockElement) {
+                    gameContainer.requestPointerLock().catch((err) => {
+                        console.debug('Pointer lock not available:', err.message);
+                    });
+                }
+            }, 100);
+        }
     }
 
     stopGame() {
