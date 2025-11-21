@@ -28,7 +28,8 @@ export class MenuManager {
         };
         this.selectedWeapons = {
             primary: 'MP40',
-            secondary: 'Pistol'
+            secondary: 'Pistol',
+            gadget: null
         };
         this.playerName = 'player name...';
     }
@@ -159,27 +160,71 @@ export class MenuManager {
     }
 
     setupCustomizeListeners() {
+        // Section header click to toggle options
+        const weaponSections = document.querySelectorAll('.weapon-section');
+        weaponSections.forEach(section => {
+            const header = section.querySelector('.weapon-section-header');
+            const weaponList = section.querySelector('.weapon-list');
+            const displayLarge = section.querySelector('.weapon-display-large');
+            
+            if (header && weaponList) {
+                // Make the entire section header area clickable
+                const toggleList = (e) => {
+                    e.stopPropagation();
+                    // Toggle display
+                    const isVisible = weaponList.style.display !== 'none';
+                    weaponList.style.display = isVisible ? 'none' : 'block';
+                };
+                
+                header.addEventListener('click', toggleList);
+                if (displayLarge) {
+                    displayLarge.addEventListener('click', toggleList);
+                }
+            }
+        });
+
         // Primary weapon selection
         const primaryWeapons = document.querySelectorAll('.weapon-option-primary');
         primaryWeapons.forEach(option => {
-            option.addEventListener('click', () => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
                 document.querySelectorAll('.weapon-option-primary').forEach(opt => {
                     opt.classList.remove('selected');
                 });
                 option.classList.add('selected');
                 this.selectedWeapons.primary = option.dataset.weapon;
+                this.updateDetailView('primary', option.dataset.weapon);
+                this.updateWeaponDisplay('primary', option.dataset.weapon);
             });
         });
 
         // Secondary weapon selection
         const secondaryWeapons = document.querySelectorAll('.weapon-option-secondary');
         secondaryWeapons.forEach(option => {
-            option.addEventListener('click', () => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
                 document.querySelectorAll('.weapon-option-secondary').forEach(opt => {
                     opt.classList.remove('selected');
                 });
                 option.classList.add('selected');
                 this.selectedWeapons.secondary = option.dataset.weapon;
+                this.updateDetailView('secondary', option.dataset.weapon);
+                this.updateWeaponDisplay('secondary', option.dataset.weapon);
+            });
+        });
+
+        // Gadget selection
+        const gadgets = document.querySelectorAll('.weapon-option-gadget');
+        gadgets.forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.weapon-option-gadget').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                option.classList.add('selected');
+                this.selectedWeapons.gadget = option.dataset.gadget;
+                this.updateDetailView('gadget', option.dataset.gadget);
+                this.updateWeaponDisplay('gadget', option.dataset.gadget);
             });
         });
 
@@ -191,6 +236,166 @@ export class MenuManager {
             });
             playerNameInput.value = this.playerName;
         }
+
+        // Initialize detail view with default primary weapon
+        this.updateDetailView('primary', this.selectedWeapons.primary);
+        this.updateWeaponDisplay('primary', this.selectedWeapons.primary);
+        this.updateWeaponDisplay('secondary', this.selectedWeapons.secondary);
+    }
+
+    updateWeaponDisplay(type, itemName) {
+        const weaponIcons = {
+            'MP40': '🔫',
+            'Sten': '🔫',
+            'Pistol': '🔫',
+            'Luger': '🔫',
+            'Grenade': '💣',
+            'Medkit': '🏥',
+            'Binoculars': '🔭'
+        };
+
+        if (type === 'primary') {
+            const display = document.getElementById('primary-display');
+            if (display) {
+                display.textContent = weaponIcons[itemName] || '';
+                display.style.display = 'flex';
+                display.style.alignItems = 'center';
+                display.style.justifyContent = 'center';
+                display.style.fontSize = '60px';
+            }
+        } else if (type === 'secondary') {
+            const display = document.getElementById('secondary-display');
+            if (display) {
+                display.textContent = weaponIcons[itemName] || '';
+                display.style.display = 'flex';
+                display.style.alignItems = 'center';
+                display.style.justifyContent = 'center';
+                display.style.fontSize = '60px';
+            }
+        } else if (type === 'gadget') {
+            const display = document.getElementById('gadget-display');
+            if (display) {
+                display.textContent = weaponIcons[itemName] || '🚫';
+                display.classList.remove('empty');
+                display.style.display = 'flex';
+                display.style.alignItems = 'center';
+                display.style.justifyContent = 'center';
+                display.style.fontSize = '60px';
+            }
+        }
+    }
+
+    updateDetailView(type, itemName) {
+        const detailView = document.getElementById('item-detail-view');
+        if (!detailView) return;
+
+        // Weapon stats data
+        const weaponStats = {
+            'MP40': {
+                name: 'MP40',
+                icon: '🔫',
+                stats: {
+                    'Damage': '30',
+                    'Fire Rate': '600 RPM',
+                    'Range': '200m',
+                    'Ammo': '32/288',
+                    'Reload': '2.5s',
+                    'Spread': 'Low'
+                }
+            },
+            'Sten': {
+                name: 'Sten',
+                icon: '🔫',
+                stats: {
+                    'Damage': '28',
+                    'Fire Rate': '550 RPM',
+                    'Range': '180m',
+                    'Ammo': '32/256',
+                    'Reload': '2.8s',
+                    'Spread': 'Medium'
+                }
+            },
+            'Pistol': {
+                name: 'Pistol',
+                icon: '🔫',
+                stats: {
+                    'Damage': '20',
+                    'Fire Rate': '300 RPM',
+                    'Range': '100m',
+                    'Ammo': '12/60',
+                    'Reload': '1.5s',
+                    'Spread': 'Low'
+                }
+            },
+            'Luger': {
+                name: 'Luger',
+                icon: '🔫',
+                stats: {
+                    'Damage': '25',
+                    'Fire Rate': '350 RPM',
+                    'Range': '120m',
+                    'Ammo': '8/48',
+                    'Reload': '1.8s',
+                    'Spread': 'Low'
+                }
+            },
+            'Grenade': {
+                name: 'Grenade',
+                icon: '💣',
+                stats: {
+                    'Damage': '100',
+                    'Blast Radius': '5m',
+                    'Fuse Time': '4s',
+                    'Throw Range': '30m',
+                    'Cooldown': '30s',
+                    'Type': 'Explosive'
+                }
+            },
+            'Medkit': {
+                name: 'Medkit',
+                icon: '🏥',
+                stats: {
+                    'Heal Amount': '50 HP',
+                    'Use Time': '3s',
+                    'Cooldown': '60s',
+                    'Range': 'Self',
+                    'Type': 'Support',
+                    'Capacity': '1'
+                }
+            },
+            'Binoculars': {
+                name: 'Binoculars',
+                icon: '🔭',
+                stats: {
+                    'Zoom': '4x',
+                    'Range': '500m',
+                    'Use Time': 'Instant',
+                    'Cooldown': 'None',
+                    'Type': 'Utility',
+                    'Durability': 'Unlimited'
+                }
+            }
+        };
+
+        const itemData = weaponStats[itemName];
+        if (!itemData) return;
+
+        const statsHtml = Object.entries(itemData.stats).map(([label, value]) => `
+            <div class="item-detail-stat">
+                <div class="item-detail-stat-label">${label}</div>
+                <div class="item-detail-stat-value">${value}</div>
+            </div>
+        `).join('');
+
+        detailView.innerHTML = `
+            <div class="item-detail-content">
+                <div class="item-detail-name">${itemData.name}</div>
+                <div class="item-detail-image">${itemData.icon}</div>
+                <div class="item-detail-stats">
+                    ${statsHtml}
+                </div>
+            </div>
+        `;
     }
 
     setupSettingsListeners() {
@@ -305,6 +510,14 @@ export class MenuManager {
             this.initBattlefieldDeployBackground();
         } else if (this.battlefieldDeployBackground) {
             this.battlefieldDeployBackground.stop();
+        }
+
+        // Initialize customize screen detail view
+        if (screenName === 'customize') {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                this.updateDetailView('primary', this.selectedWeapons.primary);
+            }, 100);
         }
 
         // Show/hide game container and HUD
