@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export class UIManager {
     constructor(player, weaponManager, teamManager) {
         this.player = player;
@@ -55,8 +57,13 @@ export class UIManager {
         const compassArrow = document.getElementById('compass-arrow');
         if (!compassArrow || !this.player) return;
 
-        const rotation = this.player.getRotation();
-        const angle = rotation.y * (180 / Math.PI);
+        // Get yaw rotation (horizontal rotation)
+        const yawObject = this.player.getYawObject();
+        if (!yawObject) return;
+        
+        const euler = new THREE.Euler();
+        euler.setFromQuaternion(yawObject.quaternion);
+        const angle = euler.y * (180 / Math.PI);
         compassArrow.style.transform = `rotate(${angle}deg)`;
     }
 

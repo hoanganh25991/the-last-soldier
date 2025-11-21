@@ -43,31 +43,47 @@ export class PlayerController {
     }
 
     initControls() {
+        // Initialize keys object
+        this.keys = {};
+        
         // Mouse lock for desktop
         this.container = document.getElementById('game-container');
-        this.container.addEventListener('click', () => {
-            if (!document.pointerLockElement) {
-                this.container.requestPointerLock();
-            }
-        });
+        if (this.container) {
+            this.container.addEventListener('click', () => {
+                if (!document.pointerLockElement) {
+                    this.container.requestPointerLock().catch((err) => {
+                        // Silently handle pointer lock errors (user cancelled, etc.)
+                        console.debug('Pointer lock not available:', err.message);
+                    });
+                }
+            });
+        }
 
         // Pointer lock change
-        document.addEventListener('pointerlockchange', () => {
+        const handlePointerLockChange = () => {
             if (document.pointerLockElement === this.container) {
                 document.addEventListener('mousemove', this.onMouseMove.bind(this));
             } else {
                 document.removeEventListener('mousemove', this.onMouseMove.bind(this));
             }
+        };
+        document.addEventListener('pointerlockchange', handlePointerLockChange);
+        document.addEventListener('pointerlockerror', () => {
+            console.debug('Pointer lock error');
         });
 
-        // Keyboard controls
-        this.keys = {};
+        // Keyboard controls - use capture phase to ensure we get the events
         document.addEventListener('keydown', (e) => {
+            // Don't prevent default for special keys to avoid blocking browser shortcuts
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
             this.keys[e.code] = true;
-        });
+        }, true);
+
         document.addEventListener('keyup', (e) => {
             this.keys[e.code] = false;
-        });
+        }, true);
 
         // Touch controls
         this.initTouchControls();
@@ -166,6 +182,11 @@ export class PlayerController {
     getMoveDirection() {
         this.direction.set(0, 0, 0);
 
+        // Ensure keys object exists
+        if (!this.keys) {
+            this.keys = {};
+        }
+
         // Desktop keyboard controls
         if (this.keys['KeyW'] || this.keys['ArrowUp']) this.direction.z -= 1;
         if (this.keys['KeyS'] || this.keys['ArrowDown']) this.direction.z += 1;
@@ -254,6 +275,10 @@ export class PlayerController {
 
     getRotation() {
         return this.yawObject.rotation;
+    }
+
+    getYawObject() {
+        return this.yawObject;
     }
 }
 

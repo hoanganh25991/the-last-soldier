@@ -6,7 +6,7 @@ export class SecondaryWeapon extends WeaponBase {
         super(camera, scene, teamManager);
         
         this.name = 'Pistol';
-        this.icon = '🔫';
+        this.icon = '🔫'; // Pistol icon (can use different emoji if needed)
         this.damage = 20;
         this.fireRate = 300; // rounds per minute
         this.maxAmmo = 12;
@@ -19,6 +19,7 @@ export class SecondaryWeapon extends WeaponBase {
     init() {
         super.init();
         this.createWeaponModel();
+        this.createMuzzleFlash();
     }
 
     createWeaponModel() {

@@ -21,10 +21,12 @@ export class WeaponBase {
     init() {
         this.currentAmmo = this.maxAmmo;
         this.fireInterval = 60 / this.fireRate; // Convert RPM to seconds
-        this.createMuzzleFlash();
+        // Muzzle flash will be created after weapon mesh is created
     }
 
     createMuzzleFlash() {
+        if (!this.weaponMesh) return;
+        
         const flashGeometry = new THREE.SphereGeometry(0.1, 8, 8);
         const flashMaterial = new THREE.MeshBasicMaterial({ 
             color: 0xffff00,
@@ -33,9 +35,8 @@ export class WeaponBase {
         });
         this.muzzleFlash = new THREE.Mesh(flashGeometry, flashMaterial);
         this.muzzleFlash.visible = false;
-        if (this.weaponMesh) {
-            this.weaponMesh.add(this.muzzleFlash);
-        }
+        this.muzzleFlash.position.set(0.4, -0.2, -0.5); // Position at barrel end
+        this.weaponMesh.add(this.muzzleFlash);
     }
 
     show() {

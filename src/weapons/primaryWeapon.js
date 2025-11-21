@@ -6,7 +6,7 @@ export class PrimaryWeapon extends WeaponBase {
         super(camera, scene, teamManager);
         
         this.name = 'Rifle';
-        this.icon = '🔫';
+        this.icon = '🔫'; // Rifle icon
         this.damage = 30;
         this.fireRate = 600; // rounds per minute
         this.maxAmmo = 32;
@@ -19,6 +19,7 @@ export class PrimaryWeapon extends WeaponBase {
     init() {
         super.init();
         this.createWeaponModel();
+        this.createMuzzleFlash();
     }
 
     createWeaponModel() {
