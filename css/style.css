@@ -159,15 +159,6 @@ body {
     border-radius: 5px;
 }
 
-.objectives {
-    font-size: 18px;
-    font-weight: bold;
-    letter-spacing: 10px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-    background: rgba(0, 0, 0, 0.5);
-    padding: 5px 15px;
-    border-radius: 5px;
-}
 
 /* Top Right */
 .hud-top-right {
@@ -269,10 +260,12 @@ body {
     font-size: 24px;
     cursor: pointer;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
     touch-action: none;
+    position: relative;
 }
 
 .btn-action:active {
@@ -282,6 +275,19 @@ body {
 
 .btn-action .btn-icon {
     pointer-events: none;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.btn-action .btn-key {
+    pointer-events: none;
+    font-size: 8px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 2px;
+    line-height: 1;
+    letter-spacing: 0.5px;
 }
 
 /* Crosshair */

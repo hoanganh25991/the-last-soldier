@@ -18,27 +18,38 @@ export class Bullet {
     }
 
     createMesh() {
-        // Create bullet mesh (small sphere)
-        const geometry = new THREE.SphereGeometry(0.05, 8, 8);
+        // Create bullet mesh (larger, more visible sphere)
+        const geometry = new THREE.SphereGeometry(0.15, 12, 12);
         const material = new THREE.MeshBasicMaterial({ 
-            color: 0xffff00,
-            transparent: true,
-            opacity: 0.9
+            color: 0xffaa00, // Orange-yellow for better visibility
+            transparent: false,
+            opacity: 1.0
         });
         
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.copy(this.startPosition);
         this.scene.add(this.mesh);
         
-        // Add glow effect
-        const glowGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        // Add bright glow effect
+        const glowGeometry = new THREE.SphereGeometry(0.25, 12, 12);
         const glowMaterial = new THREE.MeshBasicMaterial({ 
             color: 0xffff00,
             transparent: true,
-            opacity: 0.3
+            opacity: 0.5
         });
         const glow = new THREE.Mesh(glowGeometry, glowMaterial);
         this.mesh.add(glow);
+        
+        // Add trail effect (smaller trailing sphere)
+        const trailGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+        const trailMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0.7
+        });
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+        trail.position.z = 0.2; // Slightly behind
+        this.mesh.add(trail);
     }
 
     update(deltaTime) {

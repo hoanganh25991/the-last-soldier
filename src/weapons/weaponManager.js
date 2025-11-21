@@ -147,8 +147,8 @@ export class WeaponManager {
             
             // Check bullet collisions with enemies
             const enemies = this.teamManager.getEnemies();
-            this.bulletManager.checkCollisions(enemies, (enemy, damage) => {
-                this.teamManager.damageEnemy(enemy, damage);
+            this.bulletManager.checkCollisions(enemies, (enemy, damage, hitPosition) => {
+                this.teamManager.damageEnemy(enemy, damage, hitPosition);
             });
         }
     }

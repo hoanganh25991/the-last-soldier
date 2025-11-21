@@ -46,6 +46,11 @@ export class CollisionSystem {
         let finalPos = position.clone();
         let onGround = false;
 
+        // Skip ground plane collision (handled separately)
+        if (collider.userData && collider.userData.isGround) {
+            return { position: finalPos, onGround: false };
+        }
+
         if (collider.geometry) {
             const box = new THREE.Box3().setFromObject(collider);
             const center = box.getCenter(new THREE.Vector3());
@@ -83,7 +88,7 @@ export class CollisionSystem {
                 playerMin.z < colliderMax.z &&
                 playerMax.z > colliderMin.z
             ) {
-                // Push out of collision
+                // Only push out horizontally, allow vertical movement
                 const overlapX = Math.min(
                     Math.abs(playerMax.x - colliderMin.x),
                     Math.abs(colliderMax.x - playerMin.x)
@@ -93,6 +98,7 @@ export class CollisionSystem {
                     Math.abs(colliderMax.z - playerMin.z)
                 );
 
+                // Push out in the direction of least overlap
                 if (overlapX < overlapZ) {
                     if (finalPos.x < center.x) {
                         finalPos.x = colliderMin.x - radius;

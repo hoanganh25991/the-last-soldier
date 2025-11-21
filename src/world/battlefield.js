@@ -23,29 +23,23 @@ export class Battlefield {
     }
 
     createGround() {
-        // Create a large ground plane
-        const groundGeometry = new THREE.PlaneGeometry(200, 200, 32, 32);
+        // Create a large ground plane with bright green grass color
+        const groundGeometry = new THREE.PlaneGeometry(500, 500, 1, 1);
         const groundMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0x4a7c59,
+            color: 0x228b22, // Forest green - much brighter and more visible
             wireframe: false
         });
-        
-        // Add some texture variation
-        const vertices = groundGeometry.attributes.position.array;
-        for (let i = 0; i < vertices.length; i += 3) {
-            const x = vertices[i];
-            const z = vertices[i + 2];
-            vertices[i + 1] = Math.sin(x * 0.05) * Math.cos(z * 0.05) * 0.5;
-        }
-        groundGeometry.attributes.position.needsUpdate = true;
-        groundGeometry.computeVertexNormals();
         
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = 0;
         ground.receiveShadow = true;
+        ground.userData.isGround = true; // Mark as ground for collision system
+        
+        // Make sure ground is added first so it's behind everything
         this.scene.add(ground);
-        this.objects.push(ground);
+        
+        // Don't add to collision objects - ground collision is handled separately
     }
 
     createTrees() {

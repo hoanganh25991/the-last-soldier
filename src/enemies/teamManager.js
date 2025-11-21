@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Enemy } from './enemy.js';
+import { BloodEffect } from '../effects/bloodEffect.js';
 
 export class TeamManager {
     constructor(scene, collisionSystem) {
@@ -14,6 +15,7 @@ export class TeamManager {
         
         this.enemies = [];
         this.allies = [];
+        this.bloodEffects = [];
     }
 
     init() {
@@ -65,10 +67,17 @@ export class TeamManager {
         return this.allies.map(a => a.mesh);
     }
 
-    damageEnemy(enemyMesh, damage) {
+    damageEnemy(enemyMesh, damage, hitPosition = null) {
         const enemy = this.enemies.find(e => e.mesh === enemyMesh || e.mesh === enemyMesh.parent);
         if (enemy) {
             enemy.takeDamage(damage);
+            
+            // Create blood effect at hit position or enemy position
+            const bloodPos = hitPosition || enemy.mesh.position.clone();
+            bloodPos.y += 1.0; // Slightly above center
+            const bloodEffect = new BloodEffect(bloodPos, this.scene);
+            this.bloodEffects.push(bloodEffect);
+            
             if (enemy.health <= 0) {
                 this.removeEnemy(enemy);
                 this.redScore = Math.max(0, this.redScore - 10);
@@ -94,6 +103,16 @@ export class TeamManager {
         // Update all allies
         for (const ally of this.allies) {
             ally.update(deltaTime);
+        }
+        
+        // Update blood effects
+        for (let i = this.bloodEffects.length - 1; i >= 0; i--) {
+            const effect = this.bloodEffects[i];
+            if (effect.isActive) {
+                effect.update(deltaTime);
+            } else {
+                this.bloodEffects.splice(i, 1);
+            }
         }
     }
 }

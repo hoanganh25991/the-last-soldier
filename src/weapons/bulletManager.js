@@ -44,7 +44,7 @@ export class BulletManager {
                 const hit = intersects[0];
                 const enemy = hit.object.parent || hit.object;
                 if (enemy && enemy.userData.isEnemy) {
-                    callback(enemy, bullet.damage);
+                    callback(enemy, bullet.damage, hit.point);
                     bullet.destroy();
                 }
             }
