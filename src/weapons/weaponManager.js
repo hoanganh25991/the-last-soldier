@@ -28,18 +28,40 @@ export class WeaponManager {
     }
 
     initControls() {
-        // Fire button
+        // Fire button (for mobile/touch)
         const fireBtn = document.getElementById('btn-fire');
-        fireBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.startFiring();
-        });
-        fireBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            this.stopFiring();
-        });
-        fireBtn.addEventListener('mousedown', () => this.startFiring());
-        fireBtn.addEventListener('mouseup', () => this.stopFiring());
+        if (fireBtn) {
+            fireBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.startFiring();
+            });
+            fireBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.stopFiring();
+            });
+            fireBtn.addEventListener('mousedown', () => this.startFiring());
+            fireBtn.addEventListener('mouseup', () => this.stopFiring());
+        }
+
+        // Mouse click handlers for desktop FPS (when pointer is locked)
+        const handleMouseDown = (e) => {
+            // Fire on left mouse button (button 0) when pointer is locked
+            if (document.pointerLockElement && e.button === 0) {
+                e.preventDefault();
+                this.startFiring();
+            }
+        };
+
+        const handleMouseUp = (e) => {
+            if (document.pointerLockElement && e.button === 0) {
+                e.preventDefault();
+                this.stopFiring();
+            }
+        };
+
+        // Add listeners to document for pointer lock mode
+        document.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mouseup', handleMouseUp);
 
         // Reload button
         const reloadBtn = document.getElementById('btn-reload');

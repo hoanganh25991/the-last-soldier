@@ -73,17 +73,36 @@ export class PlayerController {
         });
 
         // Keyboard controls - use capture phase to ensure we get the events
-        document.addEventListener('keydown', (e) => {
+        const handleKeyDown = (e) => {
             // Don't prevent default for special keys to avoid blocking browser shortcuts
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 return;
             }
-            this.keys[e.code] = true;
-        }, true);
+            // Prevent default for game keys
+            const gameKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            if (gameKeys.includes(e.code)) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.keys[e.code] = true;
+            }
+        };
 
-        document.addEventListener('keyup', (e) => {
-            this.keys[e.code] = false;
-        }, true);
+        const handleKeyUp = (e) => {
+            const gameKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            if (gameKeys.includes(e.code)) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.keys[e.code] = false;
+            }
+        };
+
+        // Use capture phase and make sure we catch events early
+        window.addEventListener('keydown', handleKeyDown, true);
+        window.addEventListener('keyup', handleKeyUp, true);
+        
+        // Also add to document as backup
+        document.addEventListener('keydown', handleKeyDown, true);
+        document.addEventListener('keyup', handleKeyUp, true);
 
         // Touch controls
         this.initTouchControls();
@@ -232,13 +251,16 @@ export class PlayerController {
         forward.normalize();
         right.normalize();
 
-        this.velocity.x = 0;
-        this.velocity.z = 0;
-
+        // Calculate movement velocity
+        const moveVelocity = new THREE.Vector3();
         if (moveDirection.length() > 0) {
-            this.velocity.add(forward.multiplyScalar(-moveDirection.z * this.currentSpeed * deltaTime));
-            this.velocity.add(right.multiplyScalar(moveDirection.x * this.currentSpeed * deltaTime));
+            moveVelocity.add(forward.multiplyScalar(-moveDirection.z * this.currentSpeed));
+            moveVelocity.add(right.multiplyScalar(moveDirection.x * this.currentSpeed));
         }
+
+        // Apply horizontal movement
+        this.velocity.x = moveVelocity.x;
+        this.velocity.z = moveVelocity.z;
 
         // Apply gravity
         this.velocity.y -= 9.8 * deltaTime;
