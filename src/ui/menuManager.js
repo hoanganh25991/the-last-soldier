@@ -1,7 +1,10 @@
+import { MainMenuBackground } from './mainMenuBackground.js';
+
 export class MenuManager {
     constructor() {
         this.currentScreen = 'main-menu';
         this.gameInstance = null;
+        this.mainMenuBackground = null;
         this.settings = {
             music: 100,
             game: 100,
@@ -29,7 +32,20 @@ export class MenuManager {
     init() {
         this.setupEventListeners();
         this.initializeWeaponSelection();
+        this.initMainMenuBackground();
         this.showScreen('main-menu');
+    }
+
+    initMainMenuBackground() {
+        const container = document.getElementById('main-menu-background');
+        if (container) {
+            // Wait a bit for container to be properly sized
+            setTimeout(() => {
+                this.mainMenuBackground = new MainMenuBackground(container);
+                this.mainMenuBackground.init();
+                this.mainMenuBackground.start();
+            }, 100);
+        }
     }
 
     initializeWeaponSelection() {
@@ -215,6 +231,13 @@ export class MenuManager {
             if (screen) {
                 screen.classList.add('active');
             }
+        }
+
+        // Start/stop main menu background animation
+        if (screenName === 'main-menu' && this.mainMenuBackground) {
+            this.mainMenuBackground.start();
+        } else if (this.mainMenuBackground) {
+            this.mainMenuBackground.stop();
         }
 
         // Show/hide game container and HUD
