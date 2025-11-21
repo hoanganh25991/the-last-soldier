@@ -1,0 +1,164 @@
+/* ============================================
+   CUSTOMIZE SCREEN
+   ============================================ */
+
+#screen-customize {
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(100, 80, 60, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(60, 80, 100, 0.12) 0%, transparent 50%),
+        linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.screen-title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 36px;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    z-index: 10;
+}
+
+.customize-content {
+    display: flex;
+    height: 100%;
+    padding: 100px 50px 100px;
+    gap: 50px;
+}
+
+.customize-left {
+    flex: 0 0 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.weapon-section {
+    background: rgba(30, 30, 30, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.weapon-section h3 {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.weapon-display-large {
+    width: 100%;
+    height: 150px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.weapon-silhouette {
+    width: 200px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.weapon-silhouette.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.weapon-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.weapon-option-primary,
+.weapon-option-secondary {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.weapon-option-primary:hover,
+.weapon-option-secondary:hover {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.weapon-option-primary.selected,
+.weapon-option-secondary.selected {
+    background: rgba(255, 102, 0, 0.3);
+    border-color: #ff6600;
+}
+
+.weapon-silhouette-small {
+    width: 60px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.weapon-option-primary span,
+.weapon-option-secondary span {
+    color: #fff;
+    font-weight: bold;
+}
+
+.customize-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.character-preview {
+    width: 300px;
+    height: 400px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.customize-bottom {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    display: flex;
+    justify-content: center;
+}
+
+.player-name-input {
+    padding: 10px 20px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    width: 300px;
+    text-align: center;
+}
+
+.player-name-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+

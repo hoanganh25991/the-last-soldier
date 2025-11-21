@@ -1,0 +1,58 @@
+/* ============================================
+   ABOUT SCREEN
+   ============================================ */
+
+#screen-about {
+    background: 
+        radial-gradient(circle at 40% 60%, rgba(100, 70, 50, 0.1) 0%, transparent 60%),
+        linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.about-content {
+    padding: 100px 50px 50px;
+    overflow-y: auto;
+    max-height: 100vh;
+}
+
+.about-text {
+    max-width: 600px;
+    margin: 0 auto;
+    color: #fff;
+    line-height: 1.8;
+}
+
+.about-version {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.about-engine {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 30px;
+}
+
+.about-section {
+    margin-bottom: 30px;
+}
+
+.about-section h2 {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.about-section p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 5px 0;
+}
+
+.about-section strong {
+    font-weight: bold;
+}
+
