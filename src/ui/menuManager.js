@@ -31,7 +31,7 @@ export class MenuManager {
         this.selectedWeapons = {
             primary: 'MP40',
             secondary: 'Pistol',
-            gadget: null
+            gadget: 'Grenade'
         };
         this.playerName = 'player name...';
     }
@@ -308,12 +308,8 @@ export class MenuManager {
         } else if (type === 'gadget') {
             const display = document.getElementById('gadget-display');
             if (display) {
-                display.textContent = weaponIcons[itemName] || '🚫';
-                if (itemName) {
-                    display.classList.remove('empty');
-                } else {
-                    display.classList.add('empty');
-                }
+                display.textContent = weaponIcons[itemName] || '💣';
+                display.classList.remove('empty');
             }
         }
     }
@@ -593,6 +589,8 @@ export class MenuManager {
                 if (primarySection) {
                     primarySection.click();
                 }
+                // Initialize gadget display
+                this.updateWeaponDisplay('gadget', this.selectedWeapons.gadget);
             }, 100);
         }
 
@@ -621,9 +619,8 @@ export class MenuManager {
     }
 
     async startGame() {
-        // Stop menu music and start battlefield music
+        // Stop menu music when entering battlefield
         this.audioManager.stopMusic('menu');
-        this.startBattlefieldMusic();
         
         this.showScreen('game');
         
@@ -679,13 +676,6 @@ export class MenuManager {
         });
     }
 
-    startBattlefieldMusic() {
-        // Try to load music file, will fallback to generated sound if not found
-        const battlefieldMusicUrl = 'sounds/battlefield-music.mp3';
-        this.audioManager.playBattlefieldMusic(battlefieldMusicUrl).catch(() => {
-            // Fallback handled in AudioManager, this is just for safety
-        });
-    }
 
     getAudioManager() {
         return this.audioManager;

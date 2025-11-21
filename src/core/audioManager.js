@@ -9,6 +9,9 @@ export class AudioManager {
         this.maxConcurrentSounds = 8; // Limit concurrent bullet sounds
         this.activeSounds = 0;
         
+        // Preloaded audio cache - keyed by URL
+        this.preloadedSounds = new Map();
+        
         // Rate limiting for bullet sounds
         this.lastBulletSoundTime = 0;
         this.bulletSoundMinInterval = 0.05; // 50ms minimum between sounds (20 sounds/sec max)
@@ -45,15 +48,69 @@ export class AudioManager {
 
     // Create a pool of audio objects for bullet sounds
     createSoundPool() {
-        // Create multiple audio elements for pooling
-        for (let i = 0; i < this.maxConcurrentSounds; i++) {
-            const audio = new Audio();
-            audio.preload = 'auto';
-            this.soundPool.push({
-                audio: audio,
-                inUse: false
-            });
+        // Pool will be created dynamically per sound URL
+    }
+
+    // Preload a sound file and create pool of audio elements
+    async preloadSound(url) {
+        // Check if already preloaded
+        if (this.preloadedSounds.has(url)) {
+            return true;
         }
+
+        return new Promise((resolve, reject) => {
+            // Create multiple audio elements for this sound (for concurrent playback)
+            const audioElements = [];
+            let loadedCount = 0;
+            let errorCount = 0;
+            const totalElements = this.maxConcurrentSounds;
+            
+            const checkComplete = () => {
+                if (loadedCount + errorCount === totalElements) {
+                    if (loadedCount > 0) {
+                        // Store the pool
+                        this.preloadedSounds.set(url, audioElements.filter(a => a.readyState >= 2));
+                        resolve(true);
+                    } else {
+                        reject(new Error(`Failed to preload: ${url}`));
+                    }
+                }
+            };
+            
+            // Create multiple audio elements with same URL (browser will cache)
+            for (let i = 0; i < totalElements; i++) {
+                const audio = new Audio();
+                audio.preload = 'auto';
+                
+                const handleCanPlay = () => {
+                    audio.removeEventListener('canplaythrough', handleCanPlay);
+                    audio.removeEventListener('error', handleError);
+                    loadedCount++;
+                    checkComplete();
+                };
+                
+                const handleError = (e) => {
+                    audio.removeEventListener('canplaythrough', handleCanPlay);
+                    audio.removeEventListener('error', handleError);
+                    errorCount++;
+                    checkComplete();
+                };
+                
+                audio.addEventListener('canplaythrough', handleCanPlay, { once: true });
+                audio.addEventListener('error', handleError, { once: true });
+                
+                audio.src = url;
+                audio.load();
+                audioElements.push(audio);
+            }
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                if (!this.preloadedSounds.has(url)) {
+                    reject(new Error(`Timeout preloading: ${url}`));
+                }
+            }, 5000);
+        });
     }
 
     // Generate a simple tone using Web Audio API
@@ -169,40 +226,45 @@ export class AudioManager {
         return { source, gainNode };
     }
 
-    // Try to load audio file, fallback to generated sound
-    async loadAudioWithFallback(url, fallbackGenerator, type = 'sfx') {
-        try {
-            const audio = new Audio(url);
+    // Load audio file (simple static server compatible)
+    async loadAudioFile(url) {
+        return new Promise((resolve, reject) => {
+            const audio = new Audio();
             
-            // Try to load the file
-            await new Promise((resolve, reject) => {
-                audio.addEventListener('canplaythrough', resolve, { once: true });
-                audio.addEventListener('error', reject, { once: true });
-                audio.load();
-                
-                // Timeout after 2 seconds
-                setTimeout(() => reject(new Error('Timeout')), 2000);
-            });
+            // Disable preload to avoid range requests on simple servers
+            audio.preload = 'none';
             
-            return { audio, isGenerated: false };
-        } catch (error) {
-            // File not found or failed to load, use generated sound
-            console.debug(`Audio file not found: ${url}, using generated sound`);
+            // Simple approach: just set src and let it load naturally
+            audio.src = url;
             
-            if (type === 'music') {
-                const buffer = fallbackGenerator();
-                if (buffer) {
-                    // Volume will be set in loadMusic
-                    const soundObj = this.playGeneratedSound(buffer, true, 1.0);
-                    return { audio: soundObj, isGenerated: true, buffer };
-                }
-            } else {
-                // For SFX, we'll generate on-demand
-                return { audio: null, isGenerated: true, generator: fallbackGenerator };
-            }
+            // Handle successful load
+            const handleCanPlay = () => {
+                audio.removeEventListener('canplay', handleCanPlay);
+                audio.removeEventListener('error', handleError);
+                resolve({ audio, isGenerated: false });
+            };
             
-            return null;
-        }
+            // Handle errors gracefully
+            const handleError = (e) => {
+                audio.removeEventListener('canplay', handleCanPlay);
+                audio.removeEventListener('error', handleError);
+                console.warn(`Audio file not found: ${url}`);
+                reject(new Error(`Failed to load audio: ${url}`));
+            };
+            
+            audio.addEventListener('canplay', handleCanPlay, { once: true });
+            audio.addEventListener('error', handleError, { once: true });
+            
+            // Start loading
+            audio.load();
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                audio.removeEventListener('canplay', handleCanPlay);
+                audio.removeEventListener('error', handleError);
+                reject(new Error(`Timeout loading audio: ${url}`));
+            }, 5000);
+        });
     }
 
     // Load and play background music
@@ -229,60 +291,30 @@ export class AudioManager {
                 this.battlefieldMusic = null;
             }
 
-            // Try to load file, fallback to generated
-            const result = await this.loadAudioWithFallback(
-                url,
-                () => this.generateBackgroundMusic(type),
-                'music'
-            );
-
-            if (!result) return null;
-
-            if (result.isGenerated) {
-                // Generated sound
-                result.gainNode.gain.value = volume * this.musicVolume;
-                if (type === 'menu') {
-                    this.menuMusic = result;
-                } else if (type === 'battlefield') {
-                    this.battlefieldMusic = result;
-                }
-                return result;
-            } else {
-                // Real audio file
-                const audio = result.audio;
-                audio.loop = loop;
-                audio.volume = volume * this.musicVolume;
-                
-                // Store reference
-                if (type === 'menu') {
-                    this.menuMusic = audio;
-                } else if (type === 'battlefield') {
-                    this.battlefieldMusic = audio;
-                }
-
-                // Play music
-                try {
-                    await audio.play();
-                } catch (error) {
-                    console.debug(`Could not play ${type} music:`, error);
-                    // Music will play when user interacts
-                }
-
-                return audio;
+            // Load audio file (requires actual MP3 file)
+            const result = await this.loadAudioFile(url);
+            const audio = result.audio;
+            audio.loop = loop;
+            audio.volume = volume * this.musicVolume;
+            
+            // Store reference
+            if (type === 'menu') {
+                this.menuMusic = audio;
+            } else if (type === 'battlefield') {
+                this.battlefieldMusic = audio;
             }
+
+            // Play music
+            try {
+                await audio.play();
+            } catch (error) {
+                console.debug(`Could not play ${type} music:`, error);
+                // Music will play when user interacts
+            }
+
+            return audio;
         } catch (error) {
-            console.debug(`Error loading music ${type}:`, error);
-            // Fallback to generated sound
-            const buffer = this.generateBackgroundMusic(type);
-            if (buffer && this.audioContext) {
-                const soundObj = this.playGeneratedSound(buffer, true, volume * this.musicVolume);
-                if (type === 'menu') {
-                    this.menuMusic = soundObj;
-                } else if (type === 'battlefield') {
-                    this.battlefieldMusic = soundObj;
-                }
-                return soundObj;
-            }
+            console.warn(`Error loading music ${type}:`, error);
             return null;
         }
     }
@@ -341,61 +373,38 @@ export class AudioManager {
             this.lastBulletSoundTime = now;
         }
 
-        // Try to use generated sound if file fails
-        const tryPlayGenerated = () => {
-            if (!this.audioContext) return;
-            
-            const buffer = this.generateBulletSound();
-            if (buffer) {
-                const soundObj = this.playGeneratedSound(buffer, false, volume * this.sfxVolume);
-                if (soundObj && soundObj.source) {
-                    soundObj.source.onended = () => {
-                        // Sound finished
-                    };
-                }
-            }
-        };
-
-        // Find available sound from pool
-        const availableSound = this.soundPool.find(sound => !sound.inUse);
-        
-        if (!availableSound) {
-            // All sounds in use, try generated sound directly
-            tryPlayGenerated();
+        // Get preloaded audio elements for this URL
+        const audioPool = this.preloadedSounds.get(url);
+        if (!audioPool || audioPool.length === 0) {
+            // Not preloaded yet - start preloading in background and skip this play
+            this.preloadSound(url).catch(() => {});
             return;
         }
 
-        // Mark as in use
-        availableSound.inUse = true;
-        this.activeSounds++;
+        // Find an available audio element from the pool
+        let audio = null;
+        for (const a of audioPool) {
+            // Check if audio is not currently playing (available)
+            if (a.paused || a.ended || a.currentTime === 0 || a.currentTime >= a.duration) {
+                audio = a;
+                break;
+            }
+        }
 
-        // Set up audio
-        const audio = availableSound.audio;
-        audio.src = url;
+        // If all are playing, use the first one (overlap is okay for bullet sounds)
+        if (!audio) {
+            audio = audioPool[0];
+        }
+
+        // Reset and configure - NO src change, just reset time
+        // This avoids network requests - audio is already loaded
+        audio.pause();
+        audio.currentTime = 0;
         audio.volume = volume * this.sfxVolume;
         
-        // Handle errors - fallback to generated sound
-        audio.onerror = () => {
-            availableSound.inUse = false;
-            this.activeSounds--;
-            // Use generated sound as fallback
-            tryPlayGenerated();
-        };
-
-        // Handle end of playback
-        const handleEnded = () => {
-            availableSound.inUse = false;
-            this.activeSounds--;
-            audio.removeEventListener('ended', handleEnded);
-        };
-        audio.addEventListener('ended', handleEnded);
-
-        // Play sound
+        // Play sound - NO network request since audio is already loaded
         audio.play().catch(error => {
-            // File failed, use generated sound
-            availableSound.inUse = false;
-            this.activeSounds--;
-            tryPlayGenerated();
+            // Silently fail - might be autoplay restriction
         });
     }
 

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Game Sounds</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Generate Game Sound Files</h1>
+    <p>Click the buttons below to generate and download sound files for your game.</p>
+    
+    <div>
+        <button onclick="generateMenuMusic()">Generate Menu Music</button>
+        <button onclick="generateBattlefieldMusic()">Generate Battlefield Music</button>
+        <button onclick="generateBulletSound()">Generate Bullet Sound</button>
+        <button onclick="generatePistolSound()">Generate Pistol Sound</button>
+        <button onclick="generateRifleSound()">Generate Rifle Sound</button>
+    </div>
+    
+    <div class="status" id="status">Ready to generate sounds...</div>
+
+    <script>
+        let audioContext;
+        
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        function generateTone(frequency, duration, type = 'sine', volume = 0.3) {
+            initAudioContext();
+            const sampleRate = audioContext.sampleRate;
+            const numSamples = Math.floor(sampleRate * duration);
+            const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < numSamples; i++) {
+                const t = i / sampleRate;
+                let value = 0;
+                
+                if (type === 'sine') {
+                    value = Math.sin(2 * Math.PI * frequency * t);
+                } else if (type === 'square') {
+                    value = Math.sin(2 * Math.PI * frequency * t) > 0 ? 1 : -1;
+                }
+                
+                const envelope = 1 - (i / numSamples);
+                data[i] = value * volume * envelope;
+            }
+            
+            return buffer;
+        }
+        
+        function generateBulletSound() {
+            initAudioContext();
+            const duration = 0.1;
+            const sampleRate = audioContext.sampleRate;
+            const numSamples = Math.floor(sampleRate * duration);
+            const buffer = audioContext.createBuffer(1, numSamples, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < numSamples; i++) {
+                const t = i / sampleRate;
+                const tone = Math.sin(2 * Math.PI * 800 * t) * 0.3;
+                const noise = (Math.random() * 2 - 1) * 0.2;
+                const envelope = Math.exp(-t * 50);
+                data[i] = (tone + noise) * envelope * 0.4;
+            }
+            
+            return buffer;
+        }
+        
+        function generateBackgroundMusic(type = 'menu') {
+            initAudioContext();
+            const duration = 4.0;
+            const sampleRate = audioContext.sampleRate;
+            const numSamples = Math.floor(sampleRate * duration);
+            const buffer = audioContext.createBuffer(2, numSamples, sampleRate);
+            
+            const leftData = buffer.getChannelData(0);
+            const rightData = buffer.getChannelData(1);
+            
+            const baseFreq = type === 'menu' ? 220 : 180;
+            
+            for (let i = 0; i < numSamples; i++) {
+                const t = i / sampleRate;
+                let left = 0;
+                let right = 0;
+                
+                left += Math.sin(2 * Math.PI * baseFreq * t) * 0.15;
+                right += Math.sin(2 * Math.PI * baseFreq * t) * 0.15;
+                left += Math.sin(2 * Math.PI * baseFreq * 2 * t) * 0.1;
+                right += Math.sin(2 * Math.PI * baseFreq * 2 * t) * 0.1;
+                left += Math.sin(2 * Math.PI * baseFreq * 3 * t) * 0.05;
+                right += Math.sin(2 * Math.PI * baseFreq * 3 * t) * 0.05;
+                
+                const pan = Math.sin(t * 0.5) * 0.3;
+                leftData[i] = left * (1 - pan) * 0.3;
+                rightData[i] = right * (1 + pan) * 0.3;
+            }
+            
+            return buffer;
+        }
+        
+        function bufferToWav(buffer) {
+            const length = buffer.length;
+            const numberOfChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + length * numberOfChannels * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numberOfChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+            view.setUint16(32, numberOfChannels * 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, length * numberOfChannels * 2, true);
+            
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                for (let channel = 0; channel < numberOfChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            
+            return arrayBuffer;
+        }
+        
+        function downloadBuffer(buffer, filename) {
+            const wav = bufferToWav(buffer);
+            const blob = new Blob([wav], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename.replace('.mp3', '.wav');
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function generateMenuMusic() {
+            document.getElementById('status').textContent = 'Generating menu music...';
+            const buffer = generateBackgroundMusic('menu');
+            downloadBuffer(buffer, 'menu-music.wav');
+            document.getElementById('status').textContent = '✓ Menu music generated! (Note: Generated as WAV, you can convert to MP3)';
+        }
+        
+        function generateBattlefieldMusic() {
+            document.getElementById('status').textContent = 'Generating battlefield music...';
+            const buffer = generateBackgroundMusic('battlefield');
+            downloadBuffer(buffer, 'battlefield-music.wav');
+            document.getElementById('status').textContent = '✓ Battlefield music generated!';
+        }
+        
+        function generateBulletSound() {
+            document.getElementById('status').textContent = 'Generating bullet sound...';
+            const buffer = generateBulletSound();
+            downloadBuffer(buffer, 'bullet-shoot.wav');
+            document.getElementById('status').textContent = '✓ Bullet sound generated!';
+        }
+        
+        function generatePistolSound() {
+            document.getElementById('status').textContent = 'Generating pistol sound...';
+            const buffer = generateBulletSound();
+            downloadBuffer(buffer, 'pistol-shoot.wav');
+            document.getElementById('status').textContent = '✓ Pistol sound generated!';
+        }
+        
+        function generateRifleSound() {
+            document.getElementById('status').textContent = 'Generating rifle sound...';
+            const buffer = generateBulletSound();
+            downloadBuffer(buffer, 'rifle-shoot.wav');
+            document.getElementById('status').textContent = '✓ Rifle sound generated!';
+        }
+    </script>
+</body>
+</html>
+

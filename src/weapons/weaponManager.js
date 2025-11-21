@@ -19,13 +19,31 @@ export class WeaponManager {
         this.initControls();
     }
 
-    init() {
+    async init() {
         // Create weapons with bullet manager and audio manager
         this.primaryWeapon = new PrimaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
         this.secondaryWeapon = new SecondaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
         
         this.primaryWeapon.init();
         this.secondaryWeapon.init();
+        
+        // Preload weapon sounds to avoid network requests on each shot
+        if (this.audioManager) {
+            const soundsToPreload = [
+                this.primaryWeapon.bulletSoundUrl,
+                this.secondaryWeapon.bulletSoundUrl,
+                'sounds/bullet-shoot.mp3' // Fallback
+            ];
+            
+            // Preload all sounds in parallel
+            Promise.all(
+                soundsToPreload.map(url => 
+                    this.audioManager.preloadSound(url).catch(() => {
+                        // Silently fail - sound will be skipped if not found
+                    })
+                )
+            );
+        }
         
         // Start with primary weapon
         this.switchWeapon('primary');

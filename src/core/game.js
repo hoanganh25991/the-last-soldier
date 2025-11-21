@@ -58,7 +58,7 @@ export class Game {
             this.teamManager,
             this.audioManager
         );
-        this.weaponManager.init();
+        await this.weaponManager.init();
 
         // Initialize UI
         this.uiManager = new UIManager(
