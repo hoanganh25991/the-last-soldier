@@ -1,15 +1,13 @@
 import * as THREE from 'three';
 
 export class UIManager {
-    constructor(player, weaponManager, teamManager) {
+    constructor(player, weaponManager, teamManager, engine) {
         this.player = player;
         this.weaponManager = weaponManager;
         this.teamManager = teamManager;
+        this.engine = engine;
         
         this.startTime = Date.now();
-        this.fps = 60;
-        this.frameCount = 0;
-        this.lastFpsUpdate = 0;
     }
 
     init() {
@@ -77,17 +75,23 @@ export class UIManager {
             timerElement.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }
 
-        // Update FPS
-        this.frameCount++;
-        this.lastFpsUpdate += deltaTime;
-        if (this.lastFpsUpdate >= 1.0) {
-            this.fps = this.frameCount;
-            this.frameCount = 0;
-            this.lastFpsUpdate = 0;
-            
+        // Update FPS from Stats
+        if (this.engine && this.engine.stats) {
             const fpsElement = document.getElementById('fps-counter');
             if (fpsElement) {
-                fpsElement.textContent = this.fps;
+                // Get FPS from Stats panel DOM
+                // Stats panel has structure: <div class="fps">60</div>
+                const fpsDiv = this.engine.stats.dom.querySelector('.fps');
+                if (fpsDiv) {
+                    fpsElement.textContent = fpsDiv.textContent || '60';
+                } else {
+                    // Fallback: try to get from first child text
+                    const statsText = this.engine.stats.dom.textContent;
+                    const fpsMatch = statsText.match(/(\d+)/);
+                    if (fpsMatch) {
+                        fpsElement.textContent = fpsMatch[1];
+                    }
+                }
             }
         }
 

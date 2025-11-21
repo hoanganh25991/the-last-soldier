@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Stats } from 'three/addons/libs/stats.module.js';
 
 export class Engine {
     constructor() {
@@ -7,6 +8,7 @@ export class Engine {
         this.renderer = null;
         this.clock = null;
         this.container = null;
+        this.stats = null;
     }
 
     async init() {
@@ -54,6 +56,12 @@ export class Engine {
         // Clock for delta time
         this.clock = new THREE.Clock();
 
+        // Initialize Stats for FPS monitoring
+        this.stats = new Stats();
+        this.stats.showPanel(0); // 0: fps, 1: ms, 2: mb
+        // Don't add stats panel to DOM, we'll use its values for our custom display
+        this.stats.dom.style.display = 'none';
+
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
 
@@ -67,11 +75,26 @@ export class Engine {
     }
 
     update() {
+        // Update stats
+        if (this.stats) {
+            this.stats.begin();
+        }
         return this.clock.getDelta();
     }
 
     render() {
         this.renderer.render(this.scene, this.camera);
+        // End stats update
+        if (this.stats) {
+            this.stats.end();
+        }
+    }
+
+    getFPS() {
+        if (this.stats) {
+            return this.stats.dom.querySelector('.fps')?.textContent || '60';
+        }
+        return '60';
     }
 
     onWindowResize() {

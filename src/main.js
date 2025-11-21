@@ -60,7 +60,8 @@ class Game {
         this.uiManager = new UIManager(
             this.player,
             this.weaponManager,
-            this.teamManager
+            this.teamManager,
+            this.engine
         );
         this.uiManager.init();
 
