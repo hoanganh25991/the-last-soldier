@@ -31,13 +31,46 @@ export class WeaponBase {
     createMuzzleFlash() {
         if (!this.weaponMesh) return;
         
-        const flashGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+        // Create muzzle flash group
+        const flashGroup = new THREE.Group();
+        
+        // Main flash - bright yellow/orange
+        const flashGeometry = new THREE.SphereGeometry(0.15, 8, 8);
         const flashMaterial = new THREE.MeshBasicMaterial({ 
             color: 0xffff00,
             transparent: true,
-            opacity: 0.8
+            opacity: 0.9,
+            emissive: 0xffff00,
+            emissiveIntensity: 2.0
         });
-        this.muzzleFlash = new THREE.Mesh(flashGeometry, flashMaterial);
+        const mainFlash = new THREE.Mesh(flashGeometry, flashMaterial);
+        flashGroup.add(mainFlash);
+        
+        // Outer glow - orange
+        const glowGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+        const glowMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff6600,
+            transparent: true,
+            opacity: 0.6,
+            emissive: 0xff6600,
+            emissiveIntensity: 1.5
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        flashGroup.add(glow);
+        
+        // Bright core - white
+        const coreGeometry = new THREE.SphereGeometry(0.08, 6, 6);
+        const coreMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff,
+            transparent: true,
+            opacity: 1.0,
+            emissive: 0xffffff,
+            emissiveIntensity: 3.0
+        });
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        flashGroup.add(core);
+        
+        this.muzzleFlash = flashGroup;
         this.muzzleFlash.visible = false;
         this.muzzleFlash.position.set(0.4, -0.2, -0.5); // Position at barrel end
         this.weaponMesh.add(this.muzzleFlash);
@@ -79,14 +112,22 @@ export class WeaponBase {
         this.currentAmmo--;
         this.lastFireTime = now;
 
-        // Muzzle flash
+        // Muzzle flash - enhanced visibility
         if (this.muzzleFlash) {
             this.muzzleFlash.visible = true;
+            // Scale animation for flash effect
+            this.muzzleFlash.scale.set(1, 1, 1);
+            setTimeout(() => {
+                if (this.muzzleFlash) {
+                    this.muzzleFlash.scale.set(1.5, 1.5, 1.5);
+                }
+            }, 10);
             setTimeout(() => {
                 if (this.muzzleFlash) {
                     this.muzzleFlash.visible = false;
+                    this.muzzleFlash.scale.set(1, 1, 1);
                 }
-            }, 50);
+            }, 80);
         }
 
         // Raycast for hit detection
@@ -114,9 +155,17 @@ export class WeaponBase {
 
         // Create visible bullet
         if (this.bulletManager) {
-            const bulletStart = worldPosition.clone();
-            // Offset bullet start slightly forward from camera
-            bulletStart.add(direction.clone().multiplyScalar(0.5));
+            let bulletStart = worldPosition.clone();
+            
+            // Get muzzle flash position in world space for bullet origin
+            if (this.muzzleFlash && this.weaponMesh) {
+                const muzzleWorldPosition = new THREE.Vector3();
+                this.muzzleFlash.getWorldPosition(muzzleWorldPosition);
+                bulletStart = muzzleWorldPosition;
+            } else {
+                // Fallback: offset bullet start slightly forward from camera
+                bulletStart.add(direction.clone().multiplyScalar(0.5));
+            }
             
             this.bulletManager.createBullet(
                 bulletStart,

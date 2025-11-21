@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { WeaponBase } from './weaponBase.js';
 
 export class PrimaryWeapon extends WeaponBase {
-    constructor(camera, scene, teamManager) {
-        super(camera, scene, teamManager);
+    constructor(camera, scene, teamManager, bulletManager) {
+        super(camera, scene, teamManager, bulletManager);
         
         this.name = 'Rifle';
         this.icon = '🔫'; // Rifle icon

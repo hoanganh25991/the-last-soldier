@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { WeaponBase } from './weaponBase.js';
 
 export class SecondaryWeapon extends WeaponBase {
-    constructor(camera, scene, teamManager) {
-        super(camera, scene, teamManager);
+    constructor(camera, scene, teamManager, bulletManager) {
+        super(camera, scene, teamManager, bulletManager);
         
         this.name = 'Pistol';
         this.icon = '🔫'; // Pistol icon (can use different emoji if needed)
@@ -54,6 +54,55 @@ export class SecondaryWeapon extends WeaponBase {
         
         this.weaponMesh = group;
         this.camera.add(group);
+    }
+
+    createMuzzleFlash() {
+        if (!this.weaponMesh) return;
+        
+        // Create muzzle flash group
+        const flashGroup = new THREE.Group();
+        
+        // Main flash - bright yellow/orange
+        const flashGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+        const flashMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0.9,
+            emissive: 0xffff00,
+            emissiveIntensity: 2.0
+        });
+        const mainFlash = new THREE.Mesh(flashGeometry, flashMaterial);
+        flashGroup.add(mainFlash);
+        
+        // Outer glow - orange
+        const glowGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+        const glowMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff6600,
+            transparent: true,
+            opacity: 0.6,
+            emissive: 0xff6600,
+            emissiveIntensity: 1.5
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        flashGroup.add(glow);
+        
+        // Bright core - white
+        const coreGeometry = new THREE.SphereGeometry(0.06, 6, 6);
+        const coreMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff,
+            transparent: true,
+            opacity: 1.0,
+            emissive: 0xffffff,
+            emissiveIntensity: 3.0
+        });
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        flashGroup.add(core);
+        
+        this.muzzleFlash = flashGroup;
+        this.muzzleFlash.visible = false;
+        // Position at pistol barrel end (barrel is at 0.15, end is at ~0.3)
+        this.muzzleFlash.position.set(0.3, -0.15, -0.4);
+        this.weaponMesh.add(this.muzzleFlash);
     }
 }
 

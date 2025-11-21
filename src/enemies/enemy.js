@@ -13,6 +13,9 @@ export class Enemy {
     }
 
     init() {
+        // Ensure position Y is 0 (on ground)
+        this.position.y = 0;
+        
         // Create enemy mesh
         const group = new THREE.Group();
 
@@ -64,7 +67,7 @@ export class Enemy {
         const distance = 5 + Math.random() * 15;
         this.targetPosition = new THREE.Vector3(
             this.position.x + Math.cos(angle) * distance,
-            this.position.y,
+            0, // Always on ground
             this.position.z + Math.sin(angle) * distance
         );
     }
@@ -97,18 +100,30 @@ export class Enemy {
             const distanceToTarget = this.position.distanceTo(this.targetPosition);
 
             if (distanceToTarget > 1) {
-                this.position.add(direction.multiplyScalar(moveDistance));
+                // Only move horizontally (X and Z), keep Y at 0
+                const horizontalMove = direction.clone();
+                horizontalMove.y = 0;
+                horizontalMove.normalize();
+                
+                this.position.x += horizontalMove.x * moveDistance;
+                this.position.z += horizontalMove.z * moveDistance;
+                this.position.y = 0; // Always keep on ground
+                
                 this.mesh.position.copy(this.position);
                 
                 // Rotate to face movement direction
-                if (direction.length() > 0) {
-                    this.mesh.lookAt(this.position.clone().add(direction));
+                if (horizontalMove.length() > 0) {
+                    this.mesh.lookAt(this.position.clone().add(horizontalMove));
                 }
             } else {
                 // Reached target, set new one
                 this.setRandomTarget();
             }
         }
+
+        // Ensure position Y is always 0 (on ground)
+        this.position.y = 0;
+        this.mesh.position.y = 0;
 
         // Update health bar to face camera (simplified)
         if (this.healthBar) {
