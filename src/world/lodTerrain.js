@@ -1,0 +1,60 @@
+import * as THREE from 'three';
+
+export class LODTerrain {
+    constructor() {
+        this.mesh = null;
+        this.lodLevels = [];
+        this.currentLOD = 0;
+    }
+
+    async init() {
+        // Create LOD levels with different resolutions
+        const lod = new THREE.LOD();
+
+        // High detail (close)
+        const highDetail = this.createTerrainMesh(128, 50);
+        lod.addLevel(highDetail, 0);
+
+        // Medium detail
+        const mediumDetail = this.createTerrainMesh(64, 50);
+        lod.addLevel(mediumDetail, 30);
+
+        // Low detail (far)
+        const lowDetail = this.createTerrainMesh(32, 50);
+        lod.addLevel(lowDetail, 60);
+
+        this.mesh = lod;
+    }
+
+    createTerrainMesh(segments, size) {
+        const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+        
+        // Simple height variation
+        const vertices = geometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            const x = vertices[i];
+            const z = vertices[i + 2];
+            vertices[i + 1] = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 2;
+        }
+        geometry.attributes.position.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        const material = new THREE.MeshLambertMaterial({ 
+            color: 0x4a7c59,
+            wireframe: false
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.receiveShadow = true;
+        
+        return mesh;
+    }
+
+    update(camera) {
+        if (this.mesh && camera) {
+            this.mesh.update(camera);
+        }
+    }
+}
+

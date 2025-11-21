@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Người Lính Cuối</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <!-- UI Elements -->
+    <div id="hud">
+        <!-- Top Left -->
+        <div class="hud-top-left">
+            <button class="btn-exit" id="btn-exit">✕</button>
+            <div class="compass" id="compass">
+                <div class="compass-arrow" id="compass-arrow"></div>
+                <div class="compass-labels">
+                    <span class="compass-label" style="top: 0;">N</span>
+                    <span class="compass-label" style="right: 0;">E</span>
+                    <span class="compass-label" style="bottom: 0;">S</span>
+                    <span class="compass-label" style="left: 0;">W</span>
+                </div>
+            </div>
+            <button class="btn-chat" id="btn-chat">💬</button>
+        </div>
+
+        <!-- Top Center -->
+        <div class="hud-top-center">
+            <div class="team-score">
+                <div class="health-bar red-bar" id="team-red-bar">
+                    <span class="score-value" id="team-red-score">100</span>
+                </div>
+                <span class="flag-icon" id="flag-red">🇬🇧</span>
+            </div>
+            <div class="timer" id="timer">49:37</div>
+            <div class="team-score">
+                <span class="flag-icon" id="flag-blue">🏥</span>
+                <div class="health-bar blue-bar" id="team-blue-bar">
+                    <span class="score-value" id="team-blue-score">100</span>
+                </div>
+            </div>
+            <div class="objectives" id="objectives">A B C D E</div>
+        </div>
+
+        <!-- Top Right -->
+        <div class="hud-top-right">
+            <div class="weapon-icon" id="weapon-icon">🔫</div>
+            <div class="ammo-count" id="ammo-count">
+                <span id="ammo-current">4</span>
+                <span id="ammo-separator">/</span>
+                <span id="ammo-reserve">54</span>
+            </div>
+            <div class="health-bar red-bar" id="player-health-bar">
+                <span class="health-value" id="player-health">100 +</span>
+            </div>
+        </div>
+
+        <!-- Bottom Left - Movement Controls -->
+        <div class="hud-bottom-left">
+            <div class="joystick-container" id="joystick-container">
+                <div class="joystick" id="joystick"></div>
+            </div>
+            <div class="fps-counter" id="fps-counter">60</div>
+        </div>
+
+        <!-- Bottom Right - Action Controls -->
+        <div class="hud-bottom-right">
+            <button class="btn-action" id="btn-fire">
+                <span class="btn-icon">🎯</span>
+            </button>
+            <button class="btn-action" id="btn-aim">
+                <span class="btn-icon">🔍</span>
+            </button>
+            <button class="btn-action" id="btn-reload">
+                <span class="btn-icon">🔄</span>
+            </button>
+            <button class="btn-action" id="btn-grenade">
+                <span class="btn-icon">💣</span>
+            </button>
+            <button class="btn-action" id="btn-sprint">
+                <span class="btn-icon">🏃</span>
+            </button>
+            <button class="btn-action" id="btn-crouch">
+                <span class="btn-icon">⬇️</span>
+            </button>
+        </div>
+
+        <!-- Center Crosshair -->
+        <div class="crosshair" id="crosshair"></div>
+    </div>
+
+    <!-- Weapon Display -->
+    <div class="weapon-display" id="weapon-display"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <h1>Người Lính Cuối</h1>
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+            <p id="loading-text">Đang tải...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
+
