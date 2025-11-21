@@ -672,22 +672,18 @@ export class MenuManager {
     }
 
     startMenuMusic() {
-        // Use a placeholder URL - user should replace with actual music file
-        // For now, we'll use a data URL or placeholder
-        // In production, replace with actual music file path
-        const menuMusicUrl = 'sounds/menu-music.mp3'; // Placeholder - user should add actual file
+        // Try to load music file, will fallback to generated sound if not found
+        const menuMusicUrl = 'sounds/menu-music.mp3';
         this.audioManager.playMenuMusic(menuMusicUrl).catch(() => {
-            // Silently fail if music file doesn't exist
-            console.debug('Menu music file not found, skipping...');
+            // Fallback handled in AudioManager, this is just for safety
         });
     }
 
     startBattlefieldMusic() {
-        // Use a placeholder URL - user should replace with actual music file
-        const battlefieldMusicUrl = 'sounds/battlefield-music.mp3'; // Placeholder - user should add actual file
+        // Try to load music file, will fallback to generated sound if not found
+        const battlefieldMusicUrl = 'sounds/battlefield-music.mp3';
         this.audioManager.playBattlefieldMusic(battlefieldMusicUrl).catch(() => {
-            // Silently fail if music file doesn't exist
-            console.debug('Battlefield music file not found, skipping...');
+            // Fallback handled in AudioManager, this is just for safety
         });
     }
 
