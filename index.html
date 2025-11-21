@@ -110,6 +110,295 @@
         </div>
     </div>
 
+    <!-- Menu Screens -->
+    <!-- Main Menu -->
+    <div id="screen-main-menu" class="menu-screen active">
+        <div class="menu-background"></div>
+        <div class="menu-content">
+            <div class="menu-top-right">
+                <div class="discord-icon">💬</div>
+                <div class="community-maps-thumbnail">
+                    <div class="community-maps-image"></div>
+                    <div class="community-maps-label">COMMUNITY MAPS</div>
+                </div>
+            </div>
+            <div class="main-menu-options">
+                <button id="menu-play" class="menu-option active">PLAY</button>
+                <button id="menu-customize" class="menu-option">CUSTOMIZE</button>
+                <button id="menu-settings" class="menu-option">SETTINGS</button>
+                <button id="menu-about" class="menu-option">ABOUT</button>
+                <button id="menu-quit" class="menu-option">QUIT</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Play Mode Selection -->
+    <div id="screen-play-mode" class="menu-screen">
+        <div class="menu-background"></div>
+        <div class="menu-content">
+            <button class="btn-back">←</button>
+            <div class="play-mode-grid">
+                <div class="play-mode-panel" id="play-mode-map-editor">
+                    <div class="play-mode-preview"></div>
+                    <h2>MAP EDITOR</h2>
+                    <p>Make your own maps!</p>
+                </div>
+                <div class="play-mode-panel" id="play-mode-join-match">
+                    <div class="play-mode-preview"></div>
+                    <h2>JOIN MATCH</h2>
+                    <p>Join your friends game.</p>
+                    <div class="ip-address">192.168.43.1:7777</div>
+                </div>
+                <div class="play-mode-panel" id="play-mode-online-match">
+                    <div class="play-mode-preview"></div>
+                    <h2>ONLINE MATCH</h2>
+                    <p>Find the game from the server browser.</p>
+                </div>
+                <div class="play-mode-panel active" id="play-mode-create-match">
+                    <div class="play-mode-preview"></div>
+                    <h2>CREATE MATCH</h2>
+                    <p>Make your own custom match to play over local network.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Battlefield Deploy -->
+    <div id="screen-battlefield-deploy" class="menu-screen">
+        <div class="menu-background"></div>
+        <div class="menu-content">
+            <div class="battlefield-top">
+                <button class="btn-back">←</button>
+                <button class="btn-chat-menu">💬</button>
+                <div class="battlefield-scores">
+                    <div class="team-score-battlefield">
+                        <span class="score-value">100</span>
+                        <span class="flag-icon">🇬🇧</span>
+                        <div class="score-bar red-bar"></div>
+                    </div>
+                    <div class="timer-battlefield">49:59</div>
+                    <div class="team-score-battlefield">
+                        <span class="flag-icon">🇩🇪</span>
+                        <span class="score-value">100</span>
+                        <div class="score-bar blue-bar"></div>
+                    </div>
+                </div>
+                <div class="strategic-points">
+                    <span class="point">A</span>
+                    <span class="point">B</span>
+                    <span class="point">C</span>
+                    <span class="point">D</span>
+                    <span class="point">E</span>
+                </div>
+            </div>
+            <div class="battlefield-map">
+                <canvas id="battlefield-canvas"></canvas>
+            </div>
+            <div class="battlefield-bottom">
+                <div class="deploy-controls">
+                    <div class="deploy-icons">
+                        <div class="deploy-icon">⭐</div>
+                        <div class="deploy-icon">+</div>
+                        <div class="deploy-icon">🇬🇧</div>
+                        <div class="deploy-icon">🚫</div>
+                        <div class="deploy-icon">🚗</div>
+                    </div>
+                    <button id="btn-deploy" class="btn-deploy">DEPLOY</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customize Screen -->
+    <div id="screen-customize" class="menu-screen">
+        <div class="menu-background"></div>
+        <div class="menu-content">
+            <button class="btn-back">←</button>
+            <h1 class="screen-title">CUSTOMIZE</h1>
+            <div class="customize-content">
+                <div class="customize-left">
+                    <div class="weapon-section">
+                        <h3>PRIMARY</h3>
+                        <div class="weapon-display-large">
+                            <div class="weapon-silhouette" id="primary-display"></div>
+                        </div>
+                        <div class="weapon-list">
+                            <div class="weapon-option-primary selected" data-weapon="MP40">
+                                <div class="weapon-silhouette-small"></div>
+                                <span>MP40</span>
+                            </div>
+                            <div class="weapon-option-primary" data-weapon="Sten">
+                                <div class="weapon-silhouette-small"></div>
+                                <span>Sten</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="weapon-section">
+                        <h3>SECONDARY</h3>
+                        <div class="weapon-display-large">
+                            <div class="weapon-silhouette" id="secondary-display"></div>
+                        </div>
+                    </div>
+                    <div class="weapon-section">
+                        <h3>GADGET</h3>
+                        <div class="weapon-display-large">
+                            <div class="weapon-silhouette empty">🚫</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="customize-right">
+                    <div class="character-preview"></div>
+                </div>
+            </div>
+            <div class="customize-bottom">
+                <input type="text" id="player-name-input" class="player-name-input" placeholder="player name..." value="player name...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="screen-settings" class="menu-screen">
+        <div class="menu-background"></div>
+        <div class="menu-content settings-content">
+            <button class="btn-back">←</button>
+            <h1 class="screen-title">SETTINGS</h1>
+            <div class="settings-grid">
+                <div class="settings-row">
+                    <div class="settings-item">
+                        <label>MUSIC</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="music" min="0" max="100" value="100">
+                            <span class="settings-value" data-display="music">100%</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <label>GAME</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="game" min="0" max="100" value="100">
+                            <span class="settings-value" data-display="game">100%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-item">
+                        <label>GRAPHICS</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="graphics" min="0" max="100" value="50">
+                            <span class="settings-value" data-display="graphics">MED</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <label>RESOLUTION</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="resolution" min="0" max="100" value="80">
+                            <span class="settings-value" data-display="resolution">80%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-item">
+                        <label>REAL-TIME SHADOWS</label>
+                        <input type="checkbox" class="settings-checkbox" data-setting="realTimeShadows">
+                    </div>
+                    <div class="settings-item">
+                        <label>BAKE SHADOWS</label>
+                        <input type="checkbox" class="settings-checkbox" data-setting="bakeShadows">
+                    </div>
+                    <div class="settings-item">
+                        <label>FRAME RATE</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="frameRate" min="30" max="120" value="60" step="30">
+                            <span class="settings-value" data-display="frameRate">60 FPS</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-item">
+                        <label>BLOOM</label>
+                        <input type="checkbox" class="settings-checkbox" data-setting="bloom">
+                    </div>
+                    <div class="settings-item">
+                        <label>MOTION BLUR</label>
+                        <input type="checkbox" class="settings-checkbox" data-setting="motionBlur">
+                    </div>
+                    <div class="settings-item">
+                        <label>FISHEYE LENS</label>
+                        <input type="checkbox" class="settings-checkbox" data-setting="fisheyeLens">
+                    </div>
+                    <div class="settings-item">
+                        <label>FILM GRAIN</label>
+                        <input type="checkbox" class="settings-checkbox" data-setting="filmGrain" checked>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-item">
+                        <label>GYRO LOOK</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="gyroLook" min="0" max="100" value="0">
+                            <span class="settings-value" data-display="gyroLook">0%</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <label>GYRO ADS</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="gyroADS" min="0" max="100" value="0">
+                            <span class="settings-value" data-display="gyroADS">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-item">
+                        <label>LOOK SENSITIVITY</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="lookSensitivity" min="0" max="100" value="50">
+                            <span class="settings-value" data-display="lookSensitivity">50%</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <label>ADS SENS</label>
+                        <div class="settings-control">
+                            <input type="range" class="settings-slider" data-setting="adsSens" min="0" max="100" value="25">
+                            <span class="settings-value" data-display="adsSens">25%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Screen -->
+    <div id="screen-about" class="menu-screen">
+        <div class="menu-background"></div>
+        <div class="menu-content about-content">
+            <button class="btn-back">←</button>
+            <div class="about-text">
+                <div class="about-version">0.7.2</div>
+                <div class="about-engine">Unity 2022.3.62f2</div>
+                <div class="about-section">
+                    <h2>Credits:</h2>
+                    <p><strong>Game By:</strong> Mohammad Alizadeh</p>
+                </div>
+                <div class="about-section">
+                    <h2>Special Thanks:</h2>
+                    <p>Infini_</p>
+                    <p>VIC</p>
+                    <p>Exi</p>
+                </div>
+                <div class="about-section">
+                    <h2>Sound Design:</h2>
+                    <p>Haven Kendrick</p>
+                    <p>Study-Sound-Girl</p>
+                    <p>The Relaxed Guy</p>
+                </div>
+                <div class="about-section">
+                    <h2>Music:</h2>
+                    <p>Jingle Punks</p>
+                    <p>For You King</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script type="importmap">
     {

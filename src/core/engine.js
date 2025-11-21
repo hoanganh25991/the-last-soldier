@@ -59,8 +59,13 @@ export class Engine {
         // Initialize Stats for FPS monitoring
         this.stats = new Stats();
         this.stats.showPanel(0); // 0: fps, 1: ms, 2: mb
-        // Don't add stats panel to DOM, we'll use its values for our custom display
-        this.stats.dom.style.display = 'none';
+        // Add stats to DOM but hide it - it needs to be in DOM to update
+        this.stats.dom.style.position = 'fixed';
+        this.stats.dom.style.top = '0';
+        this.stats.dom.style.left = '0';
+        this.stats.dom.style.zIndex = '10000';
+        this.stats.dom.style.visibility = 'hidden'; // Use visibility instead of display so it still updates
+        document.body.appendChild(this.stats.dom);
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());

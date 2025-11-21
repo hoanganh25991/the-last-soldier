@@ -78,19 +78,37 @@ export class UIManager {
         // Update FPS from Stats
         if (this.engine && this.engine.stats) {
             const fpsElement = document.getElementById('fps-counter');
-            if (fpsElement) {
-                // Get FPS from Stats panel DOM
-                // Stats panel has structure: <div class="fps">60</div>
+            if (fpsElement && this.engine.stats.dom) {
+                // Stats panel structure: <div><canvas></canvas><div class="fps">60</div></div>
+                // Try multiple ways to get FPS value
+                let fpsValue = null;
+                
+                // Method 1: Look for .fps class
                 const fpsDiv = this.engine.stats.dom.querySelector('.fps');
                 if (fpsDiv) {
-                    fpsElement.textContent = fpsDiv.textContent || '60';
-                } else {
-                    // Fallback: try to get from first child text
-                    const statsText = this.engine.stats.dom.textContent;
-                    const fpsMatch = statsText.match(/(\d+)/);
-                    if (fpsMatch) {
-                        fpsElement.textContent = fpsMatch[1];
+                    fpsValue = fpsDiv.textContent.trim();
+                }
+                
+                // Method 2: Get from all text nodes
+                if (!fpsValue) {
+                    const allText = this.engine.stats.dom.textContent || '';
+                    const match = allText.match(/FPS[:\s]*(\d+)/i) || allText.match(/(\d+)/);
+                    if (match) {
+                        fpsValue = match[1];
                     }
+                }
+                
+                // Method 3: Get from first number found
+                if (!fpsValue) {
+                    const text = this.engine.stats.dom.innerText || this.engine.stats.dom.textContent || '';
+                    const numbers = text.match(/\d+/g);
+                    if (numbers && numbers.length > 0) {
+                        fpsValue = numbers[0];
+                    }
+                }
+                
+                if (fpsValue) {
+                    fpsElement.textContent = fpsValue;
                 }
             }
         }

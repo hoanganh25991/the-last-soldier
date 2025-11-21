@@ -403,3 +403,727 @@ body {
     }
 }
 
+/* ============================================
+   MENU SYSTEM
+   ============================================ */
+
+.menu-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2000;
+    display: none;
+}
+
+.menu-screen.active {
+    display: block;
+}
+
+.menu-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    opacity: 0.95;
+}
+
+.menu-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Back Button */
+.btn-back {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 50px;
+    height: 50px;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 32px;
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.btn-back:hover {
+    transform: translateX(-5px);
+}
+
+/* ============================================
+   MAIN MENU
+   ============================================ */
+
+#screen-main-menu {
+    background-image: url('../images/main-menu.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.menu-top-right {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.discord-icon {
+    width: 50px;
+    height: 50px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.discord-icon:hover {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.community-maps-thumbnail {
+    width: 200px;
+    height: 150px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #ff6600;
+    border-radius: 5px;
+    position: relative;
+    overflow: hidden;
+}
+
+.community-maps-image {
+    width: 100%;
+    height: 70%;
+    background: linear-gradient(135deg, #4a7c59 0%, #6b9b7a 100%);
+    position: relative;
+}
+
+.community-maps-image::before {
+    content: 'VALLEY';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.community-maps-label {
+    width: 100%;
+    height: 30%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.main-menu-options {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 30px;
+    align-items: center;
+}
+
+.menu-option {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 10px 20px;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.menu-option.active,
+.menu-option:hover {
+    color: #ff6600;
+    transform: scale(1.1);
+}
+
+/* ============================================
+   PLAY MODE SELECTION
+   ============================================ */
+
+#screen-play-mode {
+    background-image: url('../images/play-mode.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.play-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding: 100px 50px 50px;
+    height: 100%;
+    align-content: center;
+}
+
+.play-mode-panel {
+    background: rgba(30, 30, 30, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    min-height: 300px;
+}
+
+.play-mode-panel:hover {
+    background: rgba(40, 40, 40, 0.9);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-5px);
+}
+
+.play-mode-panel.active {
+    background: rgba(80, 50, 30, 0.9);
+    border-color: #ff6600;
+}
+
+.play-mode-preview {
+    width: 100%;
+    height: 150px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.play-mode-panel h2 {
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.play-mode-panel p {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin: 0;
+}
+
+.ip-address {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: monospace;
+    margin-top: 10px;
+}
+
+/* ============================================
+   BATTLEFIELD DEPLOY
+   ============================================ */
+
+#screen-battlefield-deploy {
+    background-image: url('../images/battlefield-deploy.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.battlefield-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+}
+
+.btn-chat-menu {
+    position: absolute;
+    top: 20px;
+    left: 80px;
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.battlefield-scores {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    margin-top: 10px;
+}
+
+.team-score-battlefield {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.score-bar {
+    width: 150px;
+    height: 25px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.timer-battlefield {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px 15px;
+    border-radius: 5px;
+}
+
+.strategic-points {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.point {
+    width: 30px;
+    height: 30px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.battlefield-map {
+    position: absolute;
+    top: 150px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 60%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px dashed #ffd700;
+    border-radius: 10px;
+}
+
+#battlefield-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.battlefield-bottom {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.deploy-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.deploy-icons {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.deploy-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(50, 50, 50, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.deploy-icon:hover {
+    background: rgba(70, 70, 70, 0.9);
+    transform: scale(1.1);
+}
+
+.btn-deploy {
+    padding: 15px 60px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(50, 50, 50, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.3s;
+}
+
+.btn-deploy:hover {
+    background: rgba(70, 70, 70, 0.9);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.05);
+}
+
+/* ============================================
+   CUSTOMIZE SCREEN
+   ============================================ */
+
+#screen-customize {
+    background-image: url('../images/customize.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.screen-title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 36px;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    z-index: 10;
+}
+
+.customize-content {
+    display: flex;
+    height: 100%;
+    padding: 100px 50px 100px;
+    gap: 50px;
+}
+
+.customize-left {
+    flex: 0 0 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.weapon-section {
+    background: rgba(30, 30, 30, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.weapon-section h3 {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.weapon-display-large {
+    width: 100%;
+    height: 150px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.weapon-silhouette {
+    width: 200px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+}
+
+.weapon-silhouette.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.weapon-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.weapon-option-primary,
+.weapon-option-secondary {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.weapon-option-primary:hover,
+.weapon-option-secondary:hover {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.weapon-option-primary.selected,
+.weapon-option-secondary.selected {
+    background: rgba(255, 102, 0, 0.3);
+    border-color: #ff6600;
+}
+
+.weapon-silhouette-small {
+    width: 60px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.weapon-option-primary span,
+.weapon-option-secondary span {
+    color: #fff;
+    font-weight: bold;
+}
+
+.customize-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.character-preview {
+    width: 300px;
+    height: 400px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+}
+
+.customize-bottom {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    display: flex;
+    justify-content: center;
+}
+
+.player-name-input {
+    padding: 10px 20px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    width: 300px;
+    text-align: center;
+}
+
+.player-name-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   SETTINGS SCREEN
+   ============================================ */
+
+#screen-settings {
+    background-image: url('../images/settings.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.settings-content {
+    padding: 100px 50px 50px;
+    overflow-y: auto;
+    max-height: 100vh;
+}
+
+.settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.settings-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.settings-item {
+    background: rgba(30, 30, 30, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.settings-item label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.settings-control {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.settings-slider {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.settings-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.settings-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.settings-value {
+    min-width: 60px;
+    font-size: 14px;
+    color: #fff;
+    text-align: right;
+}
+
+.settings-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #ff6600;
+}
+
+/* ============================================
+   ABOUT SCREEN
+   ============================================ */
+
+#screen-about {
+    background-image: url('../images/about.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.about-content {
+    padding: 100px 50px 50px;
+    overflow-y: auto;
+    max-height: 100vh;
+}
+
+.about-text {
+    max-width: 600px;
+    margin: 0 auto;
+    color: #fff;
+    line-height: 1.8;
+}
+
+.about-version {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.about-engine {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 30px;
+}
+
+.about-section {
+    margin-bottom: 30px;
+}
+
+.about-section h2 {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.about-section p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 5px 0;
+}
+
+.about-section strong {
+    font-weight: bold;
+}
+
