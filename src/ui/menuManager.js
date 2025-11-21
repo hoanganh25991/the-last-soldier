@@ -1,5 +1,6 @@
 import { MainMenuBackground } from './mainMenuBackground.js';
 import { BattlefieldDeployBackground } from './battlefieldDeployBackground.js';
+import { PlayModeBackground } from './playModeBackground.js';
 
 export class MenuManager {
     constructor() {
@@ -7,6 +8,7 @@ export class MenuManager {
         this.gameInstance = null;
         this.mainMenuBackground = null;
         this.battlefieldDeployBackground = null;
+        this.playModeBackgrounds = {};
         this.settings = {
             music: 100,
             game: 100,
@@ -67,6 +69,34 @@ export class MenuManager {
                 this.mainMenuBackground.start();
             }, 100);
         }
+    }
+
+    initPlayModeBackgrounds() {
+        const modes = [
+            { id: 'preview-map-editor', mode: 'map-editor' },
+            { id: 'preview-join-match', mode: 'join-match' },
+            { id: 'preview-online-match', mode: 'online-match' },
+            { id: 'preview-create-match', mode: 'create-match' }
+        ];
+
+        modes.forEach(({ id, mode }) => {
+            const container = document.getElementById(id);
+            if (container) {
+                // If already initialized, just start it
+                if (this.playModeBackgrounds[mode]) {
+                    this.playModeBackgrounds[mode].start();
+                    return;
+                }
+                
+                // Wait a bit for container to be properly sized and visible
+                setTimeout(() => {
+                    const background = new PlayModeBackground(container, mode);
+                    background.init();
+                    background.start();
+                    this.playModeBackgrounds[mode] = background;
+                }, 150);
+            }
+        });
     }
 
     initializeWeaponSelection() {
@@ -259,6 +289,15 @@ export class MenuManager {
             this.mainMenuBackground.start();
         } else if (this.mainMenuBackground) {
             this.mainMenuBackground.stop();
+        }
+
+        // Start/stop play mode backgrounds
+        if (screenName === 'play-mode') {
+            this.initPlayModeBackgrounds();
+        } else {
+            Object.values(this.playModeBackgrounds).forEach(bg => {
+                if (bg) bg.stop();
+            });
         }
 
         // Start/stop battlefield deploy background
