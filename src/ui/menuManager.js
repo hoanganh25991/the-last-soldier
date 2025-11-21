@@ -167,71 +167,39 @@ export class MenuManager {
     }
 
     setupCustomizeListeners() {
-        // Section header click to toggle options
+        // Define available options for each category
+        // Primary = long gun (rifle), Secondary = short gun (pistol)
+        const categoryOptions = {
+            primary: [
+                { name: 'MP40', icon: '🔫' },  // Long gun
+                { name: 'Sten', icon: '🔫' }   // Long gun
+            ],
+            secondary: [
+                { name: 'Pistol', icon: '🔫' }, // Short gun
+                { name: 'Luger', icon: '🔫' }   // Short gun
+            ],
+            gadget: [
+                { name: 'Grenade', icon: '💣' },
+                { name: 'Medkit', icon: '🏥' },
+                { name: 'Binoculars', icon: '🔭' }
+            ]
+        };
+
+        // Section click to show options in right panel
         const weaponSections = document.querySelectorAll('.weapon-section');
         weaponSections.forEach(section => {
-            const header = section.querySelector('.weapon-section-header');
-            const weaponList = section.querySelector('.weapon-list');
-            const displayLarge = section.querySelector('.weapon-display-large');
+            const sectionType = section.dataset.section;
             
-            if (header && weaponList) {
-                // Make the entire section header area clickable
-                const toggleList = (e) => {
-                    e.stopPropagation();
-                    // Toggle display
-                    const isVisible = weaponList.style.display !== 'none';
-                    weaponList.style.display = isVisible ? 'none' : 'block';
-                };
+            section.addEventListener('click', () => {
+                // Remove active class from all sections
+                document.querySelectorAll('.weapon-section').forEach(s => {
+                    s.classList.remove('active');
+                });
+                // Add active class to clicked section
+                section.classList.add('active');
                 
-                header.addEventListener('click', toggleList);
-                if (displayLarge) {
-                    displayLarge.addEventListener('click', toggleList);
-                }
-            }
-        });
-
-        // Primary weapon selection
-        const primaryWeapons = document.querySelectorAll('.weapon-option-primary');
-        primaryWeapons.forEach(option => {
-            option.addEventListener('click', (e) => {
-                e.stopPropagation();
-                document.querySelectorAll('.weapon-option-primary').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                option.classList.add('selected');
-                this.selectedWeapons.primary = option.dataset.weapon;
-                this.updateDetailView('primary', option.dataset.weapon);
-                this.updateWeaponDisplay('primary', option.dataset.weapon);
-            });
-        });
-
-        // Secondary weapon selection
-        const secondaryWeapons = document.querySelectorAll('.weapon-option-secondary');
-        secondaryWeapons.forEach(option => {
-            option.addEventListener('click', (e) => {
-                e.stopPropagation();
-                document.querySelectorAll('.weapon-option-secondary').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                option.classList.add('selected');
-                this.selectedWeapons.secondary = option.dataset.weapon;
-                this.updateDetailView('secondary', option.dataset.weapon);
-                this.updateWeaponDisplay('secondary', option.dataset.weapon);
-            });
-        });
-
-        // Gadget selection
-        const gadgets = document.querySelectorAll('.weapon-option-gadget');
-        gadgets.forEach(option => {
-            option.addEventListener('click', (e) => {
-                e.stopPropagation();
-                document.querySelectorAll('.weapon-option-gadget').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                option.classList.add('selected');
-                this.selectedWeapons.gadget = option.dataset.gadget;
-                this.updateDetailView('gadget', option.dataset.gadget);
-                this.updateWeaponDisplay('gadget', option.dataset.gadget);
+                // Show options in right panel
+                this.showCategoryOptions(sectionType, categoryOptions[sectionType]);
             });
         });
 
@@ -244,18 +212,82 @@ export class MenuManager {
             playerNameInput.value = this.playerName;
         }
 
-        // Initialize detail view with default primary weapon
-        this.updateDetailView('primary', this.selectedWeapons.primary);
-        this.updateWeaponDisplay('primary', this.selectedWeapons.primary);
-        this.updateWeaponDisplay('secondary', this.selectedWeapons.secondary);
+        // Initialize with primary section active
+        const primarySection = document.querySelector('.weapon-section[data-section="primary"]');
+        if (primarySection) {
+            primarySection.click();
+        }
+    }
+
+    showCategoryOptions(categoryType, options) {
+        const detailView = document.getElementById('item-detail-view');
+        if (!detailView) return;
+
+        // Get current selection for this category
+        const currentSelection = this.selectedWeapons[categoryType] || options[0].name;
+        
+        // Create options list HTML
+        const optionsHtml = options.map(option => {
+            const isSelected = option.name === currentSelection;
+            const optionClass = `weapon-option-${categoryType}`;
+            return `
+                <div class="${optionClass} ${isSelected ? 'selected' : ''}" 
+                     data-${categoryType}="${option.name}">
+                    <div class="weapon-silhouette-small">${option.icon}</div>
+                    <span>${option.name}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Show options list
+        detailView.innerHTML = `
+            <div class="item-detail-content">
+                <div class="weapon-list" id="category-options-list">
+                    ${optionsHtml}
+                </div>
+            </div>
+        `;
+        
+        // Update stats for currently selected item
+        this.updateDetailView(categoryType, currentSelection);
+
+        // Add click listeners to options
+        const optionElements = detailView.querySelectorAll(`[data-${categoryType}]`);
+        optionElements.forEach(element => {
+            element.addEventListener('click', () => {
+                const itemName = element.dataset[categoryType];
+                this.selectItem(categoryType, itemName, options);
+            });
+        });
+    }
+
+    selectItem(categoryType, itemName, options) {
+        // Update selection
+        this.selectedWeapons[categoryType] = itemName;
+        
+        // Update selected state in UI
+        const optionElements = document.querySelectorAll(`[data-${categoryType}]`);
+        optionElements.forEach(element => {
+            element.classList.remove('selected');
+            if (element.dataset[categoryType] === itemName) {
+                element.classList.add('selected');
+            }
+        });
+
+        // Update weapon display on left
+        this.updateWeaponDisplay(categoryType, itemName);
+        
+        // Update detail stats
+        this.updateDetailView(categoryType, itemName);
     }
 
     updateWeaponDisplay(type, itemName) {
+        // Primary = long gun (rifle), Secondary = short gun (pistol)
         const weaponIcons = {
-            'MP40': '🔫',
-            'Sten': '🔫',
-            'Pistol': '🔫',
-            'Luger': '🔫',
+            'MP40': '🔫',      // Long gun
+            'Sten': '🔫',      // Long gun
+            'Pistol': '🔫',    // Short gun
+            'Luger': '🔫',    // Short gun
             'Grenade': '💣',
             'Medkit': '🏥',
             'Binoculars': '🔭'
@@ -264,30 +296,24 @@ export class MenuManager {
         if (type === 'primary') {
             const display = document.getElementById('primary-display');
             if (display) {
-                display.textContent = weaponIcons[itemName] || '';
-                display.style.display = 'flex';
-                display.style.alignItems = 'center';
-                display.style.justifyContent = 'center';
-                display.style.fontSize = '60px';
+                display.textContent = weaponIcons[itemName] || '🔫';
+                display.classList.remove('empty');
             }
         } else if (type === 'secondary') {
             const display = document.getElementById('secondary-display');
             if (display) {
-                display.textContent = weaponIcons[itemName] || '';
-                display.style.display = 'flex';
-                display.style.alignItems = 'center';
-                display.style.justifyContent = 'center';
-                display.style.fontSize = '60px';
+                display.textContent = weaponIcons[itemName] || '🔫';
+                display.classList.remove('empty');
             }
         } else if (type === 'gadget') {
             const display = document.getElementById('gadget-display');
             if (display) {
                 display.textContent = weaponIcons[itemName] || '🚫';
-                display.classList.remove('empty');
-                display.style.display = 'flex';
-                display.style.alignItems = 'center';
-                display.style.justifyContent = 'center';
-                display.style.fontSize = '60px';
+                if (itemName) {
+                    display.classList.remove('empty');
+                } else {
+                    display.classList.add('empty');
+                }
             }
         }
     }
@@ -297,10 +323,11 @@ export class MenuManager {
         if (!detailView) return;
 
         // Weapon stats data
+        // Primary = long gun (rifle), Secondary = short gun (pistol)
         const weaponStats = {
             'MP40': {
                 name: 'MP40',
-                icon: '🔫',
+                icon: '🔫', // Long gun
                 stats: {
                     'Damage': '30',
                     'Fire Rate': '600 RPM',
@@ -312,7 +339,7 @@ export class MenuManager {
             },
             'Sten': {
                 name: 'Sten',
-                icon: '🔫',
+                icon: '🔫', // Long gun
                 stats: {
                     'Damage': '28',
                     'Fire Rate': '550 RPM',
@@ -324,7 +351,7 @@ export class MenuManager {
             },
             'Pistol': {
                 name: 'Pistol',
-                icon: '🔫',
+                icon: '🔫', // Short gun
                 stats: {
                     'Damage': '20',
                     'Fire Rate': '300 RPM',
@@ -336,7 +363,7 @@ export class MenuManager {
             },
             'Luger': {
                 name: 'Luger',
-                icon: '🔫',
+                icon: '🔫', // Short gun
                 stats: {
                     'Damage': '25',
                     'Fire Rate': '350 RPM',
@@ -387,6 +414,24 @@ export class MenuManager {
         const itemData = weaponStats[itemName];
         if (!itemData) return;
 
+        // Check if options list exists, if not create it
+        let optionsList = detailView.querySelector('.weapon-list');
+        let detailContent = detailView.querySelector('.item-detail-content');
+        
+        if (!detailContent) {
+            // If no content exists, create basic structure
+            detailContent = document.createElement('div');
+            detailContent.className = 'item-detail-content';
+            detailView.appendChild(detailContent);
+        }
+
+        // Remove existing stats section if any
+        const existingStats = detailContent.querySelector('.item-detail-stats-section');
+        if (existingStats) {
+            existingStats.remove();
+        }
+
+        // Create stats HTML
         const statsHtml = Object.entries(itemData.stats).map(([label, value]) => `
             <div class="item-detail-stat">
                 <div class="item-detail-stat-label">${label}</div>
@@ -394,15 +439,17 @@ export class MenuManager {
             </div>
         `).join('');
 
-        detailView.innerHTML = `
-            <div class="item-detail-content">
-                <div class="item-detail-name">${itemData.name}</div>
-                <div class="item-detail-image">${itemData.icon}</div>
-                <div class="item-detail-stats">
-                    ${statsHtml}
-                </div>
+        // Append stats section below options list
+        const statsSection = document.createElement('div');
+        statsSection.className = 'item-detail-stats-section';
+        statsSection.innerHTML = `
+            <div class="item-detail-name">${itemData.name}</div>
+            <div class="item-detail-image">${itemData.icon}</div>
+            <div class="item-detail-stats">
+                ${statsHtml}
             </div>
         `;
+        detailContent.appendChild(statsSection);
     }
 
     setupSettingsListeners() {
@@ -542,7 +589,10 @@ export class MenuManager {
         if (screenName === 'customize') {
             // Small delay to ensure DOM is ready
             setTimeout(() => {
-                this.updateDetailView('primary', this.selectedWeapons.primary);
+                const primarySection = document.querySelector('.weapon-section[data-section="primary"]');
+                if (primarySection) {
+                    primarySection.click();
+                }
             }, 100);
         }
 
