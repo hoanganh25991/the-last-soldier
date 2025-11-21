@@ -9,6 +9,7 @@ export class MainMenuBackground {
         this.soldier = null;
         this.clock = null;
         this.animationId = null;
+        this.particles = null;
     }
 
     init() {
@@ -67,18 +68,30 @@ export class MainMenuBackground {
         rimLight.position.set(-5, 3, -3);
         this.scene.add(rimLight);
 
-        // Create ground - darker, more desolate
-        const groundGeometry = new THREE.PlaneGeometry(20, 20);
+        // Create ground - darker, more desolate with texture variation
+        const groundGeometry = new THREE.PlaneGeometry(20, 20, 10, 10);
         const groundMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x1a1a1a,
             transparent: true,
-            opacity: 0.5
+            opacity: 0.6
         });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = 0;
         ground.receiveShadow = true;
+        
+        // Add some height variation to ground
+        const vertices = groundGeometry.attributes.position.array;
+        for (let i = 0; i < vertices.length; i += 3) {
+            vertices[i + 1] = Math.random() * 0.1 - 0.05; // Small random height
+        }
+        groundGeometry.attributes.position.needsUpdate = true;
+        groundGeometry.computeVertexNormals();
+        
         this.scene.add(ground);
+
+        // Add fog/smoke particles for atmosphere
+        this.createAtmosphere();
 
         // Create soldier
         this.createSoldier();
@@ -178,6 +191,47 @@ export class MainMenuBackground {
         this.scene.add(soldierGroup);
     }
 
+    createAtmosphere() {
+        // Create fog/smoke particles for atmospheric effect
+        const particleCount = 50;
+        const particles = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            
+            // Random positions around the scene
+            positions[i3] = (Math.random() - 0.5) * 20;
+            positions[i3 + 1] = Math.random() * 5 + 0.5;
+            positions[i3 + 2] = (Math.random() - 0.5) * 20;
+            
+            // Grayish colors for smoke/fog
+            const gray = 0.3 + Math.random() * 0.2;
+            colors[i3] = gray;
+            colors[i3 + 1] = gray;
+            colors[i3 + 2] = gray;
+            
+            sizes[i] = Math.random() * 2 + 1;
+        }
+
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.5,
+            transparent: true,
+            opacity: 0.3,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending
+        });
+
+        this.particles = new THREE.Points(particles, particleMaterial);
+        this.scene.add(this.particles);
+    }
+
     animate() {
         if (!this.clock) return;
 
@@ -203,6 +257,17 @@ export class MainMenuBackground {
             if (this.rifleGroup) {
                 this.rifleGroup.rotation.z = -0.1 + Math.sin(elapsedTime * runSpeed) * 0.05;
             }
+        }
+
+        // Animate particles (slow drift)
+        if (this.particles) {
+            const positions = this.particles.geometry.attributes.position.array;
+            for (let i = 1; i < positions.length; i += 3) {
+                positions[i] += Math.sin(elapsedTime * 0.5 + i) * 0.001; // Slow upward drift
+                positions[i] = positions[i] % 6; // Wrap around
+            }
+            this.particles.geometry.attributes.position.needsUpdate = true;
+            this.particles.rotation.y += 0.0005; // Slow rotation
         }
 
         // Render
