@@ -1,10 +1,12 @@
 import { MainMenuBackground } from './mainMenuBackground.js';
+import { BattlefieldDeployBackground } from './battlefieldDeployBackground.js';
 
 export class MenuManager {
     constructor() {
         this.currentScreen = 'main-menu';
         this.gameInstance = null;
         this.mainMenuBackground = null;
+        this.battlefieldDeployBackground = null;
         this.settings = {
             music: 100,
             game: 100,
@@ -34,6 +36,25 @@ export class MenuManager {
         this.initializeWeaponSelection();
         this.initMainMenuBackground();
         this.showScreen('main-menu');
+    }
+
+    initBattlefieldDeployBackground() {
+        const canvas = document.getElementById('battlefield-canvas');
+        if (canvas) {
+            // Wait a bit for canvas to be properly sized and screen to be visible
+            setTimeout(async () => {
+                // Dispose existing instance if any
+                if (this.battlefieldDeployBackground) {
+                    this.battlefieldDeployBackground.dispose();
+                    this.battlefieldDeployBackground = null;
+                }
+                
+                // Create new instance
+                this.battlefieldDeployBackground = new BattlefieldDeployBackground(canvas);
+                await this.battlefieldDeployBackground.init();
+                this.battlefieldDeployBackground.start();
+            }, 150);
+        }
     }
 
     initMainMenuBackground() {
@@ -69,11 +90,6 @@ export class MenuManager {
         });
         document.getElementById('menu-about').addEventListener('click', () => {
             this.showScreen('about');
-        });
-        document.getElementById('menu-quit').addEventListener('click', () => {
-            if (confirm('Bạn có muốn thoát game?')) {
-                window.close();
-            }
         });
 
         // Back buttons
@@ -217,6 +233,11 @@ export class MenuManager {
     }
 
     showScreen(screenName) {
+        // Stop game if leaving game screen
+        if (this.currentScreen === 'game' && screenName !== 'game') {
+            this.stopGame();
+        }
+
         // Update current screen
         this.currentScreen = screenName;
 
@@ -238,6 +259,13 @@ export class MenuManager {
             this.mainMenuBackground.start();
         } else if (this.mainMenuBackground) {
             this.mainMenuBackground.stop();
+        }
+
+        // Start/stop battlefield deploy background
+        if (screenName === 'battlefield-deploy') {
+            this.initBattlefieldDeployBackground();
+        } else if (this.battlefieldDeployBackground) {
+            this.battlefieldDeployBackground.stop();
         }
 
         // Show/hide game container and HUD
@@ -272,6 +300,15 @@ export class MenuManager {
             const { Game } = await import('../core/game.js');
             this.gameInstance = new Game();
             await this.gameInstance.init();
+        } else {
+            // Resume game if it already exists
+            this.gameInstance.start();
+        }
+    }
+
+    stopGame() {
+        if (this.gameInstance) {
+            this.gameInstance.stop();
         }
     }
 

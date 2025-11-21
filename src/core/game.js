@@ -15,6 +15,8 @@ export class Game {
         this.collisionSystem = null;
         this.teamManager = null;
         this.uiManager = null;
+        this.animationFrameId = null;
+        this.isRunning = false;
     }
 
     async init() {
@@ -70,8 +72,13 @@ export class Game {
     }
 
     start() {
+        if (this.isRunning) return;
+        
+        this.isRunning = true;
         const animate = () => {
-            requestAnimationFrame(animate);
+            if (!this.isRunning) return;
+            
+            this.animationFrameId = requestAnimationFrame(animate);
 
             const deltaTime = this.engine.update();
 
@@ -87,6 +94,14 @@ export class Game {
         };
 
         animate();
+    }
+
+    stop() {
+        this.isRunning = false;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
     }
 }
 

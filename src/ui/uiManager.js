@@ -19,8 +19,9 @@ export class UIManager {
         // Exit button
         const exitBtn = document.getElementById('btn-exit');
         exitBtn.addEventListener('click', () => {
-            if (confirm('Bạn có muốn thoát game?')) {
-                window.close();
+            // Return to main menu
+            if (window.menuManager) {
+                window.menuManager.showScreen('main-menu');
             }
         });
 
