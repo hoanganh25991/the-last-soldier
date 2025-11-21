@@ -14,6 +14,7 @@ export class PrimaryWeapon extends WeaponBase {
         this.reloadTime = 2.5;
         this.range = 200;
         this.spread = 0.02;
+        this.bulletSpeed = 100; // units per second (fast rifle bullet)
     }
 
     init() {

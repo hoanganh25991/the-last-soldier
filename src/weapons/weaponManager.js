@@ -1,11 +1,14 @@
 import { PrimaryWeapon } from './primaryWeapon.js';
 import { SecondaryWeapon } from './secondaryWeapon.js';
+import { BulletManager } from './bulletManager.js';
 
 export class WeaponManager {
     constructor(camera, scene, teamManager) {
         this.camera = camera;
         this.scene = scene;
         this.teamManager = teamManager;
+        
+        this.bulletManager = new BulletManager(scene);
         
         this.primaryWeapon = null;
         this.secondaryWeapon = null;
@@ -16,9 +19,9 @@ export class WeaponManager {
     }
 
     init() {
-        // Create weapons
-        this.primaryWeapon = new PrimaryWeapon(this.camera, this.scene, this.teamManager);
-        this.secondaryWeapon = new SecondaryWeapon(this.camera, this.scene, this.teamManager);
+        // Create weapons with bullet manager
+        this.primaryWeapon = new PrimaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager);
+        this.secondaryWeapon = new SecondaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager);
         
         this.primaryWeapon.init();
         this.secondaryWeapon.init();
@@ -136,6 +139,17 @@ export class WeaponManager {
     update(deltaTime) {
         if (this.currentWeapon) {
             this.currentWeapon.update(deltaTime);
+        }
+        
+        // Update bullet manager
+        if (this.bulletManager) {
+            this.bulletManager.update(deltaTime);
+            
+            // Check bullet collisions with enemies
+            const enemies = this.teamManager.getEnemies();
+            this.bulletManager.checkCollisions(enemies, (enemy, damage) => {
+                this.teamManager.damageEnemy(enemy, damage);
+            });
         }
     }
 

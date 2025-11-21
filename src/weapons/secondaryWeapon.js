@@ -14,6 +14,7 @@ export class SecondaryWeapon extends WeaponBase {
         this.reloadTime = 1.5;
         this.range = 100;
         this.spread = 0.05;
+        this.bulletSpeed = 60; // units per second (slower pistol bullet)
     }
 
     init() {

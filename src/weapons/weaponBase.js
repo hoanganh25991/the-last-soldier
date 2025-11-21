@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
 export class WeaponBase {
-    constructor(camera, scene, teamManager) {
+    constructor(camera, scene, teamManager, bulletManager) {
         this.camera = camera;
         this.scene = scene;
         this.teamManager = teamManager;
+        this.bulletManager = bulletManager;
         
         this.weaponMesh = null;
         this.currentAmmo = 0;
@@ -16,6 +17,9 @@ export class WeaponBase {
         
         // Muzzle flash
         this.muzzleFlash = null;
+        
+        // Bullet speed (default, can be overridden)
+        this.bulletSpeed = 50;
     }
 
     init() {
@@ -108,46 +112,32 @@ export class WeaponBase {
             this.range
         );
 
-        // Check for hits
+        // Create visible bullet
+        if (this.bulletManager) {
+            const bulletStart = worldPosition.clone();
+            // Offset bullet start slightly forward from camera
+            bulletStart.add(direction.clone().multiplyScalar(0.5));
+            
+            this.bulletManager.createBullet(
+                bulletStart,
+                direction,
+                this.bulletSpeed,
+                this.range,
+                this.damage
+            );
+        }
+
+        // Also do instant raycast for immediate hit detection
         const enemies = this.teamManager.getEnemies();
         const intersects = raycaster.intersectObjects(enemies, true);
 
         if (intersects.length > 0) {
             const hit = intersects[0];
-            const enemy = hit.object.parent;
+            const enemy = hit.object.parent || hit.object;
             if (enemy && enemy.userData.isEnemy) {
                 this.teamManager.damageEnemy(enemy, this.damage);
             }
         }
-
-        // Create bullet tracer
-        this.createBulletTracer(direction.clone());
-    }
-
-    createBulletTracer(direction) {
-        const worldPosition = new THREE.Vector3();
-        this.camera.getWorldPosition(worldPosition);
-        
-        const geometry = new THREE.BufferGeometry();
-        const start = worldPosition.clone();
-        const end = start.clone().add(direction.multiplyScalar(this.range));
-        
-        geometry.setFromPoints([start, end]);
-        
-        const material = new THREE.LineBasicMaterial({ 
-            color: 0xffff00,
-            transparent: true,
-            opacity: 0.5
-        });
-        
-        const line = new THREE.Line(geometry, material);
-        this.scene.add(line);
-        
-        setTimeout(() => {
-            this.scene.remove(line);
-            geometry.dispose();
-            material.dispose();
-        }, 100);
     }
 
     reload() {

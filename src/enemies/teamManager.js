@@ -6,8 +6,8 @@ export class TeamManager {
         this.scene = scene;
         this.collisionSystem = collisionSystem;
         
-        this.playerTeam = 'red'; // Player is on red team
-        this.enemyTeam = 'blue';
+        this.playerTeam = 'blue'; // Player is on blue team (allies)
+        this.enemyTeam = 'red';   // Enemies are red
         
         this.redScore = 100;
         this.blueScore = 100;
@@ -71,7 +71,7 @@ export class TeamManager {
             enemy.takeDamage(damage);
             if (enemy.health <= 0) {
                 this.removeEnemy(enemy);
-                this.blueScore = Math.max(0, this.blueScore - 10);
+                this.redScore = Math.max(0, this.redScore - 10);
             }
         }
     }

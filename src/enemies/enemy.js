@@ -17,9 +17,10 @@ export class Enemy {
         const group = new THREE.Group();
 
         // Body (cylinder)
+        // Enemies are red, allies (our team) are blue
         const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
         const bodyMaterial = new THREE.MeshLambertMaterial({ 
-            color: this.team === 'red' ? 0xff0000 : 0x0000ff 
+            color: this.team === 'blue' ? 0x0000ff : 0xff0000  // blue = ally, red = enemy
         });
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
         body.position.y = 0.75;
@@ -29,7 +30,7 @@ export class Enemy {
         // Head (sphere)
         const headGeometry = new THREE.SphereGeometry(0.25, 8, 8);
         const headMaterial = new THREE.MeshLambertMaterial({ 
-            color: this.team === 'red' ? 0xff6666 : 0x6666ff 
+            color: this.team === 'blue' ? 0x6666ff : 0xff6666  // blue = ally, red = enemy
         });
         const head = new THREE.Mesh(headGeometry, headMaterial);
         head.position.y = 1.6;
@@ -47,7 +48,8 @@ export class Enemy {
         group.add(this.healthBar);
 
         group.position.copy(this.position);
-        group.userData.isEnemy = this.team !== 'red';
+        // Enemies are red team, allies are blue team
+        group.userData.isEnemy = this.team === 'red';
         group.userData.team = this.team;
         
         this.mesh = group;
