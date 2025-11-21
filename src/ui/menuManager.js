@@ -28,7 +28,16 @@ export class MenuManager {
 
     init() {
         this.setupEventListeners();
+        this.initializeWeaponSelection();
         this.showScreen('main-menu');
+    }
+
+    initializeWeaponSelection() {
+        // Set initial selected weapon based on HTML
+        const selectedPrimary = document.querySelector('.weapon-option-primary.selected');
+        if (selectedPrimary) {
+            this.selectedWeapons.primary = selectedPrimary.dataset.weapon || 'MP40';
+        }
     }
 
     setupEventListeners() {
@@ -192,27 +201,43 @@ export class MenuManager {
     }
 
     showScreen(screenName) {
-        // Hide all screens
+        // Update current screen
+        this.currentScreen = screenName;
+
+        // Hide all menu screens
         document.querySelectorAll('.menu-screen').forEach(screen => {
             screen.classList.remove('active');
         });
 
-        // Show selected screen
-        const screen = document.getElementById(`screen-${screenName}`);
-        if (screen) {
-            screen.classList.add('active');
-            this.currentScreen = screenName;
+        // Show selected menu screen (if not game)
+        if (screenName !== 'game') {
+            const screen = document.getElementById(`screen-${screenName}`);
+            if (screen) {
+                screen.classList.add('active');
+            }
         }
 
-        // Hide game container when in menu
+        // Show/hide game container and HUD
         const gameContainer = document.getElementById('game-container');
         const hud = document.getElementById('hud');
         if (screenName === 'game') {
-            if (gameContainer) gameContainer.style.display = 'block';
-            if (hud) hud.style.display = 'block';
+            if (gameContainer) {
+                gameContainer.style.display = 'block';
+                gameContainer.classList.add('game-active');
+            }
+            if (hud) {
+                hud.style.display = 'block';
+                hud.classList.add('game-active');
+            }
         } else {
-            if (gameContainer) gameContainer.style.display = 'none';
-            if (hud) hud.style.display = 'none';
+            if (gameContainer) {
+                gameContainer.style.display = 'none';
+                gameContainer.classList.remove('game-active');
+            }
+            if (hud) {
+                hud.style.display = 'none';
+                hud.classList.remove('game-active');
+            }
         }
     }
 

@@ -20,6 +20,11 @@ body {
     position: fixed;
     top: 0;
     left: 0;
+    display: none;
+}
+
+#game-container.game-active {
+    display: block;
 }
 
 #hud {
@@ -30,6 +35,11 @@ body {
     height: 100vh;
     pointer-events: none;
     z-index: 100;
+    display: none;
+}
+
+#hud.game-active {
+    display: block;
 }
 
 /* Top Left */
@@ -470,6 +480,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-color: #1a1a1a;
 }
 
 .menu-top-right {
@@ -577,6 +588,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-color: #1a1a1a;
 }
 
 .play-mode-grid {
@@ -652,6 +664,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-color: #1a1a1a;
 }
 
 .battlefield-top {
@@ -820,6 +833,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-color: #1a1a1a;
 }
 
 .screen-title {
@@ -982,6 +996,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-color: #1a1a1a;
 }
 
 .settings-content {
@@ -1079,6 +1094,7 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    background-color: #1a1a1a;
 }
 
 .about-content {
