@@ -30,7 +30,7 @@ export class TeamManager {
             const distance = 30 + Math.random() * 20;
             const position = new THREE.Vector3(
                 Math.cos(angle) * distance,
-                1.6,
+                0,
                 Math.sin(angle) * distance
             );
 
@@ -48,7 +48,7 @@ export class TeamManager {
             const distance = 25 + Math.random() * 15;
             const position = new THREE.Vector3(
                 Math.cos(angle) * distance,
-                1.6,
+                0,
                 Math.sin(angle) * distance
             );
 
