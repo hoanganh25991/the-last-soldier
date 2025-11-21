@@ -3,10 +3,11 @@ import { SecondaryWeapon } from './secondaryWeapon.js';
 import { BulletManager } from './bulletManager.js';
 
 export class WeaponManager {
-    constructor(camera, scene, teamManager) {
+    constructor(camera, scene, teamManager, audioManager = null) {
         this.camera = camera;
         this.scene = scene;
         this.teamManager = teamManager;
+        this.audioManager = audioManager;
         
         this.bulletManager = new BulletManager(scene);
         
@@ -19,9 +20,9 @@ export class WeaponManager {
     }
 
     init() {
-        // Create weapons with bullet manager
-        this.primaryWeapon = new PrimaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager);
-        this.secondaryWeapon = new SecondaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager);
+        // Create weapons with bullet manager and audio manager
+        this.primaryWeapon = new PrimaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
+        this.secondaryWeapon = new SecondaryWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
         
         this.primaryWeapon.init();
         this.secondaryWeapon.init();

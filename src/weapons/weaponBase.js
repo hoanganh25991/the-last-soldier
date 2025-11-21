@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 
 export class WeaponBase {
-    constructor(camera, scene, teamManager, bulletManager) {
+    constructor(camera, scene, teamManager, bulletManager, audioManager = null) {
         this.camera = camera;
         this.scene = scene;
         this.teamManager = teamManager;
         this.bulletManager = bulletManager;
+        this.audioManager = audioManager;
         
         this.weaponMesh = null;
         this.currentAmmo = 0;
@@ -20,6 +21,9 @@ export class WeaponBase {
         
         // Bullet speed (default, can be overridden)
         this.bulletSpeed = 50;
+        
+        // Bullet sound URL (can be overridden by subclasses)
+        this.bulletSoundUrl = 'sounds/bullet-shoot.mp3'; // Placeholder - user should add actual file
     }
 
     init() {
@@ -152,6 +156,11 @@ export class WeaponBase {
             0,
             this.range
         );
+
+        // Play bullet sound (optimized with pooling and rate limiting)
+        if (this.audioManager) {
+            this.audioManager.playBulletSound(this.bulletSoundUrl, 0.4);
+        }
 
         // Create visible bullet
         if (this.bulletManager) {

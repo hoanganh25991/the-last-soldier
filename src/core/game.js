@@ -7,7 +7,7 @@ import { TeamManager } from '../enemies/teamManager.js';
 import { UIManager } from '../ui/uiManager.js';
 
 export class Game {
-    constructor() {
+    constructor(audioManager = null) {
         this.engine = null;
         this.player = null;
         this.weaponManager = null;
@@ -15,6 +15,7 @@ export class Game {
         this.collisionSystem = null;
         this.teamManager = null;
         this.uiManager = null;
+        this.audioManager = audioManager;
         this.animationFrameId = null;
         this.isRunning = false;
     }
@@ -54,7 +55,8 @@ export class Game {
         this.weaponManager = new WeaponManager(
             this.player.getCamera(),
             this.engine.scene,
-            this.teamManager
+            this.teamManager,
+            this.audioManager
         );
         this.weaponManager.init();
 

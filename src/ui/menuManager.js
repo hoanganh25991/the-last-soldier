@@ -1,6 +1,7 @@
 import { MainMenuBackground } from './mainMenuBackground.js';
 import { BattlefieldDeployBackground } from './battlefieldDeployBackground.js';
 import { PlayModeBackground } from './playModeBackground.js';
+import { AudioManager } from '../core/audioManager.js';
 
 export class MenuManager {
     constructor() {
@@ -9,6 +10,7 @@ export class MenuManager {
         this.mainMenuBackground = null;
         this.battlefieldDeployBackground = null;
         this.playModeBackgrounds = {};
+        this.audioManager = new AudioManager();
         this.settings = {
             music: 100,
             game: 100,
@@ -39,6 +41,9 @@ export class MenuManager {
         this.initializeWeaponSelection();
         this.initMainMenuBackground();
         this.showScreen('main-menu');
+        
+        // Initialize audio manager (will be activated on first user interaction)
+        this.audioManager.init();
     }
 
     initBattlefieldDeployBackground() {
@@ -111,6 +116,8 @@ export class MenuManager {
     setupEventListeners() {
         // Main Menu
         document.getElementById('menu-play').addEventListener('click', () => {
+            // Start menu music when Play is clicked
+            this.startMenuMusic();
             this.showScreen('play-mode');
         });
         document.getElementById('menu-customize').addEventListener('click', () => {
@@ -407,6 +414,13 @@ export class MenuManager {
                 const value = parseInt(e.target.value);
                 this.settings[setting] = value;
                 this.updateSettingDisplay(setting, value);
+                
+                // Update audio volumes
+                if (setting === 'music') {
+                    this.audioManager.setMusicVolume(value / 100);
+                } else if (setting === 'game') {
+                    this.audioManager.setSfxVolume(value / 100);
+                }
             });
         });
 
@@ -421,6 +435,12 @@ export class MenuManager {
 
         // Initialize settings values
         this.loadSettings();
+        
+        // Apply initial audio settings
+        if (this.audioManager) {
+            this.audioManager.setMusicVolume(this.settings.music / 100);
+            this.audioManager.setSfxVolume(this.settings.game / 100);
+        }
     }
 
     loadSettings() {
@@ -436,6 +456,12 @@ export class MenuManager {
                 checkbox.checked = this.settings[key];
             }
         });
+        
+        // Apply audio settings after loading
+        if (this.audioManager) {
+            this.audioManager.setMusicVolume(this.settings.music / 100);
+            this.audioManager.setSfxVolume(this.settings.game / 100);
+        }
     }
 
     updateSettingDisplay(setting, value) {
@@ -545,12 +571,16 @@ export class MenuManager {
     }
 
     async startGame() {
+        // Stop menu music and start battlefield music
+        this.audioManager.stopMusic('menu');
+        this.startBattlefieldMusic();
+        
         this.showScreen('game');
         
         // Import and start game
         if (!this.gameInstance) {
             const { Game } = await import('../core/game.js');
-            this.gameInstance = new Game();
+            this.gameInstance = new Game(this.audioManager);
             await this.gameInstance.init();
         } else {
             // Resume game if it already exists
@@ -575,6 +605,8 @@ export class MenuManager {
         if (this.gameInstance) {
             this.gameInstance.stop();
         }
+        // Stop battlefield music when leaving game
+        this.audioManager.stopMusic('battlefield');
     }
 
     getSettings() {
@@ -587,6 +619,30 @@ export class MenuManager {
 
     getPlayerName() {
         return this.playerName;
+    }
+
+    startMenuMusic() {
+        // Use a placeholder URL - user should replace with actual music file
+        // For now, we'll use a data URL or placeholder
+        // In production, replace with actual music file path
+        const menuMusicUrl = 'sounds/menu-music.mp3'; // Placeholder - user should add actual file
+        this.audioManager.playMenuMusic(menuMusicUrl).catch(() => {
+            // Silently fail if music file doesn't exist
+            console.debug('Menu music file not found, skipping...');
+        });
+    }
+
+    startBattlefieldMusic() {
+        // Use a placeholder URL - user should replace with actual music file
+        const battlefieldMusicUrl = 'sounds/battlefield-music.mp3'; // Placeholder - user should add actual file
+        this.audioManager.playBattlefieldMusic(battlefieldMusicUrl).catch(() => {
+            // Silently fail if music file doesn't exist
+            console.debug('Battlefield music file not found, skipping...');
+        });
+    }
+
+    getAudioManager() {
+        return this.audioManager;
     }
 }
 

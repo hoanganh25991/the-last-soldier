@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { WeaponBase } from './weaponBase.js';
 
 export class SecondaryWeapon extends WeaponBase {
-    constructor(camera, scene, teamManager, bulletManager) {
-        super(camera, scene, teamManager, bulletManager);
+    constructor(camera, scene, teamManager, bulletManager, audioManager = null) {
+        super(camera, scene, teamManager, bulletManager, audioManager);
         
         this.name = 'Pistol';
         this.icon = '🔫'; // Pistol icon (can use different emoji if needed)
@@ -15,6 +15,9 @@ export class SecondaryWeapon extends WeaponBase {
         this.range = 100;
         this.spread = 0.05;
         this.bulletSpeed = 60; // units per second (slower pistol bullet)
+        
+        // Different sound for pistol (can be overridden)
+        this.bulletSoundUrl = 'sounds/pistol-shoot.mp3'; // Placeholder - user should add actual file
     }
 
     init() {
