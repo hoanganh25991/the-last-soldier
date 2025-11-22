@@ -189,9 +189,6 @@ export class UIManager {
         // Update grenade power bar
         this.updateGrenadePowerBar();
 
-        // Update enemy wave progress bar
-        this.updateEnemyWaveProgress();
-
         // Update player health
         if (this.player && typeof this.player.getHealth === 'function' && typeof this.player.getMaxHealth === 'function') {
             const healthElement = document.getElementById('player-health');
@@ -505,32 +502,6 @@ export class UIManager {
             powerBarContainer.classList.remove('visible');
             powerBarFill.style.width = '0%';
         }
-    }
-
-    updateEnemyWaveProgress() {
-        const progressContainer = document.getElementById('enemy-wave-progress-container');
-        const progressFill = document.getElementById('enemy-wave-progress-fill');
-        const progressText = document.getElementById('enemy-wave-progress-text');
-        
-        if (!progressContainer || !progressFill || !progressText || !this.teamManager) {
-            return;
-        }
-
-        // Get current enemies on screen and max target
-        const enemiesOnScreen = this.teamManager.getEnemiesOnScreen();
-        const maxEnemies = this.teamManager.getMaxEnemiesOnScreen();
-        
-        // Calculate progress percentage
-        const progressPercent = Math.min((enemiesOnScreen / maxEnemies) * 100, 100);
-        
-        // Update progress bar fill
-        progressFill.style.width = `${progressPercent}%`;
-        
-        // Update progress text
-        progressText.textContent = `${enemiesOnScreen} / ${maxEnemies}`;
-        
-        // Show progress bar (always visible)
-        progressContainer.style.display = 'block';
     }
 }
 
