@@ -85,12 +85,39 @@ export class TeamManager {
         }
     }
 
+    damageAlly(allyMesh, damage, hitPosition = null) {
+        const ally = this.allies.find(a => a.mesh === allyMesh || a.mesh === allyMesh.parent);
+        if (ally) {
+            ally.takeDamage(damage);
+            
+            // Create blood effect at hit position or ally position
+            const bloodPos = hitPosition || ally.mesh.position.clone();
+            bloodPos.y += 1.0; // Slightly above center
+            const bloodEffect = new BloodEffect(bloodPos, this.scene);
+            this.bloodEffects.push(bloodEffect);
+            
+            if (ally.health <= 0) {
+                this.removeAlly(ally);
+                this.blueScore = Math.max(0, this.blueScore - 10);
+            }
+        }
+    }
+
     removeEnemy(enemy) {
         const index = this.enemies.indexOf(enemy);
         if (index > -1) {
             this.enemies.splice(index, 1);
             this.scene.remove(enemy.mesh);
             enemy.dispose();
+        }
+    }
+
+    removeAlly(ally) {
+        const index = this.allies.indexOf(ally);
+        if (index > -1) {
+            this.allies.splice(index, 1);
+            this.scene.remove(ally.mesh);
+            ally.dispose();
         }
     }
 

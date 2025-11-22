@@ -31,33 +31,33 @@ export class PrimaryWeapon extends WeaponBase {
         // Create a simple rifle model
         const group = new THREE.Group();
 
-        // Barrel - extends along X axis (will be rotated to point forward)
-        const barrelGeometry = new THREE.BoxGeometry(0.8, 0.1, 0.1);
+        // Barrel - rotate the geometry itself to point forward along Z
+        // Create barrel extending along Z axis instead of X
+        const barrelGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.8);
         const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
         const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
-        barrel.position.set(0.3, -0.2, -0.5);
+        // Position barrel so it extends forward (negative Z)
+        barrel.position.set(0.3, -0.2, -0.9);
         group.add(barrel);
 
-        // Stock
-        const stockGeometry = new THREE.BoxGeometry(0.3, 0.15, 0.4);
+        // Stock - also extend along Z
+        const stockGeometry = new THREE.BoxGeometry(0.15, 0.15, 0.3);
         const stockMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
         const stock = new THREE.Mesh(stockGeometry, stockMaterial);
-        stock.position.set(-0.2, -0.15, -0.5);
+        stock.position.set(0.3, -0.15, -0.5);
         group.add(stock);
 
-        // Body
-        const bodyGeometry = new THREE.BoxGeometry(0.6, 0.2, 0.2);
+        // Body - also extend along Z
+        const bodyGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.6);
         const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 });
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.set(0, -0.2, -0.5);
+        body.position.set(0.3, -0.2, -0.7);
         group.add(body);
 
-        // Position relative to camera
+        // Position relative to camera - NO Y ROTATION NEEDED since geometry extends along Z
         group.position.set(0.3, -0.3, -0.6);
         group.rotation.x = 0.1;
-        // Rotate weapon to point forward: rotate +90 degrees around Y to point -Z (forward)
-        // +X (right) -> -Z (forward into screen)
-        group.rotation.y = Math.PI / 2;
+        // Geometry already points forward (along -Z), no rotation needed
         
         this.weaponMesh = group;
         this.camera.add(group);

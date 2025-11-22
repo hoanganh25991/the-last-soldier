@@ -247,11 +247,19 @@ export class WeaponManager {
         if (this.bulletManager) {
             this.bulletManager.update(deltaTime);
             
-            // Check bullet collisions with enemies
+            // Check bullet collisions with both enemies and allies (friendly fire)
             const enemies = this.teamManager.getEnemies();
-            this.bulletManager.checkCollisions(enemies, (enemy, damage, hitPosition) => {
-                this.teamManager.damageEnemy(enemy, damage, hitPosition);
-            });
+            const allies = this.teamManager.getAllies();
+            this.bulletManager.checkCollisions(
+                enemies,
+                allies,
+                (enemy, damage, hitPosition) => {
+                    this.teamManager.damageEnemy(enemy, damage, hitPosition);
+                },
+                (ally, damage, hitPosition) => {
+                    this.teamManager.damageAlly(ally, damage, hitPosition);
+                }
+            );
         }
     }
 

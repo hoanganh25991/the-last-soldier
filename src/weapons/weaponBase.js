@@ -76,9 +76,9 @@ export class WeaponBase {
         
         this.muzzleFlash = flashGroup;
         this.muzzleFlash.visible = false;
-        // Position at barrel end - barrel extends along X, rotated -90deg, so forward end is at -Z
-        // After rotation: X position becomes Z, so barrel end at X=0.7 becomes Z=-0.7
-        this.muzzleFlash.position.set(0.4, -0.2, -0.5);
+        // Position at barrel end - barrel extends along Z, forward end is at -Z
+        // Barrel center at Z=-0.9, extends 0.8 along Z, so forward end at Z=-0.9-0.4=-1.3
+        this.muzzleFlash.position.set(0.3, -0.2, -1.3);
         this.weaponMesh.add(this.muzzleFlash);
     }
 
@@ -188,14 +188,21 @@ export class WeaponBase {
         }
 
         // Also do instant raycast for immediate hit detection
+        // Check both enemies and allies for friendly fire
         const enemies = this.teamManager.getEnemies();
-        const intersects = raycaster.intersectObjects(enemies, true);
+        const allies = this.teamManager.getAllies();
+        const allTargets = [...enemies, ...allies];
+        const intersects = raycaster.intersectObjects(allTargets, true);
 
         if (intersects.length > 0) {
             const hit = intersects[0];
-            const enemy = hit.object.parent || hit.object;
-            if (enemy && enemy.userData.isEnemy) {
-                this.teamManager.damageEnemy(enemy, this.damage);
+            const target = hit.object.parent || hit.object;
+            if (target && target.userData.isEnemy) {
+                // Hit an enemy
+                this.teamManager.damageEnemy(target, this.damage);
+            } else if (target && target.userData.team === 'blue') {
+                // Hit an ally (friendly fire)
+                this.teamManager.damageAlly(target, this.damage);
             }
         }
     }

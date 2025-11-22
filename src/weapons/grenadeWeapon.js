@@ -162,6 +162,21 @@ export class GrenadeWeapon extends WeaponBase {
                 this.teamManager.damageEnemy(enemy, finalDamage);
             }
         }
+
+        // Damage allies in blast radius (friendly fire)
+        const allies = this.teamManager.getAllies();
+        for (const ally of allies) {
+            const allyPosition = new THREE.Vector3();
+            ally.getWorldPosition(allyPosition);
+            
+            const distance = position.distanceTo(allyPosition);
+            if (distance <= grenadeData.blastRadius) {
+                // Damage decreases with distance
+                const damageMultiplier = 1 - (distance / grenadeData.blastRadius);
+                const finalDamage = Math.floor(grenadeData.damage * damageMultiplier);
+                this.teamManager.damageAlly(ally, finalDamage);
+            }
+        }
     }
 
     createExplosionEffect(position) {

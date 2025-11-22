@@ -117,15 +117,21 @@ export class KnifeWeapon extends WeaponBase {
             this.range
         );
 
-        // Check for enemies in melee range
+        // Check for enemies and allies in melee range (friendly fire)
         const enemies = this.teamManager.getEnemies();
-        const intersects = raycaster.intersectObjects(enemies, true);
+        const allies = this.teamManager.getAllies();
+        const allTargets = [...enemies, ...allies];
+        const intersects = raycaster.intersectObjects(allTargets, true);
 
         if (intersects.length > 0) {
             const hit = intersects[0];
-            const enemy = hit.object.parent || hit.object;
-            if (enemy && enemy.userData.isEnemy) {
-                this.teamManager.damageEnemy(enemy, this.damage);
+            const target = hit.object.parent || hit.object;
+            if (target && target.userData.isEnemy) {
+                // Hit an enemy
+                this.teamManager.damageEnemy(target, this.damage);
+            } else if (target && target.userData.team === 'blue') {
+                // Hit an ally (friendly fire)
+                this.teamManager.damageAlly(target, this.damage);
             }
         }
 
