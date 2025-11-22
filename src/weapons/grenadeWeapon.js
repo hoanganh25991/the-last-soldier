@@ -10,7 +10,7 @@ export class GrenadeWeapon extends WeaponBase {
         this.icon = WEAPON_ICONS.grenade;
         this.damage = 100;
         this.fireRate = 30; // throws per minute (slow)
-        this.maxAmmo = 3; // Limited grenades
+        this.maxAmmo = 10; // Limited grenades
         this.reserveAmmo = 0; // No reserve ammo
         this.reloadTime = 0; // No reload
         this.range = 30; // Throw range

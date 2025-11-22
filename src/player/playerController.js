@@ -11,6 +11,7 @@ export class PlayerController {
         this.moveSpeed = 5.0;
         this.sprintSpeed = 8.0;
         this.crouchSpeed = 2.5;
+        this.jumpSpeed = 7.0; // Jump velocity
         this.currentSpeed = this.moveSpeed;
         this.canJump = false;
         this.isSprinting = false;
@@ -129,11 +130,20 @@ export class PlayerController {
                 return;
             }
             // Prevent default for game keys
-            const gameKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            const gameKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
             if (gameKeys.includes(e.code)) {
                 e.preventDefault();
                 e.stopPropagation();
                 this.keys[e.code] = true;
+            }
+            // Handle Space for jump
+            if (e.code === 'Space') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.canJump && !this.isCrouching) {
+                    this.velocity.y = this.jumpSpeed;
+                    this.canJump = false;
+                }
             }
             // Handle Shift for sprint
             if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
@@ -153,7 +163,7 @@ export class PlayerController {
         };
 
         const handleKeyUp = (e) => {
-            const gameKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+            const gameKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
             if (gameKeys.includes(e.code)) {
                 e.preventDefault();
                 e.stopPropagation();
