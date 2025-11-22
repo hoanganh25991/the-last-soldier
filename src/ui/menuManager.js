@@ -29,7 +29,8 @@ export class MenuManager {
             gyroADS: 0,
             lookSensitivity: 50,
             adsSens: 25,
-            showFPS: false // Default: HIDE
+            showFPS: false, // Default: HIDE
+            showChat: false // Default: HIDE
         };
         // Load weapon selections from localStorage or use defaults
         this.selectedWeapons = this.loadWeaponSelections();
@@ -523,9 +524,11 @@ export class MenuManager {
                 this.settings[setting] = e.target.checked;
                 // Save settings to localStorage when changed
                 this.saveSettingsToStorage();
-                // Apply FPS visibility immediately if changed
+                // Apply visibility settings immediately if changed
                 if (setting === 'showFPS') {
                     this.applyFPSVisibility();
+                } else if (setting === 'showChat') {
+                    this.applyChatVisibility();
                 }
             });
         });
@@ -539,8 +542,9 @@ export class MenuManager {
             this.audioManager.setSfxVolume(this.settings.game / 100);
         }
         
-        // Apply FPS visibility based on settings
+        // Apply visibility settings based on settings
         this.applyFPSVisibility();
+        this.applyChatVisibility();
     }
 
     loadSettings() {
@@ -639,6 +643,8 @@ export class MenuManager {
         // Start/stop battlefield deploy background
         if (screenName === 'battlefield-deploy') {
             this.initBattlefieldDeployBackground();
+            // Apply chat visibility when showing battlefield deploy screen
+            setTimeout(() => this.applyChatVisibility(), 100);
         } else if (this.battlefieldDeployBackground) {
             this.battlefieldDeployBackground.stop();
         }
@@ -671,6 +677,8 @@ export class MenuManager {
                 hud.style.display = 'block';
                 hud.classList.add('game-active');
             }
+            // Apply chat visibility when showing game screen
+            setTimeout(() => this.applyChatVisibility(), 100);
         } else {
             if (gameContainer) {
                 gameContainer.style.display = 'none';
@@ -856,6 +864,19 @@ export class MenuManager {
             if (statsDom) {
                 statsDom.style.display = this.settings.showFPS ? 'block' : 'none';
             }
+        }
+    }
+
+    applyChatVisibility() {
+        // Apply chat icon visibility in HUD
+        const chatButton = document.getElementById('btn-chat');
+        if (chatButton) {
+            chatButton.style.display = this.settings.showChat ? 'block' : 'none';
+        }
+        // Also apply to battlefield deploy screen chat button
+        const chatMenuButton = document.querySelector('.btn-chat-menu');
+        if (chatMenuButton) {
+            chatMenuButton.style.display = this.settings.showChat ? 'block' : 'none';
         }
     }
 }
