@@ -11,7 +11,7 @@ export class TeamManager {
         this.playerTeam = 'blue'; // Player is on blue team (allies)
         this.enemyTeam = 'red';   // Enemies are red
         
-        this.redScore = 0; // Will be updated as enemies spawn (matches teammate count)
+        this.redScore = 0; // Enemies currently on screen (will be updated as enemies spawn/die)
         this.blueScore = 10; // 1 player + 9 teammates = 10 total
         
         this.enemies = [];
@@ -25,13 +25,15 @@ export class TeamManager {
         this.maxAllies = 9; // Maximum number of allies (9 teammates + 1 player = 10 total)
         this.allAlliesDeadTime = null; // Track when all allies died (for full respawn)
         
-        // Respawn system for enemies - spawn based on teammate count
+        // Respawn system for enemies - spawn wave by wave until 100 enemies on screen
         this.enemyRespawnTimer = 0; // Timer for enemy respawning
         this.enemyRespawnInterval = 5.0; // Spawn enemies every 5 seconds (wave interval)
         this.gameEnded = false; // Track if game has ended
         this.waveNumber = 0; // Track current wave number
         this.baseEnemyDamage = 20; // Base damage per wave
         this.damagePerWave = 5; // Damage increase per wave
+        this.maxEnemiesOnScreen = 100; // Target: 100 enemies on screen to win
+        this.enemiesPerWave = 10; // Spawn 10 enemies per wave
     }
 
     init() {
@@ -40,11 +42,10 @@ export class TeamManager {
     }
 
     spawnEnemies() {
-        // Initial spawn: spawn enemies matching initial teammate count (9 teammates = 9 enemies)
+        // Initial spawn: spawn first wave of enemies
         // This is wave 0
         this.waveNumber = 0;
-        const initialTeammateCount = this.maxAllies; // 9 teammates
-        this.spawnEnemyWave(initialTeammateCount, null);
+        this.spawnEnemyWave(this.enemiesPerWave, null);
     }
 
     spawnEnemyWave(enemyCount, playerPosition = null) {
@@ -141,8 +142,8 @@ export class TeamManager {
         
         this.enemyGroups.push(group);
         
-        // Update red score (track total enemies spawned)
-        this.redScore += enemyCount;
+        // Update red score (track enemies on screen)
+        this.redScore = this.enemies.filter(e => e.health > 0).length;
         
         // Increment wave number for next wave
         this.waveNumber++;
@@ -293,7 +294,8 @@ export class TeamManager {
             
             if (enemy.health <= 0) {
                 this.removeEnemy(enemy);
-                this.redScore = Math.max(0, this.redScore - 1); // Each kill minus 1
+                // Update red score to reflect current enemies on screen
+                this.redScore = this.enemies.filter(e => e.health > 0).length;
             }
         }
     }
@@ -413,30 +415,38 @@ export class TeamManager {
             this.blueScore = 1 + Math.min(currentAliveAllies, this.maxAllies);
         }
         
-        // Handle enemy respawning - spawn enemies matching alive teammate count
-        const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
+        // Handle enemy respawning - spawn enemies wave by wave until 100 enemies on screen
         const aliveEnemiesCount = this.enemies.filter(e => e.health > 0).length;
+        
+        // Update red score to reflect current enemies on screen
+        this.redScore = aliveEnemiesCount;
         
         // Update respawn timer
         this.enemyRespawnTimer += deltaTime;
         
-        // Spawn enemies if timer reached interval AND enemy count doesn't match teammate count
+        // Spawn enemies if timer reached interval AND we haven't reached 100 enemies on screen
         if (this.enemyRespawnTimer >= this.enemyRespawnInterval) {
-            // Spawn enemies matching the number of alive teammates
-            // Each spawn is a new wave with increased damage
-            if (aliveEnemiesCount < aliveAlliesCount) {
-                const enemiesToSpawn = aliveAlliesCount - aliveEnemiesCount;
+            // Spawn next wave if we haven't reached max enemies on screen
+            if (aliveEnemiesCount < this.maxEnemiesOnScreen) {
+                // Calculate how many enemies to spawn in this wave
+                // Don't exceed maxEnemiesOnScreen
+                const enemiesToSpawn = Math.min(
+                    this.enemiesPerWave,
+                    this.maxEnemiesOnScreen - aliveEnemiesCount
+                );
                 
-                // Spawn enemy wave matching teammate count
-                this.spawnEnemyWave(enemiesToSpawn, playerPosition);
-                
-                // Update bullet manager references for newly spawned enemies
-                if (this.bulletManager) {
-                    // Get the last spawned enemies (the ones we just added)
-                    const newlySpawned = this.enemies.slice(-enemiesToSpawn);
-                    newlySpawned.forEach(enemy => {
-                        enemy.bulletManager = this.bulletManager;
-                    });
+                if (enemiesToSpawn > 0) {
+                    // Spawn enemy wave
+                    this.spawnEnemyWave(enemiesToSpawn, playerPosition);
+                    
+                    // Update bullet manager references for newly spawned enemies
+                    if (this.bulletManager) {
+                        // Get the last spawned enemies (the ones we just added)
+                        const newlySpawned = this.enemies.slice(-enemiesToSpawn);
+                        newlySpawned.forEach(enemy => {
+                            enemy.bulletManager = this.bulletManager;
+                        });
+                    }
                 }
             }
             
@@ -486,8 +496,14 @@ export class TeamManager {
 
     checkGameEnd() {
         // Check if game should end
-        // Since enemies keep respawning, game only ends when all allies (including player) are dead
         const aliveAllies = this.allies.filter(a => a.health > 0).length;
+        const aliveEnemies = this.enemies.filter(e => e.health > 0).length;
+        
+        // Blue team wins when 100 enemies are on screen (winning threshold)
+        if (aliveEnemies >= this.maxEnemiesOnScreen) {
+            this.gameEnded = true; // Stop enemy spawning
+            return { ended: true, winner: 'blue' };
+        }
         
         // Red team wins when all allies are dead (including player)
         // Check: no alive allies AND we've killed all allies (blueScore reached 0 from initial 10)
@@ -496,10 +512,17 @@ export class TeamManager {
             return { ended: true, winner: 'red' };
         }
         
-        // Note: Blue team can no longer win by killing all enemies since enemies keep respawning
-        // Game only ends when player/allies die (red wins)
-        
         return { ended: false, winner: null };
+    }
+    
+    getEnemiesOnScreen() {
+        // Return count of enemies currently on screen (alive)
+        return this.enemies.filter(e => e.health > 0).length;
+    }
+    
+    getMaxEnemiesOnScreen() {
+        // Return the target number of enemies on screen (100)
+        return this.maxEnemiesOnScreen;
     }
     
     setGameEnded(ended) {
