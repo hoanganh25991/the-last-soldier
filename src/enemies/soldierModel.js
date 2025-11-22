@@ -63,6 +63,44 @@ export function createSoldierModel(teamColor = 0x654321) {
     rightLeg.castShadow = true;
     soldierGroup.add(rightLeg);
 
+    // Primary weapon (rifle) - similar to player's weapon
+    const rifleGroup = new THREE.Group();
+    
+    // Barrel
+    const barrelGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.8);
+    const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
+    barrel.position.set(0, 0, -0.4);
+    rifleGroup.add(barrel);
+    
+    // Stock
+    const stockGeometry = new THREE.BoxGeometry(0.15, 0.15, 0.3);
+    const stockMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+    const stock = new THREE.Mesh(stockGeometry, stockMaterial);
+    stock.position.set(0, 0, 0.15);
+    rifleGroup.add(stock);
+    
+    // Body
+    const rifleBodyGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.6);
+    const rifleBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    const rifleBody = new THREE.Mesh(rifleBodyGeometry, rifleBodyMaterial);
+    rifleBody.position.set(0, 0, -0.1);
+    rifleGroup.add(rifleBody);
+    
+    // Grip
+    const gripGeometry = new THREE.BoxGeometry(0.15, 0.2, 0.25);
+    const gripMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+    const grip = new THREE.Mesh(gripGeometry, gripMaterial);
+    grip.position.set(0, -0.1, -0.05);
+    grip.castShadow = true;
+    rifleGroup.add(grip);
+    
+    // Position rifle in soldier's hands
+    rifleGroup.position.set(0.25, 0.9, -0.15);
+    rifleGroup.rotation.z = -0.1;
+    rifleGroup.castShadow = true;
+    soldierGroup.add(rifleGroup);
+
     // Store references for animation
     return {
         group: soldierGroup,
@@ -72,7 +110,8 @@ export function createSoldierModel(teamColor = 0x654321) {
         rightLeg: rightLeg,
         body: body,
         head: head,
-        helmet: helmet
+        helmet: helmet,
+        rifle: rifleGroup
     };
 }
 

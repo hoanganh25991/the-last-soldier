@@ -3,9 +3,10 @@ import { Enemy } from './enemy.js';
 import { BloodEffect } from '../effects/bloodEffect.js';
 
 export class TeamManager {
-    constructor(scene, collisionSystem) {
+    constructor(scene, collisionSystem, bulletManager = null) {
         this.scene = scene;
         this.collisionSystem = collisionSystem;
+        this.bulletManager = bulletManager;
         
         this.playerTeam = 'blue'; // Player is on blue team (allies)
         this.enemyTeam = 'red';   // Enemies are red
@@ -86,7 +87,7 @@ export class TeamManager {
                     this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
                     desiredPosition;
 
-                const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem);
+                const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem, this.bulletManager, this.scene);
                 enemy.init();
                 // Assign enemy to group
                 enemy.group = group;
@@ -127,7 +128,7 @@ export class TeamManager {
                 this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
                 desiredPosition;
 
-            const ally = new Enemy(position, this.playerTeam, this.collisionSystem);
+            const ally = new Enemy(position, this.playerTeam, this.collisionSystem, this.bulletManager, this.scene);
             ally.init();
             // Mark as ally for special behavior
             ally.isAlly = true;
@@ -258,22 +259,33 @@ export class TeamManager {
         }
     }
 
-    update(deltaTime, playerPosition = null) {
-        // Update all enemies (pass player position for hunting)
+    update(deltaTime, playerPosition = null, playerMesh = null) {
+        // Get target lists for shooting
+        const enemyMeshes = this.enemies.filter(e => e.health > 0).map(e => e.mesh);
+        const allyMeshes = this.allies.filter(a => a.health > 0).map(a => a.mesh);
+        
+        // Update all enemies (pass player position for hunting and shooting)
         for (const enemy of this.enemies) {
             if (playerPosition) {
                 enemy.setPlayerPosition(playerPosition);
             }
+            // Enemies shoot at player and allies
+            const enemyTargets = [];
+            if (playerMesh) enemyTargets.push(playerMesh);
+            enemyTargets.push(...allyMeshes);
+            enemy.setTargets(enemyTargets);
             enemy.update(deltaTime);
         }
 
-        // Update all allies (pass player position and enemies list for ally behavior)
+        // Update all allies (pass player position and enemies list for ally behavior and shooting)
         for (const ally of this.allies) {
             if (playerPosition) {
                 ally.setPlayerPosition(playerPosition);
             }
             // Pass enemies list so allies can detect and engage them
-            ally.setNearbyEnemies(this.enemies.filter(e => e.health > 0).map(e => e.mesh));
+            ally.setNearbyEnemies(enemyMeshes);
+            // Allies shoot at enemies
+            ally.setTargets(enemyMeshes);
             ally.update(deltaTime);
         }
         

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createSoldierModel, updateWalkAnimation } from './soldierModel.js';
 
 export class Enemy {
-    constructor(position, team, collisionSystem = null) {
+    constructor(position, team, collisionSystem = null, bulletManager = null, scene = null) {
         this.position = position.clone();
         this.team = team;
         this.health = 100;
@@ -14,6 +14,8 @@ export class Enemy {
         this.playerPosition = null; // Player position for hunting
         this.huntMode = true; // Hunt player instead of random movement
         this.collisionSystem = collisionSystem;
+        this.bulletManager = bulletManager;
+        this.scene = scene;
         
         // Ally-specific properties
         this.isAlly = false;
@@ -39,6 +41,16 @@ export class Enemy {
         this.soldierData = null; // Store soldier model data for animation
         this.animationTime = 0; // Track animation time
         this.isMoving = false; // Track if enemy is moving
+        
+        // Shooting properties
+        this.shootRange = 150; // Maximum shooting range
+        this.shootDamage = 30; // Same as primary weapon
+        this.fireRate = 600; // rounds per minute (same as primary weapon)
+        this.lastShotTime = 0;
+        this.fireInterval = 60 / this.fireRate; // Time between shots in seconds
+        this.bulletSpeed = 100; // Same as primary weapon
+        this.currentTarget = null; // Current target to shoot at
+        this.targets = []; // List of potential targets (enemies for allies, player/allies for enemies)
     }
 
     init() {
@@ -242,6 +254,99 @@ export class Enemy {
         this.nearbyEnemies = enemyMeshes || [];
     }
 
+    setTargets(targetMeshes) {
+        // Set potential targets for shooting
+        // For enemies: targets are player and allies
+        // For allies: targets are enemies
+        this.targets = targetMeshes || [];
+    }
+
+    findShootingTarget() {
+        // Find the nearest target within shooting range
+        if (!this.targets || this.targets.length === 0) return null;
+        
+        let nearestTarget = null;
+        let nearestDistance = this.shootRange;
+        
+        for (const targetMesh of this.targets) {
+            if (!targetMesh || !targetMesh.position) continue;
+            
+            // Get the world position of the target
+            const targetWorldPos = new THREE.Vector3();
+            targetMesh.getWorldPosition(targetWorldPos);
+            
+            const distance = this.position.distanceTo(targetWorldPos);
+            if (distance < nearestDistance && distance > 0) {
+                nearestDistance = distance;
+                nearestTarget = {
+                    mesh: targetMesh,
+                    position: targetWorldPos.clone()
+                };
+            }
+        }
+        
+        return nearestTarget;
+    }
+
+    shoot(targetPosition) {
+        if (!this.bulletManager || !this.mesh || this.health <= 0) return;
+        
+        // Calculate direction to target
+        const direction = new THREE.Vector3()
+            .subVectors(targetPosition, this.position)
+            .normalize();
+        
+        // Add some spread for realism (soldiers aren't perfect shots)
+        const spread = 0.05; // 5% spread
+        direction.x += (Math.random() - 0.5) * spread;
+        direction.y += (Math.random() - 0.5) * spread * 0.5; // Less vertical spread
+        direction.z += (Math.random() - 0.5) * spread;
+        direction.normalize();
+        
+        // Bullet start position (from soldier's rifle position)
+        const bulletStart = this.position.clone();
+        bulletStart.y += 1.0; // Height of rifle
+        
+        // Create bullet
+        this.bulletManager.createBullet(
+            bulletStart,
+            direction,
+            this.bulletSpeed,
+            this.shootRange,
+            this.shootDamage
+        );
+    }
+
+    updateShooting(deltaTime) {
+        if (!this.bulletManager || this.health <= 0) return;
+        
+        // Update shot timer
+        this.lastShotTime += deltaTime;
+        
+        // Find target to shoot at
+        const target = this.findShootingTarget();
+        
+        if (target && this.lastShotTime >= this.fireInterval) {
+            // Rotate to face target
+            const directionToTarget = new THREE.Vector3()
+                .subVectors(target.position, this.position)
+                .normalize();
+            
+            // Rotate soldier to face target (only Y rotation for horizontal facing)
+            if (this.mesh) {
+                const angle = Math.atan2(directionToTarget.x, directionToTarget.z);
+                this.mesh.rotation.y = angle;
+            }
+            
+            // Shoot at target
+            this.shoot(target.position);
+            this.lastShotTime = 0;
+            this.currentTarget = target;
+        } else {
+            this.currentTarget = null;
+        }
+    }
+
     updateGroupBehavior(deltaTime) {
         if (!this.group || !this.playerPosition) return;
         
@@ -388,6 +493,9 @@ export class Enemy {
             if (this.soldierData.rightArm) this.soldierData.rightArm.rotation.x = 0;
             if (this.soldierData.group) this.soldierData.group.position.y = 0;
         }
+        
+        // Update shooting
+        this.updateShooting(deltaTime);
         
         // Update health bar to face camera
         if (this.healthBar) {

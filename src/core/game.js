@@ -32,9 +32,8 @@ export class Game {
         this.battlefield = new Battlefield(this.engine.scene);
         await this.battlefield.init();
 
-        // Initialize team manager
+        // Initialize team manager (will be updated with bulletManager after weaponManager is created)
         this.teamManager = new TeamManager(this.engine.scene, this.collisionSystem);
-        this.teamManager.init();
 
         // Initialize player
         this.player = new PlayerController(
@@ -68,6 +67,16 @@ export class Game {
         }
         
         await this.weaponManager.init();
+        
+        // Update team manager with bullet manager for soldier shooting
+        this.teamManager.bulletManager = this.weaponManager.bulletManager;
+        // Update existing enemies and allies with bullet manager
+        this.teamManager.enemies.forEach(enemy => {
+            enemy.bulletManager = this.weaponManager.bulletManager;
+        });
+        this.teamManager.allies.forEach(ally => {
+            ally.bulletManager = this.weaponManager.bulletManager;
+        });
         
         // Ensure selected gadget is applied after init (in case weapon type is gadget)
         if (selectedWeapons && selectedWeapons.gadget) {
@@ -105,9 +114,10 @@ export class Game {
             const playerVelocity = this.player.velocity;
             this.weaponManager.update(deltaTime, playerVelocity);
             
-            // Pass player position to team manager so enemies can hunt player
+            // Pass player position and camera (as player mesh) to team manager so enemies can hunt and shoot at player
             const playerPosition = this.player.getPosition();
-            this.teamManager.update(deltaTime, playerPosition);
+            const playerCamera = this.player.getCamera(); // Use camera as player representation
+            this.teamManager.update(deltaTime, playerPosition, playerCamera);
             
             // Check for game end condition
             const gameEndResult = this.teamManager.checkGameEnd();
