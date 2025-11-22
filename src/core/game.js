@@ -272,6 +272,10 @@ export class Game {
             this.teamManager.enemyGroups = [];
             this.teamManager.bloodEffects = [];
             
+            // Reset respawn system
+            this.teamManager.deadAllies = [];
+            this.teamManager.allAlliesDeadTime = null;
+            
             // Reset scores
             this.teamManager.redScore = 100;
             this.teamManager.blueScore = 10;

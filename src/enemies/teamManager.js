@@ -18,6 +18,12 @@ export class TeamManager {
         this.allies = [];
         this.bloodEffects = [];
         this.enemyGroups = []; // Store enemy groups for group movement
+        
+        // Respawn system for allies
+        this.deadAllies = []; // Track dead allies waiting to respawn with their death times
+        this.respawnDelay = 10.0; // Respawn delay in seconds (10 seconds)
+        this.maxAllies = 9; // Maximum number of allies (9 teammates + 1 player = 10 total)
+        this.allAlliesDeadTime = null; // Track when all allies died (for full respawn)
     }
 
     init() {
@@ -108,23 +114,26 @@ export class TeamManager {
         }
     }
 
-    spawnAllies() {
+    spawnAllies(playerPosition = null) {
         // Spawn 9 friendly team members (blue team) - 1 player + 9 teammates = 10 total
-        // Player starts at center 0,0,0
-        // Teammates start close to player (~100 units), can move away maximum 300 units
-        const teamSize = 9; // 9 teammates (player makes 10 total)
+        // If playerPosition is provided, spawn near player (for respawning)
+        // Otherwise spawn at center 0,0,0 (initial spawn)
+        const teamSize = this.maxAllies; // 9 teammates (player makes 10 total)
         const startRadius = 100; // Start around 100 units from player
         const maxDistance = 300; // Maximum distance from player
         
+        // Use player position if provided, otherwise use center
+        const spawnCenter = playerPosition ? playerPosition.clone() : new THREE.Vector3(0, 0, 0);
+        
         for (let i = 0; i < teamSize; i++) {
-            // Distribute teammates evenly around player in circular formation
+            // Distribute teammates evenly around spawn center in circular formation
             const angle = (Math.PI * 2 / teamSize) * i + Math.random() * 0.2; // Slight variation
-            const distance = startRadius * (0.7 + Math.random() * 0.6); // 70-130 units from player
+            const distance = startRadius * (0.7 + Math.random() * 0.6); // 70-130 units from spawn center
             
             let desiredPosition = new THREE.Vector3(
-                Math.cos(angle) * distance + (Math.random() - 0.5) * 20,
+                spawnCenter.x + Math.cos(angle) * distance + (Math.random() - 0.5) * 20,
                 0,
-                Math.sin(angle) * distance + (Math.random() - 0.5) * 20
+                spawnCenter.z + Math.sin(angle) * distance + (Math.random() - 0.5) * 20
             );
 
             // Find a clear spawn position (not inside objects)
@@ -144,6 +153,47 @@ export class TeamManager {
                 this.scene.add(ally.mesh);
             }
             this.allies.push(ally);
+        }
+    }
+    
+    respawnAlly(playerPosition) {
+        // Respawn a single ally near the player
+        if (!playerPosition) return;
+        
+        const startRadius = 100; // Spawn around 100 units from player
+        const maxDistance = 300; // Maximum distance from player
+        
+        // Random angle and distance around player
+        const angle = Math.random() * Math.PI * 2;
+        const distance = startRadius * (0.7 + Math.random() * 0.6); // 70-130 units from player
+        
+        let desiredPosition = new THREE.Vector3(
+            playerPosition.x + Math.cos(angle) * distance + (Math.random() - 0.5) * 20,
+            0,
+            playerPosition.z + Math.sin(angle) * distance + (Math.random() - 0.5) * 20
+        );
+
+        // Find a clear spawn position (not inside objects)
+        const position = this.collisionSystem ? 
+            this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
+            desiredPosition;
+        
+        // Ensure Y is always 0 (on ground)
+        position.y = 0;
+
+        const ally = new Enemy(position, this.playerTeam, this.collisionSystem, this.bulletManager, this.scene);
+        ally.init();
+        // Mark as ally for special behavior
+        ally.isAlly = true;
+        ally.maxDistanceFromPlayer = maxDistance;
+        if (ally.mesh) {
+            this.scene.add(ally.mesh);
+        }
+        this.allies.push(ally);
+        
+        // Update bullet manager reference
+        if (this.bulletManager) {
+            ally.bulletManager = this.bulletManager;
         }
     }
 
@@ -233,6 +283,10 @@ export class TeamManager {
             this.bloodEffects.push(bloodEffect);
             
             if (ally.health <= 0) {
+                // Track dead ally for respawn (store death time in game time, not Date.now)
+                this.deadAllies.push({
+                    deathTime: 0 // Will be set in update method
+                });
                 this.removeAlly(ally);
                 this.blueScore = Math.max(0, this.blueScore - 1); // Each kill minus 1
             }
@@ -267,6 +321,49 @@ export class TeamManager {
     }
 
     update(deltaTime, playerPosition = null, playerMesh = null) {
+        // Handle ally respawning
+        if (playerPosition) {
+            const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
+            
+            // Track when all allies die
+            if (aliveAlliesCount === 0 && this.allies.length === 0) {
+                if (this.allAlliesDeadTime === null) {
+                    this.allAlliesDeadTime = 0; // Start timer
+                }
+                this.allAlliesDeadTime += deltaTime;
+                
+                // If all allies are dead, respawn all after delay
+                if (this.allAlliesDeadTime >= this.respawnDelay) {
+                    // Respawn all allies
+                    this.spawnAllies(playerPosition);
+                    this.allAlliesDeadTime = null; // Reset timer
+                    this.deadAllies = []; // Clear dead allies list
+                    
+                    // Update bullet manager references
+                    if (this.bulletManager) {
+                        this.allies.forEach(ally => {
+                            ally.bulletManager = this.bulletManager;
+                        });
+                    }
+                }
+            } else {
+                // Reset all allies dead timer if we have allies again
+                this.allAlliesDeadTime = null;
+                
+                // Update death times for dead allies and respawn them
+                for (let i = this.deadAllies.length - 1; i >= 0; i--) {
+                    const deadAlly = this.deadAllies[i];
+                    deadAlly.deathTime += deltaTime;
+                    
+                    // If enough time has passed and we haven't reached max allies, respawn
+                    if (deadAlly.deathTime >= this.respawnDelay && aliveAlliesCount < this.maxAllies) {
+                        this.respawnAlly(playerPosition);
+                        this.deadAllies.splice(i, 1); // Remove from dead list
+                    }
+                }
+            }
+        }
+        
         // Get target lists for shooting
         const enemyMeshes = this.enemies.filter(e => e.health > 0).map(e => e.mesh);
         const allyMeshes = this.allies.filter(a => a.health > 0).map(a => a.mesh);
