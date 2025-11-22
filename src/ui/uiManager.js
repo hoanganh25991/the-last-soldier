@@ -162,11 +162,11 @@ export class UIManager {
                 this.player.velocity.z * this.player.velocity.z
             );
             
-            // Map movement speed to crosshair spread
+            // Map movement speed to crosshair spread (minimal - max 2x base size)
             // Standing still (0) = 0 spread
-            // Walking (5) = 15px spread
-            // Sprinting (8) = 30px spread
-            const movementSpread = Math.min(moveSpeed * 3.5, 30);
+            // Walking (5) = 5px spread
+            // Sprinting (8) = 10px spread (max)
+            const movementSpread = Math.min(moveSpeed * 1.25, 10);
             targetSpread += movementSpread;
             
             // Store movement intensity for position jitter
@@ -186,8 +186,9 @@ export class UIManager {
                     weapon.currentRecoil.z * weapon.currentRecoil.z
                 );
                 
-                // Map recoil to spread (recoil of 0.2 = ~40px spread)
-                const recoilSpread = recoilMagnitude * 200;
+                // Map recoil to spread (minimal - max 2x base size total)
+                // Recoil adds max 10px spread (so total max is 20px = 2x base size)
+                const recoilSpread = Math.min(recoilMagnitude * 50, 10);
                 targetSpread += recoilSpread;
                 
                 // Store recoil intensity for position jitter
@@ -198,14 +199,15 @@ export class UIManager {
         // Smoothly interpolate to target spread
         this.currentCrosshairSpread += (targetSpread - this.currentCrosshairSpread) * 10 * deltaTime;
         
-        // Apply spread to crosshair size
-        const finalSize = this.baseCrosshairSize + this.currentCrosshairSpread;
+        // Apply spread to crosshair size (max 2x base size = 40px)
+        const maxSpread = this.baseCrosshairSize; // Max spread equals base size (2x total)
+        const clampedSpread = Math.min(this.currentCrosshairSpread, maxSpread);
+        const finalSize = this.baseCrosshairSize + clampedSpread;
         this.crosshairElement.style.width = `${finalSize}px`;
         this.crosshairElement.style.height = `${finalSize}px`;
         
-        // Optional: Also fade out crosshair when spread is high (visual feedback)
-        const opacity = Math.max(0.5, 1.0 - (this.currentCrosshairSpread / 50) * 0.3);
-        this.crosshairElement.style.opacity = opacity;
+        // Keep opacity high since size change is minimal
+        this.crosshairElement.style.opacity = 1.0;
         
         // ===== Crosshair Position Jitter/Shake =====
         
@@ -220,19 +222,19 @@ export class UIManager {
         let targetRotation = 0;
         
         if (movementIntensity > 0.1) {
-            // Walking/sprinting - continuous shake with sine waves
-            const shakeAmount = movementIntensity * 8; // Max 16px shake when sprinting
+            // Walking/sprinting - continuous shake with sine waves (keep position shake strong)
+            const shakeAmount = movementIntensity * 5; // Max 10px shake when sprinting (increased for better control challenge)
             targetOffsetX += Math.sin(this.jitterTime * 2.5) * shakeAmount;
             targetOffsetY += Math.cos(this.jitterTime * 3.2) * shakeAmount;
-            targetRotation += Math.sin(this.jitterTime * 1.8) * movementIntensity * 3; // Max 6 degrees
+            targetRotation += Math.sin(this.jitterTime * 1.8) * movementIntensity * 2; // Max 4 degrees (increased for better feel)
         }
         
-        // Add recoil kick to position
+        // Add recoil kick to position (keep recoil shake strong)
         if (recoilIntensity > 0.1) {
-            // Recoil causes sharp upward kick and random horizontal offset
-            targetOffsetY -= recoilIntensity * 12; // Kick upward
-            targetOffsetX += Math.sin(this.jitterTime * 10) * recoilIntensity * 8; // Random horizontal
-            targetRotation += Math.sin(this.jitterTime * 15) * recoilIntensity * 5; // Sharp rotation
+            // Recoil causes sharp upward kick and random horizontal offset (keep strong for control challenge)
+            targetOffsetY -= recoilIntensity * 8; // Kick upward (increased for better feedback)
+            targetOffsetX += Math.sin(this.jitterTime * 10) * recoilIntensity * 6; // Random horizontal (increased)
+            targetRotation += Math.sin(this.jitterTime * 15) * recoilIntensity * 3; // Sharp rotation (increased)
         }
         
         // Smoothly interpolate position offsets (faster response for snappy feel)
