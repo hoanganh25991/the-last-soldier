@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createSoldierModel, updateWalkAnimation } from './soldierModel.js';
 
 export class Enemy {
     constructor(position, team, collisionSystem = null) {
@@ -33,36 +34,25 @@ export class Enemy {
         this.currentDirection = new THREE.Vector3(1, 0, 0); // Current movement direction
         this.desiredDirection = new THREE.Vector3(1, 0, 0); // Desired direction toward player
         this.directionChangeSpeed = 2.0; // How fast direction changes (smooth rotation)
+        
+        // Animation
+        this.soldierData = null; // Store soldier model data for animation
+        this.animationTime = 0; // Track animation time
+        this.isMoving = false; // Track if enemy is moving
     }
 
     init() {
         // Ensure position Y is 0 (on ground)
         this.position.y = 0;
         
-        // Create enemy mesh
+        // Create 3D soldier model with team color
+        const teamColor = this.team === 'blue' ? 0x0000ff : 0xff0000; // blue = ally, red = enemy
+        this.soldierData = createSoldierModel(teamColor);
+        
+        // Create group to hold model and health bar
         const group = new THREE.Group();
-
-        // Body (cylinder)
-        // Enemies are red, allies (our team) are blue
-        const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
-        const bodyMaterial = new THREE.MeshLambertMaterial({ 
-            color: this.team === 'blue' ? 0x0000ff : 0xff0000  // blue = ally, red = enemy
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.75;
-        body.castShadow = true;
-        group.add(body);
-
-        // Head (sphere)
-        const headGeometry = new THREE.SphereGeometry(0.25, 8, 8);
-        const headMaterial = new THREE.MeshLambertMaterial({ 
-            color: this.team === 'blue' ? 0x6666ff : 0xff6666  // blue = ally, red = enemy
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = 1.6;
-        head.castShadow = true;
-        group.add(head);
-
+        group.add(this.soldierData.group);
+        
         // Health bar
         const healthBarGeometry = new THREE.PlaneGeometry(0.6, 0.1);
         const healthBarMaterial = new THREE.MeshBasicMaterial({ 
@@ -70,9 +60,9 @@ export class Enemy {
             transparent: true
         });
         this.healthBar = new THREE.Mesh(healthBarGeometry, healthBarMaterial);
-        this.healthBar.position.y = 2;
+        this.healthBar.position.y = 2.2; // Above soldier model
         group.add(this.healthBar);
-
+        
         group.position.copy(this.position);
         // Enemies are red team, allies are blue team
         group.userData.isEnemy = this.team === 'red';
@@ -80,10 +70,11 @@ export class Enemy {
         
         this.mesh = group;
         this.updateHealthBar();
-
+        
         // Set random target position
         this.setRandomTarget();
     }
+
 
     setRandomTarget() {
         const angle = Math.random() * Math.PI * 2;
@@ -270,6 +261,9 @@ export class Enemy {
             );
         }
         
+        // Track if group is moving
+        this.isMoving = distanceToPlayer > engagementRange;
+        
         // Move group center toward player (only update once per group)
         if (distanceToPlayer > engagementRange && this.groupIndex === 0) {
             // Only the first enemy in group updates the center to avoid multiple updates
@@ -341,6 +335,9 @@ export class Enemy {
         const distanceToTarget = this.position.distanceTo(desiredPosition);
         
         if (distanceToTarget > 0.5) {
+            // Mark as moving for animation
+            this.isMoving = true;
+            
             // Only move horizontally (X and Z), keep Y at 0
             const horizontalMove = direction.clone();
             horizontalMove.y = 0;
@@ -370,11 +367,27 @@ export class Enemy {
             if (horizontalMove.length() > 0) {
                 this.mesh.lookAt(this.position.clone().add(horizontalMove));
             }
+        } else {
+            // Reached target, stop moving
+            this.isMoving = false;
         }
         
         // Ensure position Y is always 0 (on ground)
         this.position.y = 0;
         this.mesh.position.y = 0;
+        
+        // Update walk animation if moving
+        if (this.soldierData && this.isMoving) {
+            this.animationTime += deltaTime;
+            updateWalkAnimation(this.soldierData, this.animationTime, 8);
+        } else if (this.soldierData && !this.isMoving) {
+            // Reset to idle pose when not moving
+            if (this.soldierData.leftLeg) this.soldierData.leftLeg.rotation.x = 0;
+            if (this.soldierData.rightLeg) this.soldierData.rightLeg.rotation.x = 0;
+            if (this.soldierData.leftArm) this.soldierData.leftArm.rotation.x = 0;
+            if (this.soldierData.rightArm) this.soldierData.rightArm.rotation.x = 0;
+            if (this.soldierData.group) this.soldierData.group.position.y = 0;
+        }
         
         // Update health bar to face camera
         if (this.healthBar) {
@@ -477,6 +490,9 @@ export class Enemy {
             const distanceToTarget = this.position.distanceTo(targetPos);
 
             if (distanceToTarget > 1) {
+                // Mark as moving for animation
+                this.isMoving = true;
+                
                 // Only move horizontally (X and Z), keep Y at 0
                 const horizontalMove = direction.clone();
                 horizontalMove.y = 0;
@@ -507,7 +523,9 @@ export class Enemy {
                     this.mesh.lookAt(this.position.clone().add(horizontalMove));
                 }
             } else {
-                // Reached target, set new one
+                // Reached target, stop moving
+                this.isMoving = false;
+                // Set new one
                 if (!this.huntMode || !this.playerPosition) {
                     this.setRandomTarget();
                 }

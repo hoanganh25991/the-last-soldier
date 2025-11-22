@@ -92,7 +92,9 @@ export class TeamManager {
                 enemy.group = group;
                 enemy.groupIndex = i; // Position in group formation
                 enemy.isInGroup = true;
-                this.scene.add(enemy.mesh);
+                if (enemy.mesh) {
+                    this.scene.add(enemy.mesh);
+                }
                 this.enemies.push(enemy);
                 group.enemies.push(enemy);
             }
@@ -130,7 +132,9 @@ export class TeamManager {
             // Mark as ally for special behavior
             ally.isAlly = true;
             ally.maxDistanceFromPlayer = maxDistance;
-            this.scene.add(ally.mesh);
+            if (ally.mesh) {
+                this.scene.add(ally.mesh);
+            }
             this.allies.push(ally);
         }
     }
