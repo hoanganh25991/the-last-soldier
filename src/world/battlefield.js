@@ -23,8 +23,8 @@ export class Battlefield {
     }
 
     createGround() {
-        // Create a large ground plane with bright green grass color
-        const groundGeometry = new THREE.PlaneGeometry(500, 500, 1, 1);
+        // Create a large ground plane with bright green grass color (100x bigger: 50000x50000)
+        const groundGeometry = new THREE.PlaneGeometry(50000, 50000, 1, 1);
         const groundMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x228b22, // Forest green - much brighter and more visible
             wireframe: false
@@ -48,56 +48,99 @@ export class Battlefield {
         const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 8);
         const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
 
-        for (let i = 0; i < 50; i++) {
-            const tree = new THREE.Group();
-            
-            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.y = 1.5;
-            trunk.castShadow = true;
-            trunk.receiveShadow = true;
-            tree.add(trunk);
+        // Spawn trees in clusters around the deployment area (player starts at center)
+        // Create multiple clusters within visible range (0-500 units from center)
+        const clusters = [
+            { centerX: 0, centerZ: 0, radius: 200, count: 100 },      // Center cluster
+            { centerX: 100, centerZ: 100, radius: 150, count: 80 },  // NE cluster
+            { centerX: -100, centerZ: 100, radius: 150, count: 80 }, // NW cluster
+            { centerX: 100, centerZ: -100, radius: 150, count: 80 }, // SE cluster
+            { centerX: -100, centerZ: -100, radius: 150, count: 80 }, // SW cluster
+            { centerX: 200, centerZ: 0, radius: 150, count: 70 },    // East cluster
+            { centerX: -200, centerZ: 0, radius: 150, count: 70 },   // West cluster
+            { centerX: 0, centerZ: 200, radius: 150, count: 70 },    // North cluster
+            { centerX: 0, centerZ: -200, radius: 150, count: 70 },   // South cluster
+        ];
 
-            const foliage = new THREE.Mesh(treeGeometry, treeMaterial);
-            foliage.position.y = 5;
-            foliage.castShadow = true;
-            foliage.receiveShadow = true;
-            tree.add(foliage);
+        let totalTrees = 0;
+        for (const cluster of clusters) {
+            for (let i = 0; i < cluster.count; i++) {
+                const tree = new THREE.Group();
+                
+                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                trunk.position.y = 1.5;
+                trunk.castShadow = true;
+                trunk.receiveShadow = true;
+                tree.add(trunk);
 
-            // Random position
-            const angle = Math.random() * Math.PI * 2;
-            const distance = 20 + Math.random() * 80;
-            tree.position.set(
-                Math.cos(angle) * distance,
-                0,
-                Math.sin(angle) * distance
-            );
+                const foliage = new THREE.Mesh(treeGeometry, treeMaterial);
+                foliage.position.y = 5;
+                foliage.castShadow = true;
+                foliage.receiveShadow = true;
+                tree.add(foliage);
 
-            tree.castShadow = true;
-            tree.receiveShadow = true;
-            this.scene.add(tree);
-            this.objects.push(tree);
+                // Random position within cluster
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * cluster.radius;
+                tree.position.set(
+                    cluster.centerX + Math.cos(angle) * distance,
+                    0,
+                    cluster.centerZ + Math.sin(angle) * distance
+                );
+
+                tree.castShadow = true;
+                tree.receiveShadow = true;
+                this.scene.add(tree);
+                this.objects.push(tree);
+                totalTrees++;
+            }
         }
     }
 
     createObstacles() {
-        // Create some cover objects (boxes, walls)
+        // Create some cover objects (boxes, stones, walls) around deployment area
         const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
         const boxMaterial = new THREE.MeshLambertMaterial({ color: 0x808080 });
+        
+        // Create stone/rock geometry variations
+        const stoneGeometry = new THREE.DodecahedronGeometry(1, 0);
+        const stoneMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
 
-        for (let i = 0; i < 20; i++) {
-            const box = new THREE.Mesh(boxGeometry, boxMaterial);
-            const angle = Math.random() * Math.PI * 2;
-            const distance = 15 + Math.random() * 70;
-            box.position.set(
-                Math.cos(angle) * distance,
-                1,
-                Math.sin(angle) * distance
-            );
-            box.rotation.y = Math.random() * Math.PI * 2;
-            box.castShadow = true;
-            box.receiveShadow = true;
-            this.scene.add(box);
-            this.objects.push(box);
+        // Spawn obstacles in clusters around deployment area (visible range)
+        const clusters = [
+            { centerX: 0, centerZ: 0, radius: 250, count: 50 },      // Center cluster
+            { centerX: 150, centerZ: 150, radius: 100, count: 30 }, // NE cluster
+            { centerX: -150, centerZ: 150, radius: 100, count: 30 }, // NW cluster
+            { centerX: 150, centerZ: -150, radius: 100, count: 30 }, // SE cluster
+            { centerX: -150, centerZ: -150, radius: 100, count: 30 }, // SW cluster
+        ];
+
+        let totalObstacles = 0;
+        for (const cluster of clusters) {
+            for (let i = 0; i < cluster.count; i++) {
+                // Mix boxes and stones
+                const isStone = Math.random() > 0.5;
+                const geometry = isStone ? stoneGeometry : boxGeometry;
+                const material = isStone ? stoneMaterial : boxMaterial;
+                
+                const obstacle = new THREE.Mesh(geometry, material);
+                
+                // Random position within cluster
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * cluster.radius;
+                obstacle.position.set(
+                    cluster.centerX + Math.cos(angle) * distance,
+                    isStone ? 0.5 : 1,
+                    cluster.centerZ + Math.sin(angle) * distance
+                );
+                obstacle.rotation.y = Math.random() * Math.PI * 2;
+                obstacle.rotation.x = isStone ? Math.random() * Math.PI * 0.3 : 0;
+                obstacle.castShadow = true;
+                obstacle.receiveShadow = true;
+                this.scene.add(obstacle);
+                this.objects.push(obstacle);
+                totalObstacles++;
+            }
         }
     }
 

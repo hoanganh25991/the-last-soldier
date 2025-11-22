@@ -104,7 +104,20 @@ export class Game {
             const playerVelocity = this.player.velocity;
             this.weaponManager.update(deltaTime, playerVelocity);
             
-            this.teamManager.update(deltaTime);
+            // Pass player position to team manager so enemies can hunt player
+            const playerPosition = this.player.getPosition();
+            this.teamManager.update(deltaTime, playerPosition);
+            
+            // Check for game end condition
+            const gameEndResult = this.teamManager.checkGameEnd();
+            if (gameEndResult.ended) {
+                this.stop();
+                // Show game end message (you can enhance this with UI later)
+                const winnerText = gameEndResult.winner === 'blue' ? 'Blue Team Wins!' : 'Red Team Wins!';
+                alert(`Game Over!\n${winnerText}\nBlue Score: ${this.teamManager.blueScore}\nRed Score: ${this.teamManager.redScore}`);
+                return;
+            }
+            
             this.uiManager.update(deltaTime);
             this.battlefield.update(this.engine.camera);
 

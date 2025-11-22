@@ -33,9 +33,9 @@ export class BattlefieldDeployBackground {
         // Create scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87ceeb); // Sky blue background
-        this.scene.fog = new THREE.Fog(0x87ceeb, 100, 300);
+        this.scene.fog = new THREE.Fog(0x87ceeb, 100, 300); // Keep original fog distance
 
-        // Create perspective camera for isometric-like view
+        // Create perspective camera for isometric-like view (keep original zoom)
         this.camera = new THREE.PerspectiveCamera(
             45,  // FOV
             width / height,
@@ -43,7 +43,7 @@ export class BattlefieldDeployBackground {
             500
         );
         
-        // Position camera for isometric/top-down view
+        // Position camera for isometric/top-down view (keep original position)
         // Looking down at an angle from above (matching the design)
         this.camera.position.set(100, 150, 100);
         this.camera.lookAt(0, 0, 0);
@@ -70,7 +70,7 @@ export class BattlefieldDeployBackground {
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
         directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 500;
+        directionalLight.shadow.camera.far = 500; // Keep original shadow distance
         directionalLight.shadow.camera.left = -150;
         directionalLight.shadow.camera.right = 150;
         directionalLight.shadow.camera.top = 150;
@@ -101,8 +101,8 @@ export class BattlefieldDeployBackground {
     }
 
     createGround() {
-        // Create a large ground plane with bright green grass color
-        const groundGeometry = new THREE.PlaneGeometry(500, 500, 1, 1);
+        // Create a large ground plane with bright green grass color (100x bigger: 50000x50000)
+        const groundGeometry = new THREE.PlaneGeometry(50000, 50000, 1, 1);
         const groundMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x228b22, // Forest green
             wireframe: false
@@ -129,14 +129,14 @@ export class BattlefieldDeployBackground {
         const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 8);
         const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
 
-        // Create clusters of trees, especially dense in top-left (around point B)
+        // Create clusters of trees, especially dense in top-left (around point B) - scaled for 100x larger map
         const treePositions = [
             // Dense cluster around point B (top-left)
-            ...this.generateTreeCluster(-60, -60, 15, 20),
+            ...this.generateTreeCluster(-6000, -6000, 1500, 2000),
             // Scattered trees across the map
-            ...this.generateTreeCluster(0, 0, 30, 10),
-            ...this.generateTreeCluster(40, -40, 20, 8),
-            ...this.generateTreeCluster(-40, 40, 15, 8),
+            ...this.generateTreeCluster(0, 0, 3000, 1000),
+            ...this.generateTreeCluster(4000, -4000, 2000, 800),
+            ...this.generateTreeCluster(-4000, 4000, 1500, 800),
         ];
 
         treePositions.forEach(pos => {
@@ -179,55 +179,55 @@ export class BattlefieldDeployBackground {
         const boxGeometry = new THREE.BoxGeometry(3, 3, 3);
         const boxMaterial = new THREE.MeshLambertMaterial({ color: 0xd3d3d3 }); // Light gray
 
-        // Point A - Single building (bottom-left)
+        // Point A - Single building (bottom-left) - scaled for 100x larger map
         const buildingA = new THREE.Mesh(boxGeometry, boxMaterial);
-        buildingA.position.set(-60, 1.5, 60);
+        buildingA.position.set(-6000, 1.5, 6000);
         buildingA.castShadow = true;
         buildingA.receiveShadow = true;
         this.scene.add(buildingA);
 
-        // Point C - Two buildings (bottom-right)
+        // Point C - Two buildings (bottom-right) - scaled for 100x larger map
         const buildingC1 = new THREE.Mesh(boxGeometry, boxMaterial);
-        buildingC1.position.set(50, 1.5, 50);
+        buildingC1.position.set(5000, 1.5, 5000);
         buildingC1.castShadow = true;
         buildingC1.receiveShadow = true;
         this.scene.add(buildingC1);
 
         const buildingC2 = new THREE.Mesh(boxGeometry, boxMaterial);
-        buildingC2.position.set(55, 1.5, 45);
+        buildingC2.position.set(5500, 1.5, 4500);
         buildingC2.castShadow = true;
         buildingC2.receiveShadow = true;
         this.scene.add(buildingC2);
 
-        // Point D - Cluster of buildings (top-right)
+        // Point D - Cluster of buildings (top-right) - scaled for 100x larger map
         const buildingD1 = new THREE.Mesh(boxGeometry, boxMaterial);
-        buildingD1.position.set(60, 1.5, -50);
+        buildingD1.position.set(6000, 1.5, -5000);
         buildingD1.castShadow = true;
         buildingD1.receiveShadow = true;
         this.scene.add(buildingD1);
 
         const buildingD2 = new THREE.Mesh(boxGeometry, boxMaterial);
-        buildingD2.position.set(65, 1.5, -55);
+        buildingD2.position.set(6500, 1.5, -5500);
         buildingD2.castShadow = true;
         buildingD2.receiveShadow = true;
         this.scene.add(buildingD2);
 
         const buildingD3 = new THREE.Mesh(boxGeometry, boxMaterial);
-        buildingD3.position.set(70, 1.5, -50);
+        buildingD3.position.set(7000, 1.5, -5000);
         buildingD3.castShadow = true;
         buildingD3.receiveShadow = true;
         this.scene.add(buildingD3);
 
-        // Point E - Low walls/trenches (center)
-        const wallGeometry = new THREE.BoxGeometry(8, 1, 1);
+        // Point E - Low walls/trenches (center) - scaled for 100x larger map
+        const wallGeometry = new THREE.BoxGeometry(800, 1, 1);
         const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x8b7355 }); // Brown
         for (let i = 0; i < 4; i++) {
             const wall = new THREE.Mesh(wallGeometry, wallMaterial);
             const angle = (i / 4) * Math.PI * 2;
             wall.position.set(
-                Math.cos(angle) * 5,
+                Math.cos(angle) * 500,
                 0.5,
-                Math.sin(angle) * 5
+                Math.sin(angle) * 500
             );
             wall.rotation.y = angle + Math.PI / 2;
             wall.castShadow = true;
@@ -237,8 +237,8 @@ export class BattlefieldDeployBackground {
     }
 
     createPaths() {
-        // Create dirt paths/roads
-        const pathGeometry = new THREE.PlaneGeometry(8, 200, 1, 1);
+        // Create dirt paths/roads - scaled for 100x larger map
+        const pathGeometry = new THREE.PlaneGeometry(800, 20000, 1, 1);
         const pathMaterial = new THREE.MeshLambertMaterial({ color: 0x8b7355 }); // Brown dirt
 
         // Vertical path through center
@@ -252,27 +252,27 @@ export class BattlefieldDeployBackground {
         const horizontalPath = new THREE.Mesh(pathGeometry, pathMaterial);
         horizontalPath.rotation.x = -Math.PI / 2;
         horizontalPath.rotation.z = Math.PI / 2;
-        horizontalPath.position.set(0, 0.1, -40);
+        horizontalPath.position.set(0, 0.1, -4000);
         horizontalPath.receiveShadow = true;
         this.scene.add(horizontalPath);
 
         // Curved path near point C
-        const curvedPath = new THREE.PlaneGeometry(6, 50, 1, 1);
+        const curvedPath = new THREE.PlaneGeometry(600, 5000, 1, 1);
         const curvedPathMesh = new THREE.Mesh(curvedPath, pathMaterial);
         curvedPathMesh.rotation.x = -Math.PI / 2;
         curvedPathMesh.rotation.y = Math.PI / 4;
-        curvedPathMesh.position.set(40, 0.1, 40);
+        curvedPathMesh.position.set(4000, 0.1, 4000);
         curvedPathMesh.receiveShadow = true;
         this.scene.add(curvedPathMesh);
     }
 
     createStrategicPoints() {
-        // Strategic point positions (matching the image layout)
+        // Strategic point positions (matching the image layout, scaled for 100x larger map)
         const points = [
-            { label: 'A', position: new THREE.Vector3(-60, 0, 60) },   // Bottom-left
-            { label: 'B', position: new THREE.Vector3(-60, 0, -60) },  // Top-left
-            { label: 'C', position: new THREE.Vector3(50, 0, 50) },    // Bottom-right
-            { label: 'D', position: new THREE.Vector3(60, 0, -50) },   // Top-right
+            { label: 'A', position: new THREE.Vector3(-6000, 0, 6000) },   // Bottom-left
+            { label: 'B', position: new THREE.Vector3(-6000, 0, -6000) },  // Top-left
+            { label: 'C', position: new THREE.Vector3(5000, 0, 5000) },    // Bottom-right
+            { label: 'D', position: new THREE.Vector3(6000, 0, -5000) },   // Top-right
             { label: 'E', position: new THREE.Vector3(0, 0, 0) }        // Center
         ];
 
@@ -314,8 +314,8 @@ export class BattlefieldDeployBackground {
             });
         });
 
-        // Add medical/spawn point marker above point B (red cross in white circle)
-        const medicalCircleGeometry = new THREE.CircleGeometry(2, 16);
+        // Add medical/spawn point marker above point B (red cross in white circle) - scaled for 100x larger map
+        const medicalCircleGeometry = new THREE.CircleGeometry(200, 16);
         const medicalCircleMaterial = new THREE.MeshBasicMaterial({ 
             color: 0xffffff,
             transparent: true,
@@ -323,12 +323,12 @@ export class BattlefieldDeployBackground {
         });
         const medicalCircle = new THREE.Mesh(medicalCircleGeometry, medicalCircleMaterial);
         medicalCircle.rotation.x = -Math.PI / 2;
-        medicalCircle.position.set(-60, 0.2, -70);
+        medicalCircle.position.set(-6000, 0.2, -7000);
         this.scene.add(medicalCircle);
 
         // Red cross lines
-        const crossLine1Geometry = new THREE.PlaneGeometry(0.3, 3);
-        const crossLine2Geometry = new THREE.PlaneGeometry(3, 0.3);
+        const crossLine1Geometry = new THREE.PlaneGeometry(30, 300);
+        const crossLine2Geometry = new THREE.PlaneGeometry(300, 30);
         const crossMaterial = new THREE.MeshBasicMaterial({ 
             color: 0xff0000,
             transparent: true,
@@ -338,8 +338,8 @@ export class BattlefieldDeployBackground {
         const crossLine2 = new THREE.Mesh(crossLine2Geometry, crossMaterial);
         crossLine1.rotation.x = -Math.PI / 2;
         crossLine2.rotation.x = -Math.PI / 2;
-        crossLine1.position.set(-60, 0.25, -70);
-        crossLine2.position.set(-60, 0.25, -70);
+        crossLine1.position.set(-6000, 0.25, -7000);
+        crossLine2.position.set(-6000, 0.25, -7000);
         this.scene.add(crossLine1);
         this.scene.add(crossLine2);
     }

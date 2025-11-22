@@ -8,20 +8,20 @@ export class LODTerrain {
     }
 
     async init() {
-        // Create LOD levels with different resolutions
+        // Create LOD levels with different resolutions (100x bigger: 5000)
         const lod = new THREE.LOD();
 
         // High detail (close)
-        const highDetail = this.createTerrainMesh(128, 50);
+        const highDetail = this.createTerrainMesh(128, 5000);
         lod.addLevel(highDetail, 0);
 
         // Medium detail
-        const mediumDetail = this.createTerrainMesh(64, 50);
-        lod.addLevel(mediumDetail, 30);
+        const mediumDetail = this.createTerrainMesh(64, 5000);
+        lod.addLevel(mediumDetail, 3000);
 
         // Low detail (far)
-        const lowDetail = this.createTerrainMesh(32, 50);
-        lod.addLevel(lowDetail, 60);
+        const lowDetail = this.createTerrainMesh(32, 5000);
+        lod.addLevel(lowDetail, 6000);
 
         this.mesh = lod;
     }

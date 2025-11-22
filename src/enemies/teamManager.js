@@ -24,14 +24,31 @@ export class TeamManager {
     }
 
     spawnEnemies() {
-        // Spawn enemy team members
-        for (let i = 0; i < 5; i++) {
-            const angle = (Math.PI * 2 / 5) * i;
-            const distance = 30 + Math.random() * 20;
+        // Spawn 100 enemy team members (red team)
+        // Spawn them around the deployment area (player starts at center 0,0,0)
+        const teamSize = 100;
+        const spawnRadius = 300; // Spawn enemies within 300 units of deployment area
+        const minDistance = 50; // Minimum distance from center
+        
+        for (let i = 0; i < teamSize; i++) {
+            // Create a formation pattern - distribute around deployment area
+            // Mix of circular formation and random scatter
+            let angle, distance;
+            
+            if (i < teamSize * 0.7) {
+                // 70% spawn in circular formation around deployment
+                angle = (Math.PI * 2 / (teamSize * 0.7)) * i;
+                distance = minDistance + Math.random() * (spawnRadius - minDistance);
+            } else {
+                // 30% spawn randomly scattered around deployment area
+                angle = Math.random() * Math.PI * 2;
+                distance = minDistance + Math.random() * spawnRadius;
+            }
+            
             const position = new THREE.Vector3(
-                Math.cos(angle) * distance,
+                Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
                 0,
-                Math.sin(angle) * distance
+                Math.sin(angle) * distance + (Math.random() - 0.5) * 50
             );
 
             const enemy = new Enemy(position, this.enemyTeam);
@@ -42,14 +59,32 @@ export class TeamManager {
     }
 
     spawnAllies() {
-        // Spawn friendly team members
-        for (let i = 0; i < 4; i++) {
-            const angle = (Math.PI * 2 / 4) * i + Math.PI;
-            const distance = 25 + Math.random() * 15;
+        // Spawn 100 friendly team members (blue team)
+        // Spawn them around the deployment area (player starts at center 0,0,0)
+        // Allies spawn slightly further out than enemies to create a defensive perimeter
+        const teamSize = 100;
+        const spawnRadius = 400; // Spawn allies within 400 units of deployment area
+        const minDistance = 200; // Minimum distance from center (further than enemies)
+        
+        for (let i = 0; i < teamSize; i++) {
+            // Create a formation pattern - distribute around deployment area
+            // Mix of circular formation and random scatter
+            let angle, distance;
+            
+            if (i < teamSize * 0.7) {
+                // 70% spawn in circular formation around deployment
+                angle = (Math.PI * 2 / (teamSize * 0.7)) * i;
+                distance = minDistance + Math.random() * (spawnRadius - minDistance);
+            } else {
+                // 30% spawn randomly scattered around deployment area
+                angle = Math.random() * Math.PI * 2;
+                distance = minDistance + Math.random() * (spawnRadius - minDistance);
+            }
+            
             const position = new THREE.Vector3(
-                Math.cos(angle) * distance,
+                Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
                 0,
-                Math.sin(angle) * distance
+                Math.sin(angle) * distance + (Math.random() - 0.5) * 50
             );
 
             const ally = new Enemy(position, this.playerTeam);
@@ -80,7 +115,7 @@ export class TeamManager {
             
             if (enemy.health <= 0) {
                 this.removeEnemy(enemy);
-                this.redScore = Math.max(0, this.redScore - 10);
+                this.redScore = Math.max(0, this.redScore - 1); // Each kill minus 1
             }
         }
     }
@@ -98,7 +133,7 @@ export class TeamManager {
             
             if (ally.health <= 0) {
                 this.removeAlly(ally);
-                this.blueScore = Math.max(0, this.blueScore - 10);
+                this.blueScore = Math.max(0, this.blueScore - 1); // Each kill minus 1
             }
         }
     }
@@ -121,13 +156,16 @@ export class TeamManager {
         }
     }
 
-    update(deltaTime) {
-        // Update all enemies
+    update(deltaTime, playerPosition = null) {
+        // Update all enemies (pass player position for hunting)
         for (const enemy of this.enemies) {
+            if (playerPosition) {
+                enemy.setPlayerPosition(playerPosition);
+            }
             enemy.update(deltaTime);
         }
 
-        // Update all allies
+        // Update all allies (they don't hunt player, just move randomly)
         for (const ally of this.allies) {
             ally.update(deltaTime);
         }
@@ -141,6 +179,17 @@ export class TeamManager {
                 this.bloodEffects.splice(i, 1);
             }
         }
+    }
+
+    checkGameEnd() {
+        // Check if game should end (one team reaches 0)
+        if (this.redScore <= 0) {
+            return { ended: true, winner: 'blue' };
+        }
+        if (this.blueScore <= 0) {
+            return { ended: true, winner: 'red' };
+        }
+        return { ended: false, winner: null };
     }
 }
 

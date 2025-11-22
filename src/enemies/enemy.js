@@ -10,6 +10,8 @@ export class Enemy {
         this.speed = 2.0;
         this.targetPosition = null;
         this.lastMoveTime = 0;
+        this.playerPosition = null; // Player position for hunting
+        this.huntMode = true; // Hunt player instead of random movement
     }
 
     init() {
@@ -72,6 +74,10 @@ export class Enemy {
         );
     }
 
+    setPlayerPosition(playerPosition) {
+        this.playerPosition = playerPosition ? playerPosition.clone() : null;
+    }
+
     takeDamage(amount) {
         this.health = Math.max(0, this.health - amount);
         this.updateHealthBar();
@@ -90,14 +96,36 @@ export class Enemy {
     update(deltaTime) {
         if (!this.mesh || this.health <= 0) return;
 
-        // Simple AI: move towards target
-        if (this.targetPosition) {
+        // AI: Hunt player if position is known, otherwise random movement
+        let targetPos = this.targetPosition;
+        
+        if (this.huntMode && this.playerPosition) {
+            // Move towards player position
+            const distanceToPlayer = this.position.distanceTo(this.playerPosition);
+            
+            if (distanceToPlayer > 2) {
+                // Set player as target
+                targetPos = this.playerPosition.clone();
+                targetPos.y = 0; // Keep on ground level
+            } else {
+                // Close to player, set random nearby target for flanking
+                this.setRandomTarget();
+                targetPos = this.targetPosition;
+            }
+        } else if (!targetPos) {
+            // No target, set random one
+            this.setRandomTarget();
+            targetPos = this.targetPosition;
+        }
+
+        // Move towards target
+        if (targetPos) {
             const direction = new THREE.Vector3()
-                .subVectors(this.targetPosition, this.position)
+                .subVectors(targetPos, this.position)
                 .normalize();
 
             const moveDistance = this.speed * deltaTime;
-            const distanceToTarget = this.position.distanceTo(this.targetPosition);
+            const distanceToTarget = this.position.distanceTo(targetPos);
 
             if (distanceToTarget > 1) {
                 // Only move horizontally (X and Z), keep Y at 0
@@ -117,7 +145,9 @@ export class Enemy {
                 }
             } else {
                 // Reached target, set new one
-                this.setRandomTarget();
+                if (!this.huntMode || !this.playerPosition) {
+                    this.setRandomTarget();
+                }
             }
         }
 

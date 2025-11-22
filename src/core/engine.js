@@ -17,9 +17,9 @@ export class Engine {
         // Create scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
-        this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
+        this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200); // Keep original fog distance
 
-        // Create camera
+        // Create camera (keep original zoom/view distance)
         this.camera = new THREE.PerspectiveCamera(
             75,
             window.innerWidth / window.innerHeight,
@@ -41,12 +41,12 @@ export class Engine {
         this.scene.add(ambientLight);
 
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(50, 100, 50);
+        directionalLight.position.set(50, 100, 50); // Keep original position
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
         directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 500;
+        directionalLight.shadow.camera.far = 500; // Keep original shadow distance
         directionalLight.shadow.camera.left = -100;
         directionalLight.shadow.camera.right = 100;
         directionalLight.shadow.camera.top = 100;
