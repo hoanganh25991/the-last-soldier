@@ -157,8 +157,8 @@ export class PlayerController {
                 e.preventDefault();
                 this.isCrouching = true;
                 this.currentSpeed = this.crouchSpeed;
-                // Lower camera position
-                this.pitchObject.position.y = -0.4; // Lower camera when crouching
+                // Lower camera position significantly to hide under rocks/walls
+                this.pitchObject.position.y = -1.0; // Lower camera much more when crouching
             }
         };
 
@@ -370,12 +370,15 @@ export class PlayerController {
         // Check collisions and move
         const newPosition = this.yawObject.position.clone().add(this.velocity.clone().multiplyScalar(deltaTime));
         
+        // Use different collision height when crouching
+        const collisionHeight = this.isCrouching ? 0.8 : 1.6;
+        
         if (this.collisionSystem) {
             const collisionResult = this.collisionSystem.checkCollision(
                 this.yawObject.position,
                 newPosition,
                 0.5,
-                1.6
+                collisionHeight
             );
             
             if (collisionResult.onGround) {
@@ -388,14 +391,22 @@ export class PlayerController {
             this.yawObject.position.copy(newPosition);
         }
         
-        // Update collider mesh position to match player position (at body center height)
+        // Update collider mesh position to match player position
         // CRITICAL: This must be updated every frame for collision detection to work
+        // When crouching, lower the collider so bullets can't hit (enemies aim at 0.9)
         if (this.colliderMesh) {
+            const colliderHeight = this.isCrouching ? 0.3 : 0.9; // Much lower when crouching
             this.colliderMesh.position.set(
                 this.yawObject.position.x,
-                0.9, // Always at body center height
+                colliderHeight, // Lower when crouching to avoid bullets
                 this.yawObject.position.z
             );
+            // Scale down collider height when crouching to match lower profile
+            if (this.isCrouching) {
+                this.colliderMesh.scale.y = 0.5; // Make collider shorter when crouching
+            } else {
+                this.colliderMesh.scale.y = 1.0; // Normal height when standing
+            }
             // Ensure collider is visible to raycast
             this.colliderMesh.visible = true;
         }
