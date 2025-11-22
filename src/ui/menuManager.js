@@ -182,7 +182,8 @@ export class MenuManager {
             gadget: [
                 { name: 'Grenade', icon: WEAPON_ICONS.grenade },
                 { name: 'Medkit', icon: WEAPON_ICONS.medkit },
-                { name: 'Binoculars', icon: WEAPON_ICONS.binoculars }
+                { name: 'Binoculars', icon: WEAPON_ICONS.binoculars },
+                { name: 'Knife', icon: WEAPON_ICONS.knife }
             ]
         };
 
@@ -395,6 +396,18 @@ export class MenuManager {
                     'Cooldown': 'None',
                     'Type': 'Utility',
                     'Durability': 'Unlimited'
+                }
+            },
+            'Knife': {
+                name: 'Knife',
+                icon: WEAPON_ICONS.knife,
+                stats: {
+                    'Damage': '50',
+                    'Attack Speed': 'Fast',
+                    'Range': 'Melee',
+                    'Durability': 'Unlimited',
+                    'Type': 'Melee',
+                    'Stealth': 'Silent'
                 }
             }
         };

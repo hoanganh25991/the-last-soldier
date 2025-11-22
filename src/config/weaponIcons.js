@@ -38,7 +38,8 @@ export function getWeaponIcon(weaponName) {
         // Gadgets
         'Grenade': WEAPON_ICONS.grenade,
         'Medkit': WEAPON_ICONS.medkit,
-        'Binoculars': WEAPON_ICONS.binoculars
+        'Binoculars': WEAPON_ICONS.binoculars,
+        'Knife': WEAPON_ICONS.knife
     };
     
     return iconMap[weaponName] || WEAPON_ICONS.pistol;

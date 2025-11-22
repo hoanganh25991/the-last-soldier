@@ -119,17 +119,11 @@ export class WeaponManager {
             if (e.code === 'Digit2') this.switchWeapon('secondary');
         });
 
-        // Weapon switch (click on weapon slots)
-        const weaponSwitch = document.getElementById('weapon-switch');
-        if (weaponSwitch) {
-            weaponSwitch.addEventListener('click', (e) => {
-                const weaponSlot = e.target.closest('.weapon-slot');
-                if (weaponSlot) {
-                    const weaponType = weaponSlot.dataset.weaponType;
-                    if (weaponType && weaponType !== this.weaponType) {
-                        this.switchWeapon(weaponType);
-                    }
-                }
+        // Weapon switch (click on weapon icon)
+        const weaponIcon = document.getElementById('weapon-icon');
+        if (weaponIcon) {
+            weaponIcon.addEventListener('click', () => {
+                this.switchWeapon(this.weaponType === 'primary' ? 'secondary' : 'primary');
             });
         }
     }
@@ -184,31 +178,12 @@ export class WeaponManager {
     updateUI() {
         const ammoCurrent = document.getElementById('ammo-current');
         const ammoReserve = document.getElementById('ammo-reserve');
-        const primaryIcon = document.getElementById('weapon-icon-primary');
-        const secondaryIcon = document.getElementById('weapon-icon-secondary');
-        const primarySlot = document.getElementById('weapon-slot-primary');
-        const secondarySlot = document.getElementById('weapon-slot-secondary');
+        const weaponIcon = document.getElementById('weapon-icon');
 
-        // Update weapon icons
-        if (this.primaryWeapon && primaryIcon) {
-            primaryIcon.textContent = this.primaryWeapon.icon;
-        }
-        if (this.secondaryWeapon && secondaryIcon) {
-            secondaryIcon.textContent = this.secondaryWeapon.icon;
+        if (this.currentWeapon && weaponIcon) {
+            weaponIcon.textContent = this.currentWeapon.icon;
         }
 
-        // Update active weapon slot
-        if (primarySlot && secondarySlot) {
-            if (this.weaponType === 'primary') {
-                primarySlot.classList.add('active');
-                secondarySlot.classList.remove('active');
-            } else {
-                primarySlot.classList.remove('active');
-                secondarySlot.classList.add('active');
-            }
-        }
-
-        // Update ammo display
         if (this.currentWeapon) {
             if (ammoCurrent) ammoCurrent.textContent = this.currentWeapon.currentAmmo;
             if (ammoReserve) ammoReserve.textContent = this.currentWeapon.reserveAmmo;
