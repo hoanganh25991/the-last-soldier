@@ -376,9 +376,14 @@ export class UIManager {
             // Get forward direction vector (0, 0, -1) rotated by quaternion
             const forward = new THREE.Vector3(0, 0, -1);
             forward.applyQuaternion(yawObject.quaternion);
-            // Use atan2 to get continuous angle from forward vector (X, Z)
-            // This gives smooth 360-degree rotation without wrapping issues
-            playerRotation = Math.atan2(forward.x, forward.z);
+            // Canvas coordinate system: 0° = right, 90° = down, 180° = left, -90° = up
+            // We want: forward (negative Z) → up (-90°), right (positive X) → right (0°)
+            // Using atan2(forward.x, -forward.z) then subtracting 90°:
+            // - forward (0,0,-1): atan2(0,1) - 90° = 0° - 90° = -90° (up) ✓
+            // - right (1,0,0): atan2(1,0) - 90° = 90° - 90° = 0° (right) ✓
+            // - back (0,0,1): atan2(0,-1) - 90° = 180° - 90° = 90° (down) ✓
+            // - left (-1,0,0): atan2(-1,0) - 90° = -90° - 90° = -180° = 180° (left) ✓
+            playerRotation = Math.atan2(forward.x, -forward.z) - Math.PI / 2;
         }
         
         // Helper function to convert world position to minimap coordinates
@@ -389,14 +394,16 @@ export class UIManager {
             
             // Clamp to minimap range
             if (distance > this.minimapRange) {
-                const angle = Math.atan2(dz, dx);
+                // Negate dz because canvas Y increases downward, but we want forward (negative Z) to point up
+                const angle = Math.atan2(-dz, dx);
                 const x = width / 2 + Math.cos(angle) * (width / 2 - 5);
                 const y = height / 2 + Math.sin(angle) * (height / 2 - 5);
                 return { x, y, offMap: true };
             }
             
+            // Negate dz so forward (negative Z) points upward on minimap
             const x = width / 2 + (dx / this.minimapRange) * (width / 2);
-            const y = height / 2 + (dz / this.minimapRange) * (height / 2);
+            const y = height / 2 + (-dz / this.minimapRange) * (height / 2);
             return { x, y, offMap: false };
         };
         
@@ -462,7 +469,8 @@ export class UIManager {
                         ctx.fill();
                     } else {
                         // Draw arrow on edge pointing to enemy
-                        const angle = Math.atan2(dz, dx);
+                        // Negate dz because canvas Y increases downward
+                        const angle = Math.atan2(-dz, dx);
                         const edgeX = width / 2 + Math.cos(angle) * (width / 2 - 5);
                         const edgeY = height / 2 + Math.sin(angle) * (height / 2 - 5);
                         ctx.beginPath();
@@ -489,17 +497,16 @@ export class UIManager {
         ctx.fill();
         
         // Draw player direction arrow
-        // playerRotation is from atan2(forward.x, forward.z) where forward = (0,0,-1) rotated
-        // When forward = (0,0,-1) (north), atan2(0,-1) = π
+        // playerRotation is from atan2(forward.x, -forward.z) which gives correct canvas angle
         // Canvas: 0° = right, π/2 = down, π = left, -π/2 = up
-        // Arrow was pointing 180° opposite, so we flip it by adding π
+        // No adjustment needed - playerRotation is already in canvas coordinate system
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 2;
         ctx.fillStyle = '#00ff00';
         const arrowLength = 10;
         const arrowHeadLength = 5;
         const arrowHeadAngle = Math.PI / 6; // 30 degrees
-        const adjustedRotation = playerRotation + Math.PI / 2 + Math.PI;
+        const adjustedRotation = playerRotation;
         
         // Calculate arrow tip position
         const tipX = width / 2 + Math.cos(adjustedRotation) * arrowLength;
