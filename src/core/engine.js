@@ -65,6 +65,9 @@ export class Engine {
         this.stats.dom.style.left = '0';
         this.stats.dom.style.zIndex = '10000';
         document.body.appendChild(this.stats.dom);
+        
+        // Set initial visibility based on settings (default: hidden)
+        this.setFPSVisibility(false);
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
@@ -99,6 +102,12 @@ export class Engine {
             return this.stats.dom.querySelector('.fps')?.textContent || '60';
         }
         return '60';
+    }
+
+    setFPSVisibility(visible) {
+        if (this.stats && this.stats.dom) {
+            this.stats.dom.style.display = visible ? 'block' : 'none';
+        }
     }
 
     onWindowResize() {

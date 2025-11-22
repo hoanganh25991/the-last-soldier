@@ -28,12 +28,15 @@ export class MenuManager {
             gyroLook: 0,
             gyroADS: 0,
             lookSensitivity: 50,
-            adsSens: 25
+            adsSens: 25,
+            showFPS: false // Default: HIDE
         };
         // Load weapon selections from localStorage or use defaults
         this.selectedWeapons = this.loadWeaponSelections();
         // Load player name from localStorage or use default
         this.playerName = this.loadPlayerName();
+        // Load settings from localStorage
+        this.loadSettingsFromStorage();
     }
 
     init() {
@@ -518,6 +521,12 @@ export class MenuManager {
             checkbox.addEventListener('change', (e) => {
                 const setting = e.target.dataset.setting;
                 this.settings[setting] = e.target.checked;
+                // Save settings to localStorage when changed
+                this.saveSettingsToStorage();
+                // Apply FPS visibility immediately if changed
+                if (setting === 'showFPS') {
+                    this.applyFPSVisibility();
+                }
             });
         });
 
@@ -529,6 +538,9 @@ export class MenuManager {
             this.audioManager.setMusicVolume(this.settings.music / 100);
             this.audioManager.setSfxVolume(this.settings.game / 100);
         }
+        
+        // Apply FPS visibility based on settings
+        this.applyFPSVisibility();
     }
 
     loadSettings() {
@@ -688,7 +700,7 @@ export class MenuManager {
         if (!this.gameInstance) {
             const { Game } = await import('../core/game.js');
             this.gameInstance = new Game(this.audioManager);
-            await this.gameInstance.init(this.selectedWeapons);
+            await this.gameInstance.init(this.selectedWeapons, this.settings);
         } else {
             // Resume game if it already exists
             this.gameInstance.start();
@@ -697,6 +709,10 @@ export class MenuManager {
                 if (this.selectedWeapons.gadget) {
                     this.gameInstance.weaponManager.setSelectedGadget(this.selectedWeapons.gadget);
                 }
+            }
+            // Apply FPS visibility setting
+            if (this.gameInstance.engine) {
+                this.gameInstance.engine.setFPSVisibility(this.settings.showFPS);
             }
         }
         
@@ -809,6 +825,38 @@ export class MenuManager {
         }
 
         return defaults;
+    }
+
+    saveSettingsToStorage() {
+        try {
+            localStorage.setItem('gameSettings', JSON.stringify(this.settings));
+            console.log('Settings saved:', this.settings);
+        } catch (error) {
+            console.warn('Failed to save settings to localStorage:', error);
+        }
+    }
+
+    loadSettingsFromStorage() {
+        try {
+            const saved = localStorage.getItem('gameSettings');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Merge saved settings with defaults (preserve defaults for new settings)
+                this.settings = { ...this.settings, ...parsed };
+            }
+        } catch (error) {
+            console.warn('Failed to load settings from localStorage:', error);
+        }
+    }
+
+    applyFPSVisibility() {
+        // Apply FPS visibility to existing game instance if available
+        if (this.gameInstance && this.gameInstance.engine && this.gameInstance.engine.stats) {
+            const statsDom = this.gameInstance.engine.stats.dom;
+            if (statsDom) {
+                statsDom.style.display = this.settings.showFPS ? 'block' : 'none';
+            }
+        }
     }
 }
 

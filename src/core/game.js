@@ -21,10 +21,18 @@ export class Game {
         this.isRunning = false;
     }
 
-    async init(selectedWeapons = null) {
+    async init(selectedWeapons = null, settings = null) {
         // Initialize core engine
         this.engine = new Engine();
         await this.engine.init();
+        
+        // Apply FPS visibility setting if provided
+        if (settings && settings.showFPS !== undefined) {
+            this.engine.setFPSVisibility(settings.showFPS);
+        } else {
+            // Default to hidden if no settings provided
+            this.engine.setFPSVisibility(false);
+        }
 
         // Initialize collision system
         this.collisionSystem = new CollisionSystem();
