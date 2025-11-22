@@ -138,6 +138,9 @@ export class Game {
             // Check for game end condition (team elimination)
             const gameEndResult = this.teamManager.checkGameEnd();
             if (gameEndResult.ended) {
+                // Stop enemy spawning
+                this.teamManager.setGameEnded(true);
+                
                 this.stop();
                 // Release pointer lock so player can interact with dialog
                 if (document.pointerLockElement) {
@@ -174,6 +177,11 @@ export class Game {
     }
 
     handlePlayerDeath() {
+        // Stop enemy spawning
+        if (this.teamManager) {
+            this.teamManager.setGameEnded(true);
+        }
+        
         // Stop the game loop
         this.stop();
         
@@ -286,6 +294,10 @@ export class Game {
             // Reset respawn system
             this.teamManager.deadAllies = [];
             this.teamManager.allAlliesDeadTime = null;
+            
+            // Reset game ended flag
+            this.teamManager.setGameEnded(false);
+            this.teamManager.enemyRespawnTimer = 0;
             
             // Reset scores
             this.teamManager.redScore = 100;

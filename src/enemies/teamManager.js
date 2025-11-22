@@ -24,6 +24,13 @@ export class TeamManager {
         this.respawnDelay = 10.0; // Respawn delay in seconds (10 seconds)
         this.maxAllies = 9; // Maximum number of allies (9 teammates + 1 player = 10 total)
         this.allAlliesDeadTime = null; // Track when all allies died (for full respawn)
+        
+        // Respawn system for enemies - keep spawning until game ends
+        this.targetEnemyCount = 100; // Target number of enemies to maintain
+        this.enemyRespawnTimer = 0; // Timer for enemy respawning
+        this.enemyRespawnInterval = 5.0; // Spawn enemies every 5 seconds
+        this.enemiesPerSpawn = 10; // Number of enemies to spawn per respawn cycle
+        this.gameEnded = false; // Track if game has ended
     }
 
     init() {
@@ -112,6 +119,89 @@ export class TeamManager {
             
             this.enemyGroups.push(group);
         }
+    }
+
+    spawnEnemyGroup(playerPosition = null) {
+        // Spawn a small group of enemies (for respawning)
+        // If playerPosition is provided, spawn enemies away from player
+        // Otherwise spawn randomly on the map
+        
+        const enemiesPerGroup = this.enemiesPerSpawn;
+        const groupSpreadRadius = 20; // Enemies in a group spawn within 20 units of group center
+        const nearbyRadius = 500; // Spawn groups within 500 units
+        const minDistance = 50; // Minimum distance from center
+        const mapSize = 25000; // Map extends from -25000 to +25000
+        
+        // Calculate group center position
+        let groupCenter;
+        const spawnCenter = playerPosition ? playerPosition.clone() : new THREE.Vector3(0, 0, 0);
+        
+        // Spawn enemies away from player (or randomly if no player position)
+        if (playerPosition) {
+            // Spawn enemies at a distance from player (not too close, not too far)
+            const angle = Math.random() * Math.PI * 2;
+            const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
+            groupCenter = new THREE.Vector3(
+                spawnCenter.x + Math.cos(angle) * distance,
+                0,
+                spawnCenter.z + Math.sin(angle) * distance
+            );
+        } else {
+            // Random spawn on map
+            const farMinDistance = nearbyRadius + 500;
+            const farMaxDistance = mapSize * 0.9;
+            const angle = Math.random() * Math.PI * 2;
+            const distance = farMinDistance + Math.random() * (farMaxDistance - farMinDistance);
+            groupCenter = new THREE.Vector3(
+                Math.cos(angle) * distance,
+                0,
+                Math.sin(angle) * distance
+            );
+        }
+        
+        // Create group object
+        const group = {
+            center: groupCenter.clone(),
+            enemies: [],
+            targetPosition: null
+        };
+        
+        // Spawn enemies in this group
+        for (let i = 0; i < enemiesPerGroup; i++) {
+            const angle = (Math.PI * 2 / enemiesPerGroup) * i + Math.random() * 0.3;
+            const distance = Math.random() * groupSpreadRadius;
+            
+            let desiredPosition = new THREE.Vector3(
+                groupCenter.x + Math.cos(angle) * distance + (Math.random() - 0.5) * 5,
+                0,
+                groupCenter.z + Math.sin(angle) * distance + (Math.random() - 0.5) * 5
+            );
+
+            // Find a clear spawn position (not inside objects)
+            const position = this.collisionSystem ? 
+                this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
+                desiredPosition;
+            
+            // Ensure Y is always 0 (on ground)
+            position.y = 0;
+
+            const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem, this.bulletManager, this.scene);
+            enemy.init();
+            // Assign enemy to group
+            enemy.group = group;
+            enemy.groupIndex = i;
+            enemy.isInGroup = true;
+            if (enemy.mesh) {
+                this.scene.add(enemy.mesh);
+            }
+            this.enemies.push(enemy);
+            group.enemies.push(enemy);
+        }
+        
+        this.enemyGroups.push(group);
+        
+        // Update red score (track total enemies spawned)
+        this.redScore += enemiesPerGroup;
     }
 
     spawnAllies(playerPosition = null) {
@@ -337,6 +427,11 @@ export class TeamManager {
     }
 
     update(deltaTime, playerPosition = null, playerMesh = null) {
+        // Don't spawn enemies if game has ended
+        if (this.gameEnded) {
+            return;
+        }
+        
         // Handle ally respawning - only respawn when ALL teammates die + 10 seconds
         if (playerPosition) {
             const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
@@ -372,6 +467,46 @@ export class TeamManager {
             // blueScore = 1 (player) + aliveAlliesCount (max 9)
             const currentAliveAllies = this.allies.filter(a => a.health > 0).length;
             this.blueScore = 1 + Math.min(currentAliveAllies, this.maxAllies);
+        }
+        
+        // Handle enemy respawning - continuously spawn enemies until game ends
+        const aliveEnemiesCount = this.enemies.filter(e => e.health > 0).length;
+        
+        // Update respawn timer
+        this.enemyRespawnTimer += deltaTime;
+        
+        // Spawn enemies if timer reached interval AND we're below target count
+        if (this.enemyRespawnTimer >= this.enemyRespawnInterval && aliveEnemiesCount < this.targetEnemyCount) {
+            // Calculate how many enemies to spawn (up to target count)
+            const enemiesToSpawn = Math.min(
+                this.enemiesPerSpawn,
+                this.targetEnemyCount - aliveEnemiesCount
+            );
+            
+            // Only spawn if we need enemies
+            if (enemiesToSpawn > 0) {
+                // Temporarily set enemiesPerSpawn to the calculated amount
+                const originalEnemiesPerSpawn = this.enemiesPerSpawn;
+                this.enemiesPerSpawn = enemiesToSpawn;
+                
+                // Spawn enemy group
+                this.spawnEnemyGroup(playerPosition);
+                
+                // Restore original value
+                this.enemiesPerSpawn = originalEnemiesPerSpawn;
+                
+                // Update bullet manager references for newly spawned enemies
+                if (this.bulletManager) {
+                    // Get the last spawned enemies (the ones we just added)
+                    const newlySpawned = this.enemies.slice(-enemiesToSpawn);
+                    newlySpawned.forEach(enemy => {
+                        enemy.bulletManager = this.bulletManager;
+                    });
+                }
+            }
+            
+            // Reset timer
+            this.enemyRespawnTimer = 0;
         }
         
         // Get target lists for shooting
@@ -415,25 +550,26 @@ export class TeamManager {
     }
 
     checkGameEnd() {
-        // Check if game should end - only win when all enemies are actually killed
-        // Note: enemies are removed from array when they die, so we check if array is empty
-        // AND verify that we had enemies spawned (redScore started at 100)
-        const aliveEnemies = this.enemies.filter(e => e.health > 0).length;
+        // Check if game should end
+        // Since enemies keep respawning, game only ends when all allies (including player) are dead
         const aliveAllies = this.allies.filter(a => a.health > 0).length;
-        
-        // Blue team wins only when all enemies are killed
-        // Check: no alive enemies AND we've killed all 100 (redScore reached 0 from initial 100)
-        if (aliveEnemies === 0 && this.redScore === 0) {
-            return { ended: true, winner: 'blue' };
-        }
         
         // Red team wins when all allies are dead (including player)
         // Check: no alive allies AND we've killed all allies (blueScore reached 0 from initial 10)
         if (aliveAllies === 0 && this.blueScore === 0) {
+            this.gameEnded = true; // Stop enemy spawning
             return { ended: true, winner: 'red' };
         }
         
+        // Note: Blue team can no longer win by killing all enemies since enemies keep respawning
+        // Game only ends when player/allies die (red wins)
+        
         return { ended: false, winner: null };
+    }
+    
+    setGameEnded(ended) {
+        // Allow external code to set game ended state (e.g., when player dies)
+        this.gameEnded = ended;
     }
 }
 
