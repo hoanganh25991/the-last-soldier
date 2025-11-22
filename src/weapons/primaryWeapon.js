@@ -12,7 +12,7 @@ export class PrimaryWeapon extends WeaponBase {
         this.fireRate = 600; // rounds per minute
         this.maxAmmo = 32;
         this.reserveAmmo = 288;
-        this.reloadTime = 2.5;
+        this.reloadTime = 2.0;
         this.range = 200;
         this.spread = 0.02;
         this.bulletSpeed = 100; // units per second (fast rifle bullet)
@@ -53,6 +53,28 @@ export class PrimaryWeapon extends WeaponBase {
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
         body.position.set(0.3, -0.2, -0.7);
         group.add(body);
+
+        // Gun holder/hand grip - add a hand-like holder (more visible)
+        const holderGeometry = new THREE.BoxGeometry(0.15, 0.2, 0.25);
+        const holderMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown color for grip
+        const holder = new THREE.Mesh(holderGeometry, holderMaterial);
+        holder.position.set(0.3, -0.3, -0.65);
+        holder.castShadow = true;
+        group.add(holder);
+        
+        // Add a trigger guard for more realism (using box geometry)
+        const triggerGuardGeometry = new THREE.BoxGeometry(0.12, 0.05, 0.08);
+        const triggerGuardMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+        const triggerGuard = new THREE.Mesh(triggerGuardGeometry, triggerGuardMaterial);
+        triggerGuard.position.set(0.3, -0.25, -0.6);
+        group.add(triggerGuard);
+
+        // Foregrip/handguard - front grip area
+        const foregripGeometry = new THREE.BoxGeometry(0.1, 0.12, 0.25);
+        const foregripMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+        const foregrip = new THREE.Mesh(foregripGeometry, foregripMaterial);
+        foregrip.position.set(0.3, -0.22, -1.0);
+        group.add(foregrip);
 
         // Position relative to camera - NO Y ROTATION NEEDED since geometry extends along Z
         group.position.set(0.3, -0.3, -0.6);

@@ -32,6 +32,11 @@ export class WeaponManager {
         this.primaryWeapon.init();
         this.secondaryWeapon.init();
         
+        // Hide secondary weapon initially - only show primary
+        if (this.secondaryWeapon && this.secondaryWeapon.hide) {
+            this.secondaryWeapon.hide();
+        }
+        
         // Create gadget weapons
         this.gadgetWeapons['Knife'] = new KnifeWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
         this.gadgetWeapons['Grenade'] = new GrenadeWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
@@ -137,6 +142,11 @@ export class WeaponManager {
             if (e.code === 'Digit1') this.switchWeapon('primary');
             if (e.code === 'Digit2') this.switchWeapon('secondary');
             if (e.code === 'Digit3') this.switchWeapon('gadget');
+            // Reload with 'R' key
+            if (e.code === 'KeyR') {
+                e.preventDefault();
+                this.reload();
+            }
         });
 
         // Weapon switch (click on weapon icon) - cycles through primary -> secondary -> gadget -> primary
@@ -307,7 +317,12 @@ export class WeaponManager {
                 if (this.weaponType === 'gadget' && this.selectedGadget === 'Knife') {
                     ammoReserve.textContent = '∞'; // Infinite for knife
                 } else {
-                    ammoReserve.textContent = this.currentWeapon.reserveAmmo;
+                    // Show "OUT" when reserve ammo is 0 (out of bullets)
+                    if (this.currentWeapon.reserveAmmo <= 0) {
+                        ammoReserve.textContent = 'OUT';
+                    } else {
+                        ammoReserve.textContent = this.currentWeapon.reserveAmmo;
+                    }
                 }
             }
         } else if (this.weaponType === 'gadget') {
