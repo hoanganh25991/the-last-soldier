@@ -56,7 +56,8 @@ export class Game {
             this.player.getCamera(),
             this.engine.scene,
             this.teamManager,
-            this.audioManager
+            this.audioManager,
+            this.collisionSystem
         );
         
         // Set selected weapons BEFORE init so they're applied during initialization

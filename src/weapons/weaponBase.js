@@ -211,21 +211,54 @@ export class WeaponBase {
         }
 
         // Also do instant raycast for immediate hit detection
-        // Check both enemies and allies for friendly fire
-        const enemies = this.teamManager.getEnemies();
-        const allies = this.teamManager.getAllies();
-        const allTargets = [...enemies, ...allies];
-        const intersects = raycaster.intersectObjects(allTargets, true);
+        // First check world collisions (walls, houses, trees, etc.)
+        let worldBlocked = false;
+        if (this.bulletManager && this.bulletManager.collisionSystem) {
+            const worldHit = this.bulletManager.collisionSystem.raycast(worldPosition, direction, this.range);
+            if (worldHit) {
+                worldBlocked = true;
+                // Check if world object is closer than any enemy/ally
+                const worldHitDistance = worldHit.distance;
+                
+                // Check both enemies and allies for friendly fire
+                const enemies = this.teamManager.getEnemies();
+                const allies = this.teamManager.getAllies();
+                const allTargets = [...enemies, ...allies];
+                const targetIntersects = raycaster.intersectObjects(allTargets, true);
+                
+                // Only process enemy/ally hit if it's closer than world object
+                if (targetIntersects.length > 0 && targetIntersects[0].distance < worldHitDistance) {
+                    const hit = targetIntersects[0];
+                    const target = hit.object.parent || hit.object;
+                    if (target && target.userData.isEnemy) {
+                        // Hit an enemy
+                        this.teamManager.damageEnemy(target, this.damage);
+                    } else if (target && target.userData.team === 'blue') {
+                        // Hit an ally (friendly fire)
+                        this.teamManager.damageAlly(target, this.damage);
+                    }
+                }
+                // If world object blocks, don't process enemy/ally hits
+            }
+        }
+        
+        // If world didn't block, check enemies and allies normally
+        if (!worldBlocked) {
+            const enemies = this.teamManager.getEnemies();
+            const allies = this.teamManager.getAllies();
+            const allTargets = [...enemies, ...allies];
+            const intersects = raycaster.intersectObjects(allTargets, true);
 
-        if (intersects.length > 0) {
-            const hit = intersects[0];
-            const target = hit.object.parent || hit.object;
-            if (target && target.userData.isEnemy) {
-                // Hit an enemy
-                this.teamManager.damageEnemy(target, this.damage);
-            } else if (target && target.userData.team === 'blue') {
-                // Hit an ally (friendly fire)
-                this.teamManager.damageAlly(target, this.damage);
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                const target = hit.object.parent || hit.object;
+                if (target && target.userData.isEnemy) {
+                    // Hit an enemy
+                    this.teamManager.damageEnemy(target, this.damage);
+                } else if (target && target.userData.team === 'blue') {
+                    // Hit an ally (friendly fire)
+                    this.teamManager.damageAlly(target, this.damage);
+                }
             }
         }
     }

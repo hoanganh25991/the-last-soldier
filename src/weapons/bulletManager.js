@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { Bullet } from './bullet.js';
 
 export class BulletManager {
-    constructor(scene) {
+    constructor(scene, collisionSystem = null) {
         this.scene = scene;
+        this.collisionSystem = collisionSystem;
         this.bullets = [];
     }
 
@@ -34,6 +35,22 @@ export class BulletManager {
             if (!bullet.isActive) continue;
 
             const bulletPos = bullet.getPosition();
+            
+            // First check world object collisions (walls, houses, trees, etc.)
+            if (this.collisionSystem) {
+                const worldCollision = this.collisionSystem.checkBulletCollision(
+                    bulletPos,
+                    bullet.direction,
+                    0.2
+                );
+                if (worldCollision.hit) {
+                    // Bullet hit a world object, destroy it
+                    bullet.destroy();
+                    continue;
+                }
+            }
+
+            // Then check enemy/ally collisions
             const raycaster = new THREE.Raycaster(
                 bulletPos.clone().sub(bullet.direction.clone().multiplyScalar(0.1)),
                 bullet.direction,

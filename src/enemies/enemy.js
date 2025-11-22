@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export class Enemy {
-    constructor(position, team) {
+    constructor(position, team, collisionSystem = null) {
         this.position = position.clone();
         this.team = team;
         this.health = 100;
@@ -12,6 +12,7 @@ export class Enemy {
         this.lastMoveTime = 0;
         this.playerPosition = null; // Player position for hunting
         this.huntMode = true; // Hunt player instead of random movement
+        this.collisionSystem = collisionSystem;
     }
 
     init() {
@@ -133,9 +134,23 @@ export class Enemy {
                 horizontalMove.y = 0;
                 horizontalMove.normalize();
                 
-                this.position.x += horizontalMove.x * moveDistance;
-                this.position.z += horizontalMove.z * moveDistance;
-                this.position.y = 0; // Always keep on ground
+                const newPosition = this.position.clone();
+                newPosition.x += horizontalMove.x * moveDistance;
+                newPosition.z += horizontalMove.z * moveDistance;
+                newPosition.y = 0; // Always keep on ground
+                
+                // Check collision before moving
+                if (this.collisionSystem) {
+                    const collisionResult = this.collisionSystem.checkCollision(
+                        this.position,
+                        newPosition,
+                        0.5, // radius
+                        1.6  // height
+                    );
+                    this.position.copy(collisionResult.position);
+                } else {
+                    this.position.copy(newPosition);
+                }
                 
                 this.mesh.position.copy(this.position);
                 

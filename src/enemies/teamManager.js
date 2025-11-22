@@ -45,13 +45,18 @@ export class TeamManager {
                 distance = minDistance + Math.random() * spawnRadius;
             }
             
-            const position = new THREE.Vector3(
+            let desiredPosition = new THREE.Vector3(
                 Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
                 0,
                 Math.sin(angle) * distance + (Math.random() - 0.5) * 50
             );
 
-            const enemy = new Enemy(position, this.enemyTeam);
+            // Find a clear spawn position (not inside objects)
+            const position = this.collisionSystem ? 
+                this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
+                desiredPosition;
+
+            const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem);
             enemy.init();
             this.scene.add(enemy.mesh);
             this.enemies.push(enemy);
@@ -81,13 +86,18 @@ export class TeamManager {
                 distance = minDistance + Math.random() * (spawnRadius - minDistance);
             }
             
-            const position = new THREE.Vector3(
+            let desiredPosition = new THREE.Vector3(
                 Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
                 0,
                 Math.sin(angle) * distance + (Math.random() - 0.5) * 50
             );
 
-            const ally = new Enemy(position, this.playerTeam);
+            // Find a clear spawn position (not inside objects)
+            const position = this.collisionSystem ? 
+                this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
+                desiredPosition;
+
+            const ally = new Enemy(position, this.playerTeam, this.collisionSystem);
             ally.init();
             this.scene.add(ally.mesh);
             this.allies.push(ally);
