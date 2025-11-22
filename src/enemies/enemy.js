@@ -225,8 +225,8 @@ export class Enemy {
                 
                 this.mesh.position.copy(this.position);
                 
-                // Rotate to face movement direction
-                if (horizontalMove.length() > 0) {
+                // Rotate to face movement direction (unless shooting at target)
+                if (!this.currentTarget && horizontalMove.length() > 0) {
                     this.mesh.lookAt(this.position.clone().add(horizontalMove));
                 }
             } else {
@@ -239,6 +239,9 @@ export class Enemy {
         // Ensure position Y is always 0 (on ground)
         this.position.y = 0;
         this.mesh.position.y = 0;
+
+        // Update shooting (this will handle facing target and aiming rifle)
+        this.updateShooting(deltaTime);
 
         // Update health bar to face camera (simplified)
         if (this.healthBar) {
@@ -269,11 +272,17 @@ export class Enemy {
         let nearestDistance = this.shootRange;
         
         for (const targetMesh of this.targets) {
-            if (!targetMesh || !targetMesh.position) continue;
+            if (!targetMesh) continue;
             
             // Get the world position of the target
             const targetWorldPos = new THREE.Vector3();
-            targetMesh.getWorldPosition(targetWorldPos);
+            if (targetMesh.getWorldPosition) {
+                targetMesh.getWorldPosition(targetWorldPos);
+            } else if (targetMesh.position) {
+                targetWorldPos.copy(targetMesh.position);
+            } else {
+                continue;
+            }
             
             const distance = this.position.distanceTo(targetWorldPos);
             if (distance < nearestDistance && distance > 0) {
@@ -326,23 +335,61 @@ export class Enemy {
         // Find target to shoot at
         const target = this.findShootingTarget();
         
-        if (target && this.lastShotTime >= this.fireInterval) {
-            // Rotate to face target
+        if (target) {
+            // Calculate direction to target
             const directionToTarget = new THREE.Vector3()
                 .subVectors(target.position, this.position)
                 .normalize();
             
-            // Rotate soldier to face target (only Y rotation for horizontal facing)
+            // Rotate soldier body to face target (only Y rotation for horizontal facing)
             if (this.mesh) {
                 const angle = Math.atan2(directionToTarget.x, directionToTarget.z);
                 this.mesh.rotation.y = angle;
             }
             
-            // Shoot at target
-            this.shoot(target.position);
-            this.lastShotTime = 0;
-            this.currentTarget = target;
+            // Aim rifle at target
+            if (this.soldierData && this.soldierData.rifle && this.soldierData.group) {
+                // Get rifle position in world space
+                const rifleWorldPos = new THREE.Vector3();
+                this.soldierData.rifle.getWorldPosition(rifleWorldPos);
+                
+                // Calculate direction from rifle to target
+                const rifleToTarget = new THREE.Vector3()
+                    .subVectors(target.position, rifleWorldPos)
+                    .normalize();
+                
+                // Convert world direction to local space (relative to soldier body)
+                // Since soldier body rotates on Y axis, we need to account for that
+                const bodyRotation = this.mesh.rotation.y;
+                const localDirection = new THREE.Vector3();
+                localDirection.x = Math.cos(-bodyRotation) * rifleToTarget.x - Math.sin(-bodyRotation) * rifleToTarget.z;
+                localDirection.y = rifleToTarget.y;
+                localDirection.z = Math.sin(-bodyRotation) * rifleToTarget.x + Math.cos(-bodyRotation) * rifleToTarget.z;
+                
+                // Calculate vertical angle (X rotation) - tilt up/down to aim
+                const verticalAngle = Math.asin(Math.max(-0.7, Math.min(0.7, localDirection.y))); // Clamp to ±45 degrees
+                
+                // Calculate horizontal angle relative to body (Y rotation)
+                const horizontalAngle = Math.atan2(localDirection.x, localDirection.z);
+                
+                // Rotate rifle to aim at target
+                // X rotation for vertical aiming, Y rotation for horizontal adjustment, Z for grip angle
+                this.soldierData.rifle.rotation.set(-verticalAngle, horizontalAngle, -0.1);
+            }
+            
+            // Shoot if ready
+            if (this.lastShotTime >= this.fireInterval) {
+                this.shoot(target.position);
+                this.lastShotTime = 0;
+                this.currentTarget = target;
+            } else {
+                this.currentTarget = target;
+            }
         } else {
+            // No target, reset rifle to default position
+            if (this.soldierData && this.soldierData.rifle) {
+                this.soldierData.rifle.rotation.set(0, 0, -0.1);
+            }
             this.currentTarget = null;
         }
     }
@@ -624,25 +671,28 @@ export class Enemy {
                     this.position.copy(newPosition);
                 }
                 
-                this.mesh.position.copy(this.position);
-                
-                // Rotate to face movement direction
-                if (horizontalMove.length() > 0) {
-                    this.mesh.lookAt(this.position.clone().add(horizontalMove));
-                }
-            } else {
-                // Reached target, stop moving
-                this.isMoving = false;
-                // Set new one
-                if (!this.huntMode || !this.playerPosition) {
-                    this.setRandomTarget();
-                }
+            this.mesh.position.copy(this.position);
+            
+            // Rotate to face movement direction (unless shooting at target)
+            if (!this.currentTarget && horizontalMove.length() > 0) {
+                this.mesh.lookAt(this.position.clone().add(horizontalMove));
             }
+        } else {
+            // Reached target, stop moving
+            this.isMoving = false;
+            // Set new one
+            if (!this.huntMode || !this.playerPosition) {
+                this.setRandomTarget();
+            }
+        }
         }
 
         // Ensure position Y is always 0 (on ground)
         this.position.y = 0;
         this.mesh.position.y = 0;
+
+        // Update shooting
+        this.updateShooting(deltaTime);
 
         // Update health bar to face camera (simplified)
         if (this.healthBar) {
