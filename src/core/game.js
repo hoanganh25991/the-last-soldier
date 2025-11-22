@@ -200,12 +200,19 @@ export class Game {
             document.body.appendChild(popup);
             
             // Add event listeners
-            document.getElementById('btn-replay').addEventListener('click', () => {
+            document.getElementById('btn-replay').addEventListener('click', (e) => {
+                e.stopPropagation();
                 this.restartGame();
             });
             
-            document.getElementById('btn-main-menu').addEventListener('click', () => {
+            document.getElementById('btn-main-menu').addEventListener('click', (e) => {
+                e.stopPropagation();
                 this.returnToMainMenu();
+            });
+            
+            // Prevent clicks on popup from triggering pointer lock
+            popup.addEventListener('click', (e) => {
+                e.stopPropagation();
             });
         }
         
@@ -217,6 +224,11 @@ export class Game {
         
         // Show popup
         popup.style.display = 'flex';
+        
+        // Ensure pointer lock is released (in case it wasn't already)
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
     }
 
     hideGameOverPopup() {
@@ -229,6 +241,14 @@ export class Game {
     async restartGame() {
         // Hide popup
         this.hideGameOverPopup();
+        
+        // Ensure pointer lock is released before restarting
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+        
+        // Small delay to ensure pointer lock is fully released
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Clear existing enemies and allies
         if (this.teamManager) {
