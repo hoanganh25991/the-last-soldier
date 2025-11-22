@@ -44,7 +44,7 @@ export class Enemy {
         
         // Shooting properties
         this.shootRange = 150; // Maximum shooting range
-        this.shootDamage = 30; // Same as primary weapon
+        this.shootDamage = 20; // 20 damage per hit (5 hits = 100 health = death)
         this.fireRate = 40; // rounds per minute (much slower than player - 1-2 seconds per shot)
         this.lastShotTime = 0;
         this.fireInterval = 60 / this.fireRate; // Time between shots in seconds (1.5 seconds per shot)

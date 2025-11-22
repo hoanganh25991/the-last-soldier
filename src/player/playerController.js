@@ -360,6 +360,10 @@ export class PlayerController {
         return this.health;
     }
 
+    isDead() {
+        return this.health <= 0;
+    }
+
     getHealth() {
         return this.health;
     }

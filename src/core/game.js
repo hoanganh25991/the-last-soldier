@@ -115,6 +115,12 @@ export class Game {
             // Update systems
             if (!this.player) return; // Safety check
             
+            // Check if player is dead
+            if (this.player.isDead && this.player.isDead()) {
+                this.handlePlayerDeath();
+                return;
+            }
+            
             this.player.update(deltaTime);
             
             // Pass player velocity to weapon manager for weapon sway
@@ -128,7 +134,7 @@ export class Game {
                 : null; // Use collider mesh for accurate targeting
             this.teamManager.update(deltaTime, playerPosition, playerColliderMesh);
             
-            // Check for game end condition
+            // Check for game end condition (team elimination)
             const gameEndResult = this.teamManager.checkGameEnd();
             if (gameEndResult.ended) {
                 this.stop();
@@ -153,6 +159,144 @@ export class Game {
         if (this.animationFrameId !== null) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
+        }
+    }
+
+    handlePlayerDeath() {
+        // Stop the game loop
+        this.stop();
+        
+        // Release pointer lock so player can interact with popup buttons
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+        
+        // Show game over popup
+        this.showGameOverPopup();
+    }
+
+    showGameOverPopup() {
+        // Create or show game over popup
+        let popup = document.getElementById('game-over-popup');
+        if (!popup) {
+            // Create popup if it doesn't exist
+            popup = document.createElement('div');
+            popup.id = 'game-over-popup';
+            popup.className = 'game-over-popup';
+            popup.innerHTML = `
+                <div class="game-over-content">
+                    <h1>GAME OVER</h1>
+                    <p class="game-over-message">You have been eliminated!</p>
+                    <div class="game-over-stats">
+                        <p>Blue Team Score: <span id="final-blue-score">0</span></p>
+                        <p>Red Team Score: <span id="final-red-score">0</span></p>
+                    </div>
+                    <div class="game-over-buttons">
+                        <button id="btn-replay" class="btn-replay">REPLAY</button>
+                        <button id="btn-main-menu" class="btn-main-menu">MAIN MENU</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(popup);
+            
+            // Add event listeners
+            document.getElementById('btn-replay').addEventListener('click', () => {
+                this.restartGame();
+            });
+            
+            document.getElementById('btn-main-menu').addEventListener('click', () => {
+                this.returnToMainMenu();
+            });
+        }
+        
+        // Update scores
+        const blueScoreEl = document.getElementById('final-blue-score');
+        const redScoreEl = document.getElementById('final-red-score');
+        if (blueScoreEl) blueScoreEl.textContent = this.teamManager.blueScore;
+        if (redScoreEl) redScoreEl.textContent = this.teamManager.redScore;
+        
+        // Show popup
+        popup.style.display = 'flex';
+    }
+
+    hideGameOverPopup() {
+        const popup = document.getElementById('game-over-popup');
+        if (popup) {
+            popup.style.display = 'none';
+        }
+    }
+
+    async restartGame() {
+        // Hide popup
+        this.hideGameOverPopup();
+        
+        // Clear existing enemies and allies
+        if (this.teamManager) {
+            // Remove all existing enemies and allies from scene
+            this.teamManager.enemies.forEach(enemy => {
+                if (enemy.mesh) {
+                    this.engine.scene.remove(enemy.mesh);
+                    enemy.dispose();
+                }
+            });
+            this.teamManager.allies.forEach(ally => {
+                if (ally.mesh) {
+                    this.engine.scene.remove(ally.mesh);
+                    ally.dispose();
+                }
+            });
+            
+            // Clear arrays
+            this.teamManager.enemies = [];
+            this.teamManager.allies = [];
+            this.teamManager.enemyGroups = [];
+            this.teamManager.bloodEffects = [];
+            
+            // Reset scores
+            this.teamManager.redScore = 100;
+            this.teamManager.blueScore = 10;
+            
+            // Respawn enemies and allies
+            this.teamManager.init();
+            
+            // Update bullet manager references
+            if (this.weaponManager && this.weaponManager.bulletManager) {
+                this.teamManager.bulletManager = this.weaponManager.bulletManager;
+                this.teamManager.enemies.forEach(enemy => {
+                    enemy.bulletManager = this.weaponManager.bulletManager;
+                });
+                this.teamManager.allies.forEach(ally => {
+                    ally.bulletManager = this.weaponManager.bulletManager;
+                });
+            }
+        }
+        
+        // Reset player health and position
+        if (this.player) {
+            this.player.health = this.player.maxHealth;
+            this.player.yawObject.position.set(0, 1.6, 0);
+            this.player.velocity.set(0, 0, 0);
+        }
+        
+        // Clear bullets
+        if (this.weaponManager && this.weaponManager.bulletManager) {
+            this.weaponManager.bulletManager.clear();
+        }
+        
+        // Restart game loop
+        this.start();
+    }
+
+    returnToMainMenu() {
+        // Hide popup
+        this.hideGameOverPopup();
+        
+        // Stop game
+        this.stop();
+        
+        // Return to main menu
+        if (window.menuManager) {
+            window.menuManager.showScreen('main-menu');
         }
     }
 }
