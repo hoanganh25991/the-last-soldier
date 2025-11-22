@@ -19,7 +19,7 @@ export class Bullet {
         this.maxTrailLength = 10;
         this.isActive = true;
         this.spawnTime = Date.now();
-        this.maxLifetime = 3000; // Maximum lifetime in milliseconds (3 seconds)
+        this.maxLifetime = 1500; // Maximum lifetime in milliseconds (1.5 seconds)
         
         this.createMesh();
         if (this.showTrail) {
