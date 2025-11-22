@@ -2,6 +2,7 @@ import { MainMenuBackground } from './mainMenuBackground.js';
 import { BattlefieldDeployBackground } from './battlefieldDeployBackground.js';
 import { PlayModeBackground } from './playModeBackground.js';
 import { AudioManager } from '../core/audioManager.js';
+import { WEAPON_ICONS, getWeaponIcon, getWeaponIconByType } from '../config/weaponIcons.js';
 
 export class MenuManager {
     constructor() {
@@ -171,17 +172,17 @@ export class MenuManager {
         // Primary = long gun (rifle), Secondary = short gun (pistol)
         const categoryOptions = {
             primary: [
-                { name: 'MP40', icon: '🔫' },  // Long gun
-                { name: 'Sten', icon: '🔫' }   // Long gun
+                { name: 'MP40', icon: WEAPON_ICONS.longGun },  // Long gun
+                { name: 'Sten', icon: WEAPON_ICONS.longGun }   // Long gun
             ],
             secondary: [
-                { name: 'Pistol', icon: '🔫' }, // Short gun
-                { name: 'Luger', icon: '🔫' }   // Short gun
+                { name: 'Pistol', icon: WEAPON_ICONS.pistol }, // Short gun
+                { name: 'Luger', icon: WEAPON_ICONS.pistol }   // Short gun
             ],
             gadget: [
-                { name: 'Grenade', icon: '💣' },
-                { name: 'Medkit', icon: '🏥' },
-                { name: 'Binoculars', icon: '🔭' }
+                { name: 'Grenade', icon: WEAPON_ICONS.grenade },
+                { name: 'Medkit', icon: WEAPON_ICONS.medkit },
+                { name: 'Binoculars', icon: WEAPON_ICONS.binoculars }
             ]
         };
 
@@ -282,36 +283,24 @@ export class MenuManager {
     }
 
     updateWeaponDisplay(type, itemName) {
-        // Primary = long gun (rifle), Secondary = short gun (pistol)
-        const weaponIcons = {
-            'MP40': '🔫',      // Long gun (rifle)
-            'Sten': '🔫',      // Long gun (rifle)
-            'Pistol': '🔫',    // Short gun (pistol)
-            'Luger': '🔫',    // Short gun (pistol)
-            'Grenade': '💣',
-            'Medkit': '🏥',
-            'Binoculars': '🔭'
-        };
-
         if (type === 'primary') {
             const display = document.getElementById('primary-display');
             if (display) {
-                // Primary weapons use CSS-based long-gun icon (empty text, styled with CSS)
-                display.textContent = '';
-                display.classList.remove('empty');
-                display.classList.add('rifle-icon');
+                // Primary weapons use long-gun icon from config
+                display.textContent = WEAPON_ICONS.longGun;
+                display.classList.remove('empty', 'rifle-icon');
             }
         } else if (type === 'secondary') {
             const display = document.getElementById('secondary-display');
             if (display) {
-                // Secondary weapons should always use short-gun icon
-                display.textContent = '🔫';
-                display.classList.remove('empty', 'rifle-icon');
+                // Secondary weapons use pistol icon from config
+                display.textContent = WEAPON_ICONS.pistol;
+                display.classList.remove('empty');
             }
         } else if (type === 'gadget') {
             const display = document.getElementById('gadget-display');
             if (display) {
-                display.textContent = weaponIcons[itemName] || '💣';
+                display.textContent = getWeaponIcon(itemName);
                 display.classList.remove('empty');
             }
         }
@@ -326,7 +315,7 @@ export class MenuManager {
         const weaponStats = {
             'MP40': {
                 name: 'MP40',
-                icon: '🔫', // Long gun
+                icon: WEAPON_ICONS.longGun,
                 stats: {
                     'Damage': '30',
                     'Fire Rate': '600 RPM',
@@ -338,7 +327,7 @@ export class MenuManager {
             },
             'Sten': {
                 name: 'Sten',
-                icon: '🔫', // Long gun
+                icon: WEAPON_ICONS.longGun,
                 stats: {
                     'Damage': '28',
                     'Fire Rate': '550 RPM',
@@ -350,7 +339,7 @@ export class MenuManager {
             },
             'Pistol': {
                 name: 'Pistol',
-                icon: '🔫', // Short gun
+                icon: WEAPON_ICONS.pistol,
                 stats: {
                     'Damage': '20',
                     'Fire Rate': '300 RPM',
@@ -362,7 +351,7 @@ export class MenuManager {
             },
             'Luger': {
                 name: 'Luger',
-                icon: '🔫', // Short gun
+                icon: WEAPON_ICONS.pistol,
                 stats: {
                     'Damage': '25',
                     'Fire Rate': '350 RPM',
@@ -374,7 +363,7 @@ export class MenuManager {
             },
             'Grenade': {
                 name: 'Grenade',
-                icon: '💣',
+                icon: WEAPON_ICONS.grenade,
                 stats: {
                     'Damage': '100',
                     'Blast Radius': '5m',
@@ -386,7 +375,7 @@ export class MenuManager {
             },
             'Medkit': {
                 name: 'Medkit',
-                icon: '🏥',
+                icon: WEAPON_ICONS.medkit,
                 stats: {
                     'Heal Amount': '50 HP',
                     'Use Time': '3s',
@@ -398,7 +387,7 @@ export class MenuManager {
             },
             'Binoculars': {
                 name: 'Binoculars',
-                icon: '🔭',
+                icon: WEAPON_ICONS.binoculars,
                 stats: {
                     'Zoom': '4x',
                     'Range': '500m',

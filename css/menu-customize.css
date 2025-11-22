@@ -87,56 +87,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 48px;
+    font-size: 32px;
     color: rgba(255, 255, 255, 0.9);
+    font-family: monospace;
+    letter-spacing: 2px;
+    white-space: nowrap;
 }
 
-/* Primary weapons = long gun (rifle) - CSS-based rifle icon */
+/* Primary weapons = long gun (rifle) - text-based icon */
 #primary-display {
-    transform: none;
-    font-size: 0;
-    position: relative;
-    overflow: visible;
+    font-size: 28px;
+    letter-spacing: 1px;
 }
 
-/* CSS-based rifle icon using pseudo-elements */
-/* Main rifle body */
-#primary-display.rifle-icon::before {
-    content: '';
-    position: absolute;
-    width: 70px;
-    height: 14px;
-    background: linear-gradient(to right, #555 0%, #777 20%, #777 80%, #555 100%);
-    border-radius: 3px;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    box-shadow: 
-        0 0 0 1px rgba(0, 0, 0, 0.6),
-        inset 0 1px 2px rgba(255, 255, 255, 0.15),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/* Rifle barrel (longer front part) */
-#primary-display.rifle-icon::after {
-    content: '';
-    position: absolute;
-    width: 50px;
-    height: 10px;
-    background: linear-gradient(to right, #333 0%, #555 100%);
-    border-radius: 2px;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%) translateX(35px);
-    box-shadow: 
-        0 0 0 1px rgba(0, 0, 0, 0.6),
-        inset 0 1px 1px rgba(255, 255, 255, 0.1);
-}
-
-/* Secondary weapons = short gun (pistol) - make it appear shorter */
+/* Secondary weapons = short gun (pistol) - text-based icon */
 #secondary-display {
-    transform: scaleX(0.8) scaleY(1.1);
-    font-size: 44px;
+    font-size: 24px;
+    letter-spacing: 0.5px;
 }
 
 .weapon-silhouette.empty {
@@ -213,19 +180,25 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
+    font-size: 18px;
+    font-family: monospace;
+    letter-spacing: 1px;
     flex-shrink: 0;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 /* Primary weapon options - long gun styling */
 .weapon-option-primary .weapon-silhouette-small {
-    transform: scaleX(1.2) scaleY(0.9);
+    font-size: 16px;
+    letter-spacing: 0.5px;
 }
 
 /* Secondary weapon options - short gun styling */
 .weapon-option-secondary .weapon-silhouette-small {
-    transform: scaleX(0.85) scaleY(1.1);
+    font-size: 14px;
+    letter-spacing: 0.3px;
 }
 
 .weapon-option-primary span,
@@ -305,8 +278,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 100px;
+    font-size: 60px;
+    font-family: monospace;
+    letter-spacing: 2px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .item-detail-stats {

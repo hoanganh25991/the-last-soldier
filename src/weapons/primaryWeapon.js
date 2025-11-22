@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { WeaponBase } from './weaponBase.js';
+import { WEAPON_ICONS } from '../config/weaponIcons.js';
 
 export class PrimaryWeapon extends WeaponBase {
     constructor(camera, scene, teamManager, bulletManager, audioManager = null) {
         super(camera, scene, teamManager, bulletManager, audioManager);
         
         this.name = 'Rifle';
-        this.icon = '🔫'; // Rifle icon
+        this.icon = WEAPON_ICONS.longGun;
         this.damage = 30;
         this.fireRate = 600; // rounds per minute
         this.maxAmmo = 32;
