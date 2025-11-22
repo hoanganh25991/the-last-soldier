@@ -113,16 +113,20 @@ export class Game {
             const deltaTime = this.engine.update();
 
             // Update systems
+            if (!this.player) return; // Safety check
+            
             this.player.update(deltaTime);
             
             // Pass player velocity to weapon manager for weapon sway
             const playerVelocity = this.player.velocity;
             this.weaponManager.update(deltaTime, playerVelocity);
             
-            // Pass player position and camera (as player mesh) to team manager so enemies can hunt and shoot at player
+            // Pass player position and collider mesh to team manager so enemies can hunt and shoot at player
             const playerPosition = this.player.getPosition();
-            const playerCamera = this.player.getCamera(); // Use camera as player representation
-            this.teamManager.update(deltaTime, playerPosition, playerCamera);
+            const playerColliderMesh = (this.player && typeof this.player.getColliderMesh === 'function') 
+                ? this.player.getColliderMesh() 
+                : null; // Use collider mesh for accurate targeting
+            this.teamManager.update(deltaTime, playerPosition, playerColliderMesh);
             
             // Check for game end condition
             const gameEndResult = this.teamManager.checkGameEnd();

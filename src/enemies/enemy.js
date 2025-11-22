@@ -304,13 +304,13 @@ export class Enemy {
     shoot(targetPosition) {
         if (!this.bulletManager || !this.mesh || this.health <= 0) return;
         
-        // Adjust target position to aim at body center instead of camera/head height
-        // Player camera is at Y=1.6, but hitbox is around Y=0.8-1.0 (body center)
-        const adjustedTarget = targetPosition.clone();
-        // If target is too high (likely camera), aim at body center
-        if (adjustedTarget.y > 1.2) {
-            adjustedTarget.y = 0.9; // Aim at body center height
-        }
+        // ALWAYS aim at body center height (Y=0.9) regardless of target position
+        // This ensures bullets hit the player collider which is at body center
+        const adjustedTarget = new THREE.Vector3(
+            targetPosition.x,
+            0.9, // Always aim at body center height where player collider is
+            targetPosition.z
+        );
         
         // Bullet start position (from soldier's rifle position)
         const bulletStart = this.position.clone();
@@ -323,9 +323,10 @@ export class Enemy {
             .normalize();
         
         // Add some spread for realism (soldiers aren't perfect shots)
-        const spread = 0.05; // 5% spread
+        // Reduce vertical spread significantly to ensure bullets hit
+        const spread = 0.05; // 5% horizontal spread
         direction.x += (Math.random() - 0.5) * spread;
-        direction.y += (Math.random() - 0.5) * spread * 0.5; // Less vertical spread
+        direction.y += (Math.random() - 0.5) * spread * 0.2; // Very little vertical spread (20% of horizontal)
         direction.z += (Math.random() - 0.5) * spread;
         direction.normalize();
         
@@ -350,12 +351,13 @@ export class Enemy {
         const target = this.findShootingTarget();
         
         if (target) {
-            // Adjust target position to aim at body center instead of camera/head height
-            const adjustedTargetPos = target.position.clone();
-            // If target is too high (likely camera), aim at body center
-            if (adjustedTargetPos.y > 1.2) {
-                adjustedTargetPos.y = 0.9; // Aim at body center height
-            }
+            // ALWAYS aim at body center height (Y=0.9) regardless of target position
+            // This ensures bullets hit the player collider which is at body center
+            const adjustedTargetPos = new THREE.Vector3(
+                target.position.x,
+                0.9, // Always aim at body center height where player collider is
+                target.position.z
+            );
             
             // Calculate direction to adjusted target
             const directionToTarget = new THREE.Vector3()

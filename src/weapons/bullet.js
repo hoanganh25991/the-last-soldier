@@ -12,6 +12,7 @@ export class Bullet {
         
         this.traveledDistance = 0;
         this.position = startPosition.clone();
+        this.previousPosition = startPosition.clone(); // Track previous position for collision detection
         this.mesh = null;
         this.trail = null;
         this.trailPositions = [];
@@ -94,7 +95,8 @@ export class Bullet {
     update(deltaTime) {
         if (!this.isActive) return;
 
-        // Store previous position for trail
+        // Store previous position for trail and collision detection
+        this.previousPosition.copy(this.position);
         const previousPosition = this.position.clone();
 
         // Move bullet
@@ -164,6 +166,10 @@ export class Bullet {
 
     getPosition() {
         return this.position;
+    }
+
+    getPreviousPosition() {
+        return this.previousPosition;
     }
 }
 

@@ -47,15 +47,19 @@ export class PlayerController {
         // Create invisible collider mesh for bullet collision detection
         // This represents the player's body at center height (Y=0.9)
         // Use cylinder geometry as a capsule approximation
-        const colliderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.6, 8);
+        // Make it slightly larger (radius 0.6) to ensure bullets hit even with spread
+        const colliderGeometry = new THREE.CylinderGeometry(0.6, 0.6, 1.8, 8);
         const colliderMaterial = new THREE.MeshBasicMaterial({ 
-            visible: false, // Invisible
+            visible: true, // Must be visible for raycast to detect it
             transparent: true,
-            opacity: 0
+            opacity: 0, // But fully transparent so it's invisible
+            side: THREE.DoubleSide // Ensure both sides are detectable
         });
         this.colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
         this.colliderMesh.userData.isPlayer = true;
         this.colliderMesh.userData.team = 'blue'; // Player is on blue team
+        // Make sure raycast can detect this mesh
+        this.colliderMesh.raycast = THREE.Mesh.prototype.raycast;
         this.scene.add(this.colliderMesh);
     }
 
@@ -316,9 +320,15 @@ export class PlayerController {
         }
         
         // Update collider mesh position to match player position (at body center height)
+        // CRITICAL: This must be updated every frame for collision detection to work
         if (this.colliderMesh) {
-            this.colliderMesh.position.copy(this.yawObject.position);
-            this.colliderMesh.position.y = 0.9; // Body center height
+            this.colliderMesh.position.set(
+                this.yawObject.position.x,
+                0.9, // Always at body center height
+                this.yawObject.position.z
+            );
+            // Ensure collider is visible to raycast
+            this.colliderMesh.visible = true;
         }
 
         // Damping only when not moving

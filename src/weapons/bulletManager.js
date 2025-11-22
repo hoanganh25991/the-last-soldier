@@ -32,55 +32,71 @@ export class BulletManager {
         const allTargets = [...enemies, ...allies];
         if (playerMesh) {
             allTargets.push(playerMesh);
+            // Ensure player mesh is detectable by raycast
+            playerMesh.visible = true; // Make sure it's visible to raycast even if material is invisible
         }
         
         for (const bullet of this.bullets) {
             if (!bullet.isActive) continue;
 
             const bulletPos = bullet.getPosition();
+            const previousPos = bullet.getPreviousPosition();
+            const pathDirection = new THREE.Vector3()
+                .subVectors(bulletPos, previousPos)
+                .normalize();
+            const pathDistance = bulletPos.distanceTo(previousPos);
             
-            // First check world object collisions (walls, houses, trees, etc.)
+            // Check collisions along the bullet's path
+            // Use raycast from previous position to current position (plus a bit extra for safety)
+            const raycaster = new THREE.Raycaster(
+                previousPos,
+                pathDirection.length() > 0 ? pathDirection : bullet.direction,
+                0,
+                pathDistance + 2.0 // Add 2 unit buffer for safety
+            );
+
+            // First check player collision (highest priority)
+            if (playerMesh) {
+                const playerIntersects = raycaster.intersectObject(playerMesh, true);
+                if (playerIntersects.length > 0) {
+                    const hit = playerIntersects[0];
+                    if (playerCallback) {
+                        playerCallback(bullet.damage, hit.point);
+                        bullet.destroy();
+                        continue;
+                    }
+                }
+            }
+
+            // Then check world object collisions (walls, houses, trees, etc.)
+            // Only check if bullet hasn't hit player
             if (this.collisionSystem) {
                 const worldCollision = this.collisionSystem.checkBulletCollision(
-                    bulletPos,
-                    bullet.direction,
+                    previousPos,
+                    pathDirection.length() > 0 ? pathDirection : bullet.direction,
                     0.2
                 );
-                if (worldCollision.hit) {
+                if (worldCollision.hit && worldCollision.distance < pathDistance + 2.0) {
                     // Bullet hit a world object, destroy it
                     bullet.destroy();
                     continue;
                 }
             }
 
-            // Then check enemy/ally/player collisions
-            // Use a longer distance to catch fast-moving bullets (check distance traveled since last frame)
-            const checkDistance = Math.min(bullet.speed * 0.02, 2.0); // Check up to 2 units or bullet speed * frame time
-            const raycaster = new THREE.Raycaster(
-                bulletPos.clone().sub(bullet.direction.clone().multiplyScalar(checkDistance)),
-                bullet.direction,
-                0,
-                checkDistance * 2
-            );
-
-            const intersects = raycaster.intersectObjects(allTargets, true);
+            // Finally check enemy/ally collisions
+            // Check enemy/ally collisions (skip player as we already checked it)
+            const nonPlayerTargets = allTargets.filter(t => t !== playerMesh);
+            const intersects = raycaster.intersectObjects(nonPlayerTargets, true);
             if (intersects.length > 0) {
                 const hit = intersects[0];
                 // Traverse up the parent chain to find the root group with userData
                 let target = hit.object;
                 while (target.parent && target.parent !== this.scene) {
                     // Check if current target has userData with team info
-                    if (target.userData && (target.userData.isEnemy !== undefined || target.userData.team || target.userData.isPlayer)) {
+                    if (target.userData && (target.userData.isEnemy !== undefined || target.userData.team)) {
                         break; // Found the root group with userData
                     }
                     target = target.parent;
-                }
-                
-                // Check if it's the player first
-                if (target.userData && target.userData.isPlayer && playerCallback) {
-                    playerCallback(bullet.damage, hit.point);
-                    bullet.destroy();
-                    continue;
                 }
                 
                 // If we found userData on the target

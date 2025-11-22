@@ -109,7 +109,7 @@ export class UIManager {
         }
 
         // Update player health
-        if (this.player) {
+        if (this.player && typeof this.player.getHealth === 'function' && typeof this.player.getMaxHealth === 'function') {
             const healthElement = document.getElementById('player-health');
             const healthBarElement = document.getElementById('player-health-bar');
             if (healthElement) {
