@@ -319,11 +319,139 @@ export class Game {
             }
         }
         
-        // Reset player health and position
+        // Reset player state completely
         if (this.player) {
+            // Reset health
             this.player.health = this.player.maxHealth;
+            
+            // Reset position
             this.player.yawObject.position.set(0, 1.6, 0);
+            
+            // Reset velocity
             this.player.velocity.set(0, 0, 0);
+            
+            // Reset rotation (camera rotation)
+            this.player.yawObject.quaternion.set(0, 0, 0, 1);
+            this.player.pitchObject.quaternion.set(0, 0, 0, 1);
+            this.player.euler.set(0, 0, 0, 'YXZ');
+            
+            // Reset player states
+            this.player.isAiming = false;
+            this.player.isCrouching = false;
+            this.player.isSprinting = false;
+            this.player.canJump = false;
+            this.player.currentSpeed = this.player.moveSpeed;
+            
+            // Reset camera position (for crouching)
+            this.player.pitchObject.position.y = 0;
+            
+            // Reset FOV
+            this.player.currentFOV = this.player.defaultFOV;
+            if (this.player.camera && this.player.camera.fov !== undefined) {
+                this.player.camera.fov = this.player.defaultFOV;
+                this.player.camera.updateProjectionMatrix();
+            }
+            
+            // Reset collider mesh scale
+            if (this.player.colliderMesh) {
+                this.player.colliderMesh.scale.y = 1.0;
+            }
+        }
+        
+        // Reset weapon manager state
+        if (this.weaponManager) {
+            // Reset primary weapon
+            if (this.weaponManager.primaryWeapon) {
+                this.weaponManager.primaryWeapon.currentAmmo = this.weaponManager.primaryWeapon.maxAmmo;
+                this.weaponManager.primaryWeapon.reserveAmmo = 288; // Reset to initial reserve
+                this.weaponManager.primaryWeapon.isFiring = false;
+                this.weaponManager.primaryWeapon.isReloading = false;
+                if (this.weaponManager.primaryWeapon.currentRecoil) {
+                    this.weaponManager.primaryWeapon.currentRecoil.set(0, 0, 0);
+                }
+                if (this.weaponManager.primaryWeapon.currentSway) {
+                    this.weaponManager.primaryWeapon.currentSway.set(0, 0, 0);
+                }
+            }
+            
+            // Reset secondary weapon
+            if (this.weaponManager.secondaryWeapon) {
+                this.weaponManager.secondaryWeapon.currentAmmo = this.weaponManager.secondaryWeapon.maxAmmo;
+                this.weaponManager.secondaryWeapon.reserveAmmo = 60; // Reset to initial reserve
+                this.weaponManager.secondaryWeapon.isFiring = false;
+                this.weaponManager.secondaryWeapon.isReloading = false;
+                if (this.weaponManager.secondaryWeapon.currentRecoil) {
+                    this.weaponManager.secondaryWeapon.currentRecoil.set(0, 0, 0);
+                }
+                if (this.weaponManager.secondaryWeapon.currentSway) {
+                    this.weaponManager.secondaryWeapon.currentSway.set(0, 0, 0);
+                }
+            }
+            
+            // Reset gadget weapons
+            Object.values(this.weaponManager.gadgetWeapons).forEach(weapon => {
+                if (weapon) {
+                    if (weapon.currentAmmo !== undefined && weapon.maxAmmo !== undefined) {
+                        weapon.currentAmmo = weapon.maxAmmo;
+                    }
+                    if (weapon.reserveAmmo !== undefined) {
+                        // Reset to initial reserve (grenade has 0 reserve, knife has no ammo system)
+                        weapon.reserveAmmo = weapon.name === 'Grenade' ? 0 : (weapon.reserveAmmo || 0);
+                    }
+                    weapon.isFiring = false;
+                    weapon.isReloading = false;
+                    // Reset grenade charging state and clear active grenades
+                    if (weapon.name === 'Grenade') {
+                        if (weapon.isCharging !== undefined) {
+                            weapon.isCharging = false;
+                            weapon.chargeStartTime = 0;
+                        }
+                        // Clear all active grenades from scene
+                        if (weapon.grenades && Array.isArray(weapon.grenades)) {
+                            weapon.grenades.forEach(grenadeData => {
+                                if (grenadeData.mesh && grenadeData.mesh.parent) {
+                                    grenadeData.mesh.parent.remove(grenadeData.mesh);
+                                    if (grenadeData.mesh.geometry) grenadeData.mesh.geometry.dispose();
+                                    if (grenadeData.mesh.material) grenadeData.mesh.material.dispose();
+                                }
+                            });
+                            weapon.grenades = [];
+                        }
+                    }
+                    if (weapon.currentRecoil) {
+                        weapon.currentRecoil.set(0, 0, 0);
+                    }
+                    if (weapon.currentSway) {
+                        weapon.currentSway.set(0, 0, 0);
+                    }
+                }
+            });
+            
+            // Switch back to primary weapon
+            this.weaponManager.switchWeapon('primary');
+            
+            // Update UI
+            this.weaponManager.updateUI();
+        }
+        
+        // Reset UI manager state
+        if (this.uiManager) {
+            // Reset timer
+            this.uiManager.startTime = Date.now();
+            
+            // Reset crosshair state
+            this.uiManager.currentCrosshairSpread = 0;
+            this.uiManager.crosshairOffsetX = 0;
+            this.uiManager.crosshairOffsetY = 0;
+            this.uiManager.crosshairRotation = 0;
+            this.uiManager.jitterTime = 0;
+            
+            // Reset crosshair element if it exists
+            if (this.uiManager.crosshairElement) {
+                this.uiManager.crosshairElement.style.width = `${this.uiManager.baseCrosshairSize}px`;
+                this.uiManager.crosshairElement.style.height = `${this.uiManager.baseCrosshairSize}px`;
+                this.uiManager.crosshairElement.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+            }
         }
         
         // Clear bullets
