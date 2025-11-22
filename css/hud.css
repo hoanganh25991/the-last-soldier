@@ -546,6 +546,46 @@
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
 }
 
+/* Deployment Notification */
+.deployment-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.3);
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    padding: 20px 40px;
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.deployment-notification.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.deployment-notification.enemies {
+    border-color: rgba(255, 0, 0, 0.6);
+    color: #ff4444;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+}
+
+.deployment-notification.allies {
+    border-color: rgba(0, 100, 255, 0.6);
+    color: #4488ff;
+    box-shadow: 0 0 20px rgba(0, 100, 255, 0.3);
+}
+
 /* Custom Dialog System (replaces window.alert/confirm) */
 .custom-dialog-overlay {
     position: fixed;

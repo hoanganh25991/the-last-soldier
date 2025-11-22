@@ -19,6 +19,9 @@ export class UIManager {
         this.crosshairOffsetY = 0;
         this.crosshairRotation = 0;
         this.jitterTime = 0;
+        
+        // Deployment notification
+        this.deploymentNotification = null;
     }
 
     init() {
@@ -27,6 +30,9 @@ export class UIManager {
         
         // Get crosshair element reference
         this.crosshairElement = document.getElementById('crosshair');
+        
+        // Get deployment notification element
+        this.deploymentNotification = document.getElementById('deployment-notification');
     }
 
     initMinimap() {
@@ -573,6 +579,31 @@ export class UIManager {
             powerBarContainer.classList.remove('visible');
             powerBarFill.style.width = '0%';
         }
+    }
+    
+    showDeploymentNotification(type) {
+        // type: 'enemies' or 'allies'
+        if (!this.deploymentNotification) return;
+        
+        // Set text and class based on type
+        const text = type === 'enemies' ? 'ENEMIES DEPLOYED' : 'ALLIES DEPLOYED';
+        this.deploymentNotification.textContent = text;
+        
+        // Remove existing classes
+        this.deploymentNotification.classList.remove('enemies', 'allies', 'show');
+        
+        // Add appropriate class
+        this.deploymentNotification.classList.add(type);
+        
+        // Show notification
+        setTimeout(() => {
+            this.deploymentNotification.classList.add('show');
+        }, 10);
+        
+        // Hide after 0.3 seconds
+        setTimeout(() => {
+            this.deploymentNotification.classList.remove('show');
+        }, 300);
     }
 }
 

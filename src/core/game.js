@@ -97,6 +97,9 @@ export class Game {
             this.engine
         );
         this.uiManager.init();
+        
+        // Pass UI manager reference to team manager for deployment notifications
+        this.teamManager.uiManager = this.uiManager;
 
         // Start game loop
         this.start();

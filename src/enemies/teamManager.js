@@ -7,6 +7,7 @@ export class TeamManager {
         this.scene = scene;
         this.collisionSystem = collisionSystem;
         this.bulletManager = bulletManager;
+        this.uiManager = null; // Will be set by Game after UIManager is initialized
         
         this.playerTeam = 'blue'; // Player is on blue team (allies)
         this.enemyTeam = 'red';   // Enemies are red
@@ -146,6 +147,11 @@ export class TeamManager {
         
         this.enemyGroups.push(group);
         
+        // Show deployment notification
+        if (this.uiManager && typeof this.uiManager.showDeploymentNotification === 'function') {
+            this.uiManager.showDeploymentNotification('enemies');
+        }
+        
         // Note: Pool (redScore) is NOT reduced when enemies spawn
         // Pool is only reduced when enemies die (in damageEnemy method)
     }
@@ -207,6 +213,11 @@ export class TeamManager {
         const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
         // blueScore should be 1 (player) + aliveAlliesCount
         this.blueScore = 1 + aliveAlliesCount;
+        
+        // Show deployment notification
+        if (this.uiManager && typeof this.uiManager.showDeploymentNotification === 'function') {
+            this.uiManager.showDeploymentNotification('allies');
+        }
     }
     
     respawnAlly(playerPosition) {
@@ -404,6 +415,11 @@ export class TeamManager {
                         ally.bulletManager = this.bulletManager;
                     });
                 }
+                
+                // Show deployment notification for bulk ally respawn
+                if (this.uiManager && typeof this.uiManager.showDeploymentNotification === 'function') {
+                    this.uiManager.showDeploymentNotification('allies');
+                }
             }
             
             // Track when all allies die (all teammates dead, not including player)
@@ -416,6 +432,7 @@ export class TeamManager {
                 // If all allies are dead, respawn all after delay (10 seconds)
                 if (this.allAlliesDeadTime >= this.respawnDelay) {
                     // Respawn all allies (max 9 teammates)
+                    // Note: spawnAllies already shows notification, so no need to show here
                     this.spawnAllies(playerPosition);
                     this.allAlliesDeadTime = null; // Reset timer
                     this.deadAllies = []; // Clear dead allies list
@@ -452,6 +469,7 @@ export class TeamManager {
                 const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
                 
                 // Spawn enemies to bring count back to 10
+                // Note: spawnEnemyWave already shows notification, so no need to show here
                 this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
                 
                 // Update bullet manager references for newly spawned enemies
@@ -478,6 +496,7 @@ export class TeamManager {
                 const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
                 
                 // Spawn next wave
+                // Note: spawnEnemyWave already shows notification, so no need to show here
                 this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
                 
                 // Update bullet manager references for newly spawned enemies
