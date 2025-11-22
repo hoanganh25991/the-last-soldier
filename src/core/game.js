@@ -461,6 +461,19 @@ export class Game {
         
         // Restart game loop
         this.start();
+        
+        // Re-capture mouse (pointer lock) after restart
+        const gameContainer = document.getElementById('game-container');
+        if (gameContainer) {
+            // Small delay to ensure game container is ready and pointer lock was released
+            setTimeout(() => {
+                if (!document.pointerLockElement) {
+                    gameContainer.requestPointerLock().catch((err) => {
+                        console.debug('Pointer lock not available:', err.message);
+                    });
+                }
+            }, 200);
+        }
     }
 
     returnToMainMenu() {
