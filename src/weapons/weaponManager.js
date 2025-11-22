@@ -1,6 +1,7 @@
 import { PrimaryWeapon } from './primaryWeapon.js';
 import { SecondaryWeapon } from './secondaryWeapon.js';
 import { BulletManager } from './bulletManager.js';
+import { WEAPON_ICONS, getWeaponIcon } from '../config/weaponIcons.js';
 
 export class WeaponManager {
     constructor(camera, scene, teamManager, audioManager = null) {
@@ -14,7 +15,8 @@ export class WeaponManager {
         this.primaryWeapon = null;
         this.secondaryWeapon = null;
         this.currentWeapon = null;
-        this.weaponType = 'primary'; // 'primary' or 'secondary'
+        this.weaponType = 'primary'; // 'primary', 'secondary', or 'gadget'
+        this.selectedGadget = 'Grenade'; // Default gadget
         
         this.initControls();
     }
@@ -113,40 +115,71 @@ export class WeaponManager {
         const reloadBtn = document.getElementById('btn-reload');
         reloadBtn.addEventListener('click', () => this.reload());
 
-        // Weapon switch (1 for primary, 2 for secondary)
+        // Weapon switch (1 for primary, 2 for secondary, 3 for gadget)
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Digit1') this.switchWeapon('primary');
             if (e.code === 'Digit2') this.switchWeapon('secondary');
+            if (e.code === 'Digit3') this.switchWeapon('gadget');
         });
 
-        // Weapon switch (click on weapon icon)
+        // Weapon switch (click on weapon icon) - cycles through primary -> secondary -> gadget -> primary
         const weaponIcon = document.getElementById('weapon-icon');
         if (weaponIcon) {
             weaponIcon.addEventListener('click', () => {
-                this.switchWeapon(this.weaponType === 'primary' ? 'secondary' : 'primary');
+                if (this.weaponType === 'primary') {
+                    this.switchWeapon('secondary');
+                } else if (this.weaponType === 'secondary') {
+                    this.switchWeapon('gadget');
+                } else {
+                    this.switchWeapon('primary');
+                }
             });
         }
     }
 
     switchWeapon(type) {
-        if (this.currentWeapon) {
+        // Hide current weapon if it's a real weapon (not gadget)
+        if (this.currentWeapon && this.weaponType !== 'gadget') {
             this.currentWeapon.hide();
         }
 
         this.weaponType = type;
-        this.currentWeapon = type === 'primary' ? this.primaryWeapon : this.secondaryWeapon;
         
-        this.currentWeapon.show();
+        if (type === 'gadget') {
+            // Gadget doesn't have a weapon mesh, just set currentWeapon to null
+            this.currentWeapon = null;
+        } else {
+            this.currentWeapon = type === 'primary' ? this.primaryWeapon : this.secondaryWeapon;
+            if (this.currentWeapon) {
+                this.currentWeapon.show();
+            }
+        }
+        
         this.updateUI();
+    }
+    
+    setSelectedGadget(gadgetName) {
+        this.selectedGadget = gadgetName;
+        if (this.weaponType === 'gadget') {
+            this.updateUI();
+        }
     }
 
     startFiring() {
+        // Don't fire if gadget is selected
+        if (this.weaponType === 'gadget') {
+            return;
+        }
         if (this.currentWeapon) {
             this.currentWeapon.startFiring();
         }
     }
 
     stopFiring() {
+        // Don't fire if gadget is selected
+        if (this.weaponType === 'gadget') {
+            return;
+        }
         if (this.currentWeapon) {
             this.currentWeapon.stopFiring();
         }
@@ -180,14 +213,35 @@ export class WeaponManager {
         const ammoReserve = document.getElementById('ammo-reserve');
         const weaponIcon = document.getElementById('weapon-icon');
 
-        if (this.currentWeapon && weaponIcon) {
-            weaponIcon.textContent = this.currentWeapon.icon;
+        // Update weapon icon based on current selection
+        if (weaponIcon) {
+            if (this.weaponType === 'primary') {
+                weaponIcon.textContent = WEAPON_ICONS.longGun;
+            } else if (this.weaponType === 'secondary') {
+                weaponIcon.textContent = WEAPON_ICONS.pistol;
+            } else if (this.weaponType === 'gadget') {
+                weaponIcon.textContent = getWeaponIcon(this.selectedGadget);
+            }
         }
 
+        // Update ammo display
         if (this.currentWeapon) {
             if (ammoCurrent) ammoCurrent.textContent = this.currentWeapon.currentAmmo;
             if (ammoReserve) ammoReserve.textContent = this.currentWeapon.reserveAmmo;
+        } else if (this.weaponType === 'gadget') {
+            // Gadgets don't have ammo
+            if (ammoCurrent) ammoCurrent.textContent = '-';
+            if (ammoReserve) ammoReserve.textContent = '-';
         }
+        
+        // Update button icons to match selected weapon
+        this.updateButtonIcons();
+    }
+    
+    updateButtonIcons() {
+        // Update weapon switch button icons based on current selection
+        // The weapon icon in HUD already shows the current weapon
+        // We can add visual indicators if needed, but the main icon is already updated above
     }
 }
 

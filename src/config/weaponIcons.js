@@ -14,7 +14,7 @@ export const WEAPON_ICONS = {
     knife: '▬ι𓆃',
     
     // Gadgets
-    grenade: '💣',
+    grenade: '▬ι𓆃',
     medkit: '🏥',
     binoculars: '🔭'
 };

@@ -636,10 +636,14 @@ export class MenuManager {
         if (!this.gameInstance) {
             const { Game } = await import('../core/game.js');
             this.gameInstance = new Game(this.audioManager);
-            await this.gameInstance.init();
+            await this.gameInstance.init(this.selectedWeapons);
         } else {
             // Resume game if it already exists
             this.gameInstance.start();
+            // Update selected weapons in case they changed
+            if (this.gameInstance.weaponManager && this.selectedWeapons.gadget) {
+                this.gameInstance.weaponManager.setSelectedGadget(this.selectedWeapons.gadget);
+            }
         }
         
         // Auto-capture mouse (pointer lock) when game starts

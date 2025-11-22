@@ -20,7 +20,7 @@ export class Game {
         this.isRunning = false;
     }
 
-    async init() {
+    async init(selectedWeapons = null) {
         // Initialize core engine
         this.engine = new Engine();
         await this.engine.init();
@@ -59,6 +59,13 @@ export class Game {
             this.audioManager
         );
         await this.weaponManager.init();
+        
+        // Set selected weapons if provided
+        if (selectedWeapons) {
+            if (selectedWeapons.gadget) {
+                this.weaponManager.setSelectedGadget(selectedWeapons.gadget);
+            }
+        }
 
         // Initialize UI
         this.uiManager = new UIManager(
