@@ -178,11 +178,16 @@
     overflow: hidden;
 }
 
-/* Scale down pistol icon to fit better */
+/* Scale down pistol icon text only - keep button size same */
 .weapon-icon.weapon-secondary {
-    font-size: 12px;
-    transform: scale(0.7);
+    font-size: 20px;
+}
+
+.weapon-icon.weapon-secondary .weapon-text {
+    display: inline-block;
+    transform: scale(0.5);
     transform-origin: center;
+    line-height: 1;
 }
 
 .weapon-icon:hover {
@@ -191,7 +196,7 @@
 }
 
 .weapon-icon.weapon-secondary:hover {
-    transform: scale(0.75);
+    transform: scale(1.05);
 }
 
 .ammo-count {

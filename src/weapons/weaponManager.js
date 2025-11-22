@@ -218,15 +218,23 @@ export class WeaponManager {
             // Remove all weapon type classes
             weaponIcon.classList.remove('weapon-primary', 'weapon-secondary', 'weapon-gadget');
             
+            let iconText = '';
             if (this.weaponType === 'primary') {
-                weaponIcon.textContent = WEAPON_ICONS.longGun;
+                iconText = WEAPON_ICONS.longGun;
                 weaponIcon.classList.add('weapon-primary');
             } else if (this.weaponType === 'secondary') {
-                weaponIcon.textContent = WEAPON_ICONS.pistol;
+                iconText = WEAPON_ICONS.pistol;
                 weaponIcon.classList.add('weapon-secondary');
             } else if (this.weaponType === 'gadget') {
-                weaponIcon.textContent = getWeaponIcon(this.selectedGadget);
+                iconText = getWeaponIcon(this.selectedGadget);
                 weaponIcon.classList.add('weapon-gadget');
+            }
+            
+            // Wrap text in span for secondary weapon to allow scaling only the text
+            if (this.weaponType === 'secondary') {
+                weaponIcon.innerHTML = `<span class="weapon-text">${iconText}</span>`;
+            } else {
+                weaponIcon.textContent = iconText;
             }
         }
 
