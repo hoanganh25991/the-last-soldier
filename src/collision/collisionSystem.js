@@ -108,9 +108,13 @@ export class CollisionSystem {
             finalPos.z + searchRadius
         );
 
+        // Calculate vertical velocity to detect if falling/landing
+        const verticalVelocity = newPos.y - currentPos.y;
+        const isMovingDownward = verticalVelocity < 0;
+
         // Check against nearby colliders only
         for (const collider of nearbyColliders) {
-            const result = this.checkSphereCollider(finalPos, radius, height, collider);
+            const result = this.checkSphereCollider(finalPos, radius, height, collider, currentPos, isMovingDownward);
             finalPos = result.position;
             if (result.onGround) {
                 onGround = true;
@@ -123,7 +127,7 @@ export class CollisionSystem {
         };
     }
 
-    checkSphereCollider(position, radius, height, collider) {
+    checkSphereCollider(position, radius, height, collider, previousPos = null, isMovingDownward = false) {
         let finalPos = position.clone();
         let onGround = false;
 
@@ -167,15 +171,48 @@ export class CollisionSystem {
             center.z + size.z / 2
         );
 
-        // Check collision
-        if (
+        // Check horizontal overlap (X and Z)
+        const horizontalOverlap = (
+            playerMin.x < colliderMax.x &&
+            playerMax.x > colliderMin.x &&
+            playerMin.z < colliderMax.z &&
+            playerMax.z > colliderMin.z
+        );
+
+        // Check if player's feet are near or above the top of the collider
+        const playerFeetY = finalPos.y - height / 2;
+        const colliderTopY = colliderMax.y;
+        const distanceToTop = playerFeetY - colliderTopY;
+        
+        // Check if landing/standing on top: horizontal overlap AND feet are near/above top surface
+        // Use a more generous threshold to allow landing on top
+        const landingThreshold = 0.8; // How close feet need to be to top surface (increased for better detection)
+        const isNearTop = horizontalOverlap && 
+                         distanceToTop >= -landingThreshold && 
+                         distanceToTop <= landingThreshold;
+
+        // Check if player is intersecting with the object
+        const isIntersecting = (
             playerMin.x < colliderMax.x &&
             playerMax.x > colliderMin.x &&
             playerMin.y < colliderMax.y &&
             playerMax.y > colliderMin.y &&
             playerMin.z < colliderMax.z &&
             playerMax.z > colliderMin.z
-        ) {
+        );
+
+        // Priority 1: If near top surface and moving downward or already close, place on top
+        if (isNearTop && (isMovingDownward || distanceToTop <= 0.2)) {
+            finalPos.y = colliderTopY + height / 2;
+            onGround = true;
+        }
+        // Priority 2: If intersecting and feet are above the top (but not too far), snap to top
+        else if (isIntersecting && distanceToTop > -0.3 && distanceToTop < 0.5 && isMovingDownward) {
+            finalPos.y = colliderTopY + height / 2;
+            onGround = true;
+        }
+        // Priority 3: Otherwise, handle side collisions (push horizontally)
+        else if (isIntersecting) {
             // Only push out horizontally, allow vertical movement
             const overlapX = Math.min(
                 Math.abs(playerMax.x - colliderMin.x),
@@ -199,13 +236,6 @@ export class CollisionSystem {
                 } else {
                     finalPos.z = colliderMax.z + radius;
                 }
-            }
-
-            // Check if standing on top
-            if (playerMax.y - height / 2 <= colliderMax.y + 0.1 && 
-                playerMax.y - height / 2 > colliderMax.y - 0.5) {
-                finalPos.y = colliderMax.y + height / 2;
-                onGround = true;
             }
         }
 
