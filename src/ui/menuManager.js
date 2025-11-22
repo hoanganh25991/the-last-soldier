@@ -109,20 +109,48 @@ export class MenuManager {
         // This method is kept for compatibility but no longer overrides loaded selections
     }
 
+    requestFullscreen() {
+        const element = document.documentElement;
+        
+        // Try different fullscreen methods for cross-browser compatibility
+        if (element.requestFullscreen) {
+            element.requestFullscreen().catch(err => {
+                console.debug('Fullscreen request failed:', err.message);
+            });
+        } else if (element.webkitRequestFullscreen) {
+            // Safari
+            element.webkitRequestFullscreen();
+        } else if (element.msRequestFullscreen) {
+            // IE/Edge
+            element.msRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+            // Firefox
+            element.mozRequestFullScreen();
+        }
+    }
+
     setupEventListeners() {
         // Main Menu
         document.getElementById('menu-play').addEventListener('click', () => {
+            // Request fullscreen
+            this.requestFullscreen();
             // Start menu music when Play is clicked
             this.startMenuMusic();
             this.showScreen('play-mode');
         });
         document.getElementById('menu-customize').addEventListener('click', () => {
+            // Request fullscreen
+            this.requestFullscreen();
             this.showScreen('customize');
         });
         document.getElementById('menu-settings').addEventListener('click', () => {
+            // Request fullscreen
+            this.requestFullscreen();
             this.showScreen('settings');
         });
         document.getElementById('menu-about').addEventListener('click', () => {
+            // Request fullscreen
+            this.requestFullscreen();
             this.showScreen('about');
         });
 
