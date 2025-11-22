@@ -122,23 +122,41 @@ export class UIManager {
             });
         }
 
-        // Grenade/Gadget button
+        // Grenade/Gadget button - support hold to charge
         const grenadeBtn = document.getElementById('btn-grenade');
         if (grenadeBtn && this.weaponManager) {
-            grenadeBtn.addEventListener('click', () => {
-                // Switch to gadget and fire
+            // Switch to gadget on press
+            const handleGrenadeStart = () => {
                 if (this.weaponManager.weaponType !== 'gadget') {
                     this.weaponManager.switchWeapon('gadget');
                 }
-                if (this.weaponManager.currentWeapon && this.weaponManager.currentWeapon.fire) {
-                    this.weaponManager.currentWeapon.fire();
+                // Start charging if it's a grenade weapon
+                if (this.weaponManager.currentWeapon && this.weaponManager.currentWeapon.startFiring) {
+                    this.weaponManager.currentWeapon.startFiring();
                 }
-                // Add visual feedback
                 grenadeBtn.classList.add('btn-active');
-                setTimeout(() => {
-                    grenadeBtn.classList.remove('btn-active');
-                }, 200);
+            };
+            
+            const handleGrenadeEnd = () => {
+                // Release and throw
+                if (this.weaponManager.currentWeapon && this.weaponManager.currentWeapon.stopFiring) {
+                    this.weaponManager.currentWeapon.stopFiring();
+                }
+                grenadeBtn.classList.remove('btn-active');
+            };
+            
+            // Support both touch and mouse
+            grenadeBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleGrenadeStart();
             });
+            grenadeBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                handleGrenadeEnd();
+            });
+            grenadeBtn.addEventListener('mousedown', handleGrenadeStart);
+            grenadeBtn.addEventListener('mouseup', handleGrenadeEnd);
+            grenadeBtn.addEventListener('mouseleave', handleGrenadeEnd); // Release if mouse leaves button
         }
     }
 

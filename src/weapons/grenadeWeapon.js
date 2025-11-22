@@ -21,6 +21,13 @@ export class GrenadeWeapon extends WeaponBase {
         this.blastRadius = 5.0;
         this.fuseTime = 4.0; // seconds before explosion
         this.grenades = []; // Active grenades in the world
+        
+        // Charging properties
+        this.isCharging = false;
+        this.chargeStartTime = 0;
+        this.minThrowSpeed = 8; // Minimum throw speed
+        this.maxThrowSpeed = 30; // Maximum throw speed (increased from base 15)
+        this.maxChargeTime = 2.0; // Maximum charge time in seconds (2 seconds to reach max power)
     }
 
     init() {
@@ -57,20 +64,41 @@ export class GrenadeWeapon extends WeaponBase {
         this.camera.add(group);
     }
 
-    fire() {
+    startFiring() {
+        // Start charging when button is pressed
         if (this.isReloading || this.currentAmmo <= 0) {
+            return;
+        }
+        
+        if (!this.isCharging) {
+            this.isCharging = true;
+            this.chargeStartTime = Date.now() / 1000;
+        }
+    }
+
+    stopFiring() {
+        // Throw grenade when button is released
+        if (!this.isCharging || this.isReloading || this.currentAmmo <= 0) {
+            this.isCharging = false;
             return;
         }
 
         const now = Date.now() / 1000;
         if (now - this.lastFireTime < this.fireInterval) {
+            this.isCharging = false;
             return;
         }
 
+        // Calculate charge time and power
+        const chargeTime = Math.min(now - this.chargeStartTime, this.maxChargeTime);
+        const chargeRatio = chargeTime / this.maxChargeTime; // 0 to 1
+        const throwSpeed = this.minThrowSpeed + (this.maxThrowSpeed - this.minThrowSpeed) * chargeRatio;
+
         this.currentAmmo--;
         this.lastFireTime = now;
+        this.isCharging = false;
 
-        // Get throw direction
+        // Get throw direction (angle is determined by current camera rotation)
         const worldPosition = new THREE.Vector3();
         const worldQuaternion = new THREE.Quaternion();
         this.camera.getWorldPosition(worldPosition);
@@ -83,11 +111,22 @@ export class GrenadeWeapon extends WeaponBase {
         direction.y += 0.2;
         direction.normalize();
 
-        // Create grenade object in the world
-        this.throwGrenade(worldPosition, direction);
+        // Create grenade object in the world with calculated throw speed
+        this.throwGrenade(worldPosition, direction, throwSpeed);
     }
 
-    throwGrenade(startPosition, direction) {
+    fire() {
+        // Legacy fire method - now handled by startFiring/stopFiring
+        // This is kept for compatibility but shouldn't be called directly
+        this.startFiring();
+        // Immediately release for instant throw (minimum power)
+        setTimeout(() => this.stopFiring(), 10);
+    }
+
+    throwGrenade(startPosition, direction, throwSpeed = null) {
+        // Use provided throw speed or default to bulletSpeed
+        const speed = throwSpeed !== null ? throwSpeed : this.bulletSpeed;
+        
         // Create grenade mesh
         const grenadeGroup = new THREE.Group();
         
@@ -116,7 +155,7 @@ export class GrenadeWeapon extends WeaponBase {
         // Store grenade data
         const grenadeData = {
             mesh: grenadeGroup,
-            velocity: direction.clone().multiplyScalar(this.bulletSpeed),
+            velocity: direction.clone().multiplyScalar(speed),
             startTime: Date.now() / 1000,
             fuseTime: this.fuseTime,
             damage: this.damage,
@@ -298,10 +337,8 @@ export class GrenadeWeapon extends WeaponBase {
             }
         }
 
-        // Handle firing
-        if (this.isFiring && !this.isReloading) {
-            this.fire();
-        }
+        // Note: Firing is now handled by startFiring/stopFiring
+        // No automatic firing when isFiring is true - grenade uses charge mechanic
     }
 
     reload() {
