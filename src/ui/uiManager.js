@@ -202,7 +202,12 @@ export class UIManager {
         if (this.teamManager) {
             const redScoreElement = document.getElementById('team-red-score');
             const blueScoreElement = document.getElementById('team-blue-score');
-            if (redScoreElement) redScoreElement.textContent = this.teamManager.redScore;
+            // Display actual count of alive enemies on the ground (not the pool remaining)
+            if (redScoreElement) {
+                const aliveEnemiesCount = this.teamManager.enemies ? 
+                    this.teamManager.enemies.filter(e => e.health > 0).length : 0;
+                redScoreElement.textContent = aliveEnemiesCount;
+            }
             if (blueScoreElement) blueScoreElement.textContent = this.teamManager.blueScore;
         }
 
