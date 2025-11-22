@@ -34,6 +34,8 @@ export class Game {
 
         // Initialize team manager (will be updated with bulletManager after weaponManager is created)
         this.teamManager = new TeamManager(this.engine.scene, this.collisionSystem);
+        // Spawn enemies and allies
+        this.teamManager.init();
 
         // Initialize player
         this.player = new PlayerController(

@@ -24,9 +24,26 @@ export class UIManager {
     init() {
         this.setupControls();
         this.updateCompass();
+        this.initMinimap();
         
         // Get crosshair element reference
         this.crosshairElement = document.getElementById('crosshair');
+    }
+
+    initMinimap() {
+        const canvas = document.getElementById('minimap-canvas');
+        if (!canvas) return;
+        
+        this.minimapCanvas = canvas;
+        this.minimapCtx = canvas.getContext('2d');
+        
+        // Set canvas size
+        canvas.width = 150;
+        canvas.height = 150;
+        
+        // Minimap settings
+        this.minimapRange = 500; // Show 500 units radius around player
+        this.visionRange = 500; // Enemies visible within this range
     }
 
     setupControls() {
@@ -130,6 +147,9 @@ export class UIManager {
 
         // Update compass
         this.updateCompass();
+        
+        // Update minimap
+        this.updateMinimap();
 
         // Update team scores
         if (this.teamManager) {
@@ -255,6 +275,151 @@ export class UIManager {
         const translateY = -50 + this.crosshairOffsetY;
         this.crosshairElement.style.transform = 
             `translate(${translateX}%, ${translateY}%) rotate(${this.crosshairRotation}deg)`;
+    }
+
+    updateMinimap() {
+        if (!this.minimapCanvas || !this.minimapCtx || !this.player || !this.teamManager) return;
+        
+        const ctx = this.minimapCtx;
+        const canvas = this.minimapCanvas;
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Clear canvas
+        ctx.fillStyle = 'rgba(20, 20, 30, 0.9)';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Get player position
+        const playerPosition = this.player.getPosition();
+        if (!playerPosition) return;
+        
+        // Get player rotation for direction indicator
+        const yawObject = this.player.getYawObject();
+        let playerRotation = 0;
+        if (yawObject) {
+            const euler = new THREE.Euler();
+            euler.setFromQuaternion(yawObject.quaternion);
+            playerRotation = euler.y;
+        }
+        
+        // Helper function to convert world position to minimap coordinates
+        const worldToMinimap = (worldPos) => {
+            const dx = worldPos.x - playerPosition.x;
+            const dz = worldPos.z - playerPosition.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+            
+            // Clamp to minimap range
+            if (distance > this.minimapRange) {
+                const angle = Math.atan2(dz, dx);
+                const x = width / 2 + Math.cos(angle) * (width / 2 - 5);
+                const y = height / 2 + Math.sin(angle) * (height / 2 - 5);
+                return { x, y, offMap: true };
+            }
+            
+            const x = width / 2 + (dx / this.minimapRange) * (width / 2);
+            const y = height / 2 + (dz / this.minimapRange) * (height / 2);
+            return { x, y, offMap: false };
+        };
+        
+        // Draw grid lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(width / 2, 0);
+        ctx.lineTo(width / 2, height);
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
+        
+        // Draw vision range circle
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const visionRadius = (this.visionRange / this.minimapRange) * (width / 2);
+        ctx.arc(width / 2, height / 2, visionRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Draw teammates (always visible)
+        if (this.teamManager.allies) {
+            ctx.fillStyle = '#0066ff'; // Blue for teammates
+            for (const ally of this.teamManager.allies) {
+                // Skip dead allies
+                if (!ally || ally.health <= 0 || !ally.mesh) continue;
+                
+                // Get world position
+                const worldPos = new THREE.Vector3();
+                ally.mesh.getWorldPosition(worldPos);
+                
+                const pos = worldToMinimap(worldPos);
+                if (!pos.offMap) {
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        // Draw enemies (only if within vision range)
+        if (this.teamManager.enemies) {
+            ctx.fillStyle = '#ff0000'; // Red for enemies
+            for (const enemy of this.teamManager.enemies) {
+                // Skip dead enemies
+                if (!enemy || enemy.health <= 0 || !enemy.mesh) continue;
+                
+                // Get world position
+                const worldPos = new THREE.Vector3();
+                enemy.mesh.getWorldPosition(worldPos);
+                
+                // Check if enemy is within vision range
+                const dx = worldPos.x - playerPosition.x;
+                const dz = worldPos.z - playerPosition.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
+                
+                if (distance <= this.visionRange) {
+                    const pos = worldToMinimap(worldPos);
+                    if (!pos.offMap) {
+                        ctx.beginPath();
+                        ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        // Draw arrow on edge pointing to enemy
+                        const angle = Math.atan2(dz, dx);
+                        const edgeX = width / 2 + Math.cos(angle) * (width / 2 - 5);
+                        const edgeY = height / 2 + Math.sin(angle) * (height / 2 - 5);
+                        ctx.beginPath();
+                        ctx.moveTo(edgeX, edgeY);
+                        ctx.lineTo(
+                            edgeX - Math.cos(angle - Math.PI / 6) * 5,
+                            edgeY - Math.sin(angle - Math.PI / 6) * 5
+                        );
+                        ctx.moveTo(edgeX, edgeY);
+                        ctx.lineTo(
+                            edgeX - Math.cos(angle + Math.PI / 6) * 5,
+                            edgeY - Math.sin(angle + Math.PI / 6) * 5
+                        );
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+        
+        // Draw player (green dot with direction indicator)
+        ctx.fillStyle = '#00ff00'; // Green for player
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw player direction arrow
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const arrowLength = 8;
+        ctx.moveTo(width / 2, height / 2);
+        ctx.lineTo(
+            width / 2 + Math.cos(playerRotation) * arrowLength,
+            height / 2 + Math.sin(playerRotation) * arrowLength
+        );
+        ctx.stroke();
     }
 }
 

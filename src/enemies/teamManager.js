@@ -32,8 +32,8 @@ export class TeamManager {
         const enemiesPerGroup = 10;
         const numGroups = teamSize / enemiesPerGroup; // 10 groups
         const groupSpreadRadius = 20; // Enemies in a group spawn within 20 units of group center
-        const nearbyRadius = 300; // Spawn groups within 300 units
-        const minDistance = 100; // Minimum distance from center for group centers
+        const nearbyRadius = 500; // Spawn groups within 500 units (matching minimap range)
+        const minDistance = 50; // Minimum distance from center for nearby groups (closer!)
         const mapSize = 25000; // Map extends from -25000 to +25000
         
         // Spawn enemy groups
@@ -41,9 +41,10 @@ export class TeamManager {
             // Calculate group center position
             let groupCenter;
             
-            if (groupIndex < 3) {
-                // First 3 groups spawn nearby (within 300 units)
-                const angle = (Math.PI * 2 / 3) * groupIndex + Math.random() * 0.5;
+            if (groupIndex < 5) {
+                // First 5 groups spawn nearby (within 500 units) - more groups closer!
+                // Distribute evenly around player
+                const angle = (Math.PI * 2 / 5) * groupIndex + Math.random() * 0.3;
                 const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
                 groupCenter = new THREE.Vector3(
                     Math.cos(angle) * distance,
@@ -86,6 +87,9 @@ export class TeamManager {
                 const position = this.collisionSystem ? 
                     this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
                     desiredPosition;
+                
+                // Ensure Y is always 0 (on ground)
+                position.y = 0;
 
                 const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem, this.bulletManager, this.scene);
                 enemy.init();
@@ -127,6 +131,9 @@ export class TeamManager {
             const position = this.collisionSystem ? 
                 this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
                 desiredPosition;
+            
+            // Ensure Y is always 0 (on ground)
+            position.y = 0;
 
             const ally = new Enemy(position, this.playerTeam, this.collisionSystem, this.bulletManager, this.scene);
             ally.init();

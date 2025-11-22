@@ -75,7 +75,11 @@ export class Enemy {
         this.healthBar.position.y = 2.2; // Above soldier model
         group.add(this.healthBar);
         
+        // Ensure position Y is 0 (on ground)
+        this.position.y = 0;
         group.position.copy(this.position);
+        group.position.y = 0; // Force Y to 0 to ensure soldiers are on ground
+        
         // Enemies are red team, allies are blue team
         group.userData.isEnemy = this.team === 'red';
         group.userData.team = this.team;
@@ -671,7 +675,10 @@ export class Enemy {
                     this.position.copy(newPosition);
                 }
                 
+            // Always ensure Y is 0
+            this.position.y = 0;
             this.mesh.position.copy(this.position);
+            this.mesh.position.y = 0; // Force Y to 0
             
             // Rotate to face movement direction (unless shooting at target)
             if (!this.currentTarget && horizontalMove.length() > 0) {
