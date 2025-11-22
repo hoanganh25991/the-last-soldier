@@ -152,8 +152,8 @@ export class PlayerController {
                     this.currentSpeed = this.sprintSpeed;
                 }
             }
-            // Handle C for crouch
-            if (e.code === 'KeyC') {
+            // Handle Ctrl for crouch
+            if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
                 e.preventDefault();
                 this.isCrouching = true;
                 this.currentSpeed = this.crouchSpeed;
@@ -176,8 +176,8 @@ export class PlayerController {
                     this.currentSpeed = this.moveSpeed;
                 }
             }
-            // Handle C release
-            if (e.code === 'KeyC') {
+            // Handle Ctrl release
+            if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
                 e.preventDefault();
                 this.isCrouching = false;
                 if (!this.isSprinting) {
