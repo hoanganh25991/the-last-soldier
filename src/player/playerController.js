@@ -19,7 +19,7 @@ export class PlayerController {
         
         // Aim/zoom settings
         this.defaultFOV = 75;
-        this.aimFOV = 45; // Zoomed in FOV
+        this.aimFOV = 25; // Zoomed in FOV (lower = more zoom)
         this.aimTransitionSpeed = 8.0; // Speed of FOV transition
         
         // Player health

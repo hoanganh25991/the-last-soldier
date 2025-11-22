@@ -18,6 +18,8 @@ export class Bullet {
         this.trailPositions = [];
         this.maxTrailLength = 10;
         this.isActive = true;
+        this.spawnTime = Date.now();
+        this.maxLifetime = 3000; // Maximum lifetime in milliseconds (3 seconds)
         
         this.createMesh();
         if (this.showTrail) {
@@ -141,6 +143,14 @@ export class Bullet {
         // Check if bullet has traveled max range
         if (this.traveledDistance >= this.range) {
             this.destroy();
+            return;
+        }
+        
+        // Check if bullet has exceeded maximum lifetime (prevent bullets from flying forever)
+        const currentTime = Date.now();
+        if (currentTime - this.spawnTime >= this.maxLifetime) {
+            this.destroy();
+            return;
         }
     }
 
