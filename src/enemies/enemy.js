@@ -7,7 +7,7 @@ export class Enemy {
         this.health = 100;
         this.maxHealth = 100;
         this.mesh = null;
-        this.speed = 2.0;
+        this.speed = 5.0; // Match player speed
         this.targetPosition = null;
         this.lastMoveTime = 0;
         this.playerPosition = null; // Player position for hunting
@@ -20,6 +20,19 @@ export class Enemy {
         this.nearbyEnemies = []; // List of nearby enemy meshes for allies to engage
         this.lastTargetChangeTime = 0; // For slow movement around player
         this.targetChangeInterval = 3.0; // Change target every 3 seconds (slow movement)
+        
+        // Group-specific properties
+        this.isInGroup = false;
+        this.group = null; // Reference to group object
+        this.groupIndex = 0; // Position in group formation
+        this.formationOffset = new THREE.Vector3(); // Offset from group center
+        
+        // Look around behavior
+        this.lookAroundTimer = 0;
+        this.lookAroundInterval = 2.0 + Math.random() * 2.0; // 2-4 seconds between look arounds
+        this.currentDirection = new THREE.Vector3(1, 0, 0); // Current movement direction
+        this.desiredDirection = new THREE.Vector3(1, 0, 0); // Desired direction toward player
+        this.directionChangeSpeed = 2.0; // How fast direction changes (smooth rotation)
     }
 
     init() {
@@ -174,14 +187,13 @@ export class Enemy {
             }
         }
         
-        // Move towards target (use slower speed for allies)
-        const allySpeed = this.speed * 0.6; // 60% of normal speed for slower movement
+        // Move towards target (normal speed)
         if (this.targetPosition) {
             const direction = new THREE.Vector3()
                 .subVectors(this.targetPosition, this.position)
                 .normalize();
 
-            const moveDistance = allySpeed * deltaTime;
+            const moveDistance = this.speed * deltaTime; // Normal speed
             const distanceToTarget = this.position.distanceTo(this.targetPosition);
 
             if (distanceToTarget > 1) {
@@ -239,6 +251,137 @@ export class Enemy {
         this.nearbyEnemies = enemyMeshes || [];
     }
 
+    updateGroupBehavior(deltaTime) {
+        if (!this.group || !this.playerPosition) return;
+        
+        const groupCenter = this.group.center;
+        const distanceToPlayer = groupCenter.distanceTo(this.playerPosition);
+        const engagementRange = 50; // When group gets within 50 units, enemies can break formation
+        
+        // Calculate formation offset (position relative to group center)
+        if (!this.formationOffset || this.formationOffset.length() === 0) {
+            // Initialize formation offset based on group index
+            const angle = (Math.PI * 2 / this.group.enemies.length) * this.groupIndex;
+            const radius = 5 + Math.random() * 5; // 5-10 units from center
+            this.formationOffset = new THREE.Vector3(
+                Math.cos(angle) * radius,
+                0,
+                Math.sin(angle) * radius
+            );
+        }
+        
+        // Move group center toward player (only update once per group)
+        if (distanceToPlayer > engagementRange && this.groupIndex === 0) {
+            // Only the first enemy in group updates the center to avoid multiple updates
+            // Gradually move toward player with look-around behavior
+            this.lookAroundTimer += deltaTime;
+            
+            // Initialize direction vectors if needed
+            if (this.currentDirection.length() === 0) {
+                const initialDir = new THREE.Vector3()
+                    .subVectors(this.playerPosition, groupCenter)
+                    .normalize();
+                this.currentDirection.copy(initialDir);
+                this.desiredDirection.copy(initialDir);
+            }
+            
+            if (this.lookAroundTimer >= this.lookAroundInterval) {
+                // Time to "look around" - calculate new desired direction
+                const directionToPlayer = new THREE.Vector3()
+                    .subVectors(this.playerPosition, groupCenter)
+                    .normalize();
+                
+                // Add some randomness to make it look more natural
+                const randomAngle = (Math.random() - 0.5) * 0.3; // ±15 degrees
+                const cos = Math.cos(randomAngle);
+                const sin = Math.sin(randomAngle);
+                const rotatedX = directionToPlayer.x * cos - directionToPlayer.z * sin;
+                const rotatedZ = directionToPlayer.x * sin + directionToPlayer.z * cos;
+                
+                this.desiredDirection.set(rotatedX, 0, rotatedZ).normalize();
+                this.lookAroundTimer = 0;
+                this.lookAroundInterval = 2.0 + Math.random() * 2.0; // Next look around in 2-4 seconds
+            }
+            
+            // Smoothly rotate current direction toward desired direction
+            this.currentDirection.lerp(this.desiredDirection, this.directionChangeSpeed * deltaTime).normalize();
+            
+            // Update group center position using current direction
+            const moveDistance = this.speed * deltaTime;
+            groupCenter.x += this.currentDirection.x * moveDistance;
+            groupCenter.z += this.currentDirection.z * moveDistance;
+            groupCenter.y = 0;
+        }
+        
+        // Calculate desired position (group center + formation offset)
+        const desiredPosition = new THREE.Vector3(
+            groupCenter.x + this.formationOffset.x,
+            0,
+            groupCenter.z + this.formationOffset.z
+        );
+        
+        // When close to player, allow individual enemies to engage
+        if (distanceToPlayer < engagementRange) {
+            // Close to player - move toward player individually but stay near group
+            const directionToPlayer = new THREE.Vector3()
+                .subVectors(this.playerPosition, this.position)
+                .normalize();
+            
+            // Blend between formation position and player position
+            const blendFactor = 0.3; // 30% toward player, 70% maintain formation
+            desiredPosition.lerp(this.playerPosition, blendFactor);
+        }
+        
+        // Move toward desired position
+        const direction = new THREE.Vector3()
+            .subVectors(desiredPosition, this.position)
+            .normalize();
+        
+        const moveDistance = this.speed * deltaTime; // Normal speed movement
+        const distanceToTarget = this.position.distanceTo(desiredPosition);
+        
+        if (distanceToTarget > 0.5) {
+            // Only move horizontally (X and Z), keep Y at 0
+            const horizontalMove = direction.clone();
+            horizontalMove.y = 0;
+            horizontalMove.normalize();
+            
+            const newPosition = this.position.clone();
+            newPosition.x += horizontalMove.x * moveDistance;
+            newPosition.z += horizontalMove.z * moveDistance;
+            newPosition.y = 0; // Always keep on ground
+            
+            // Check collision before moving
+            if (this.collisionSystem) {
+                const collisionResult = this.collisionSystem.checkCollision(
+                    this.position,
+                    newPosition,
+                    0.5, // radius
+                    1.6  // height
+                );
+                this.position.copy(collisionResult.position);
+            } else {
+                this.position.copy(newPosition);
+            }
+            
+            this.mesh.position.copy(this.position);
+            
+            // Rotate to face movement direction
+            if (horizontalMove.length() > 0) {
+                this.mesh.lookAt(this.position.clone().add(horizontalMove));
+            }
+        }
+        
+        // Ensure position Y is always 0 (on ground)
+        this.position.y = 0;
+        this.mesh.position.y = 0;
+        
+        // Update health bar to face camera
+        if (this.healthBar) {
+            this.healthBar.lookAt(this.healthBar.position.clone().add(new THREE.Vector3(0, 0, -1)));
+        }
+    }
+
     takeDamage(amount) {
         this.health = Math.max(0, this.health - amount);
         this.updateHealthBar();
@@ -263,17 +406,56 @@ export class Enemy {
             return;
         }
 
+        // Group behavior - enemies in groups move together slowly toward player
+        if (this.isInGroup && this.group && this.playerPosition) {
+            this.updateGroupBehavior(deltaTime);
+            return;
+        }
+
         // Enemy AI: Hunt player if position is known, otherwise random movement
         let targetPos = this.targetPosition;
         
         if (this.huntMode && this.playerPosition) {
-            // Move towards player position
+            // Move towards player position with look-around behavior
             const distanceToPlayer = this.position.distanceTo(this.playerPosition);
             
             if (distanceToPlayer > 2) {
-                // Set player as target
-                targetPos = this.playerPosition.clone();
-                targetPos.y = 0; // Keep on ground level
+                // Initialize direction vectors if needed
+                if (this.currentDirection.length() === 0 || this.desiredDirection.length() === 0) {
+                    const initialDir = new THREE.Vector3()
+                        .subVectors(this.playerPosition, this.position)
+                        .normalize();
+                    this.currentDirection.copy(initialDir);
+                    this.desiredDirection.copy(initialDir);
+                }
+                
+                // Look around periodically before moving forward
+                this.lookAroundTimer += deltaTime;
+                
+                if (this.lookAroundTimer >= this.lookAroundInterval) {
+                    // Time to "look around" - calculate new desired direction toward player
+                    const directionToPlayer = new THREE.Vector3()
+                        .subVectors(this.playerPosition, this.position)
+                        .normalize();
+                    
+                    // Add some randomness to make it look more natural (not straight line)
+                    const randomAngle = (Math.random() - 0.5) * 0.4; // ±20 degrees
+                    const cos = Math.cos(randomAngle);
+                    const sin = Math.sin(randomAngle);
+                    const rotatedX = directionToPlayer.x * cos - directionToPlayer.z * sin;
+                    const rotatedZ = directionToPlayer.x * sin + directionToPlayer.z * cos;
+                    
+                    this.desiredDirection.set(rotatedX, 0, rotatedZ).normalize();
+                    this.lookAroundTimer = 0;
+                    this.lookAroundInterval = 2.0 + Math.random() * 2.0; // Next look around in 2-4 seconds
+                }
+                
+                // Smoothly rotate current direction toward desired direction
+                this.currentDirection.lerp(this.desiredDirection, this.directionChangeSpeed * deltaTime).normalize();
+                
+                // Use current direction for movement (gradual approach, not straight line)
+                targetPos = this.position.clone().add(this.currentDirection.clone().multiplyScalar(10));
+                targetPos.y = 0;
             } else {
                 // Close to player, set random nearby target for flanking
                 this.setRandomTarget();
@@ -291,7 +473,7 @@ export class Enemy {
                 .subVectors(targetPos, this.position)
                 .normalize();
 
-            const moveDistance = this.speed * deltaTime;
+            const moveDistance = this.speed * deltaTime; // Normal speed
             const distanceToTarget = this.position.distanceTo(targetPos);
 
             if (distanceToTarget > 1) {

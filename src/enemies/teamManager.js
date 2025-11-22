@@ -16,6 +16,7 @@ export class TeamManager {
         this.enemies = [];
         this.allies = [];
         this.bloodEffects = [];
+        this.enemyGroups = []; // Store enemy groups for group movement
     }
 
     init() {
@@ -24,61 +25,79 @@ export class TeamManager {
     }
 
     spawnEnemies() {
-        // Spawn 100 enemy team members (red team)
+        // Spawn 100 enemy team members (red team) in groups of 10
         // Player starts at center 0,0,0
         const teamSize = 100;
-        const nearbyEnemyCount = 9; // <10 enemies deployed around player
-        const nearbyRadius = 300; // Spawn nearby enemies within 300 units
-        const minDistance = 50; // Minimum distance from center
+        const enemiesPerGroup = 10;
+        const numGroups = teamSize / enemiesPerGroup; // 10 groups
+        const groupSpreadRadius = 20; // Enemies in a group spawn within 20 units of group center
+        const nearbyRadius = 300; // Spawn groups within 300 units
+        const minDistance = 100; // Minimum distance from center for group centers
         const mapSize = 25000; // Map extends from -25000 to +25000
         
-        // Spawn nearby enemies (<10 enemies around player within 300 units)
-        for (let i = 0; i < nearbyEnemyCount; i++) {
-            const angle = (Math.PI * 2 / nearbyEnemyCount) * i + Math.random() * 0.3; // Slight variation
-            const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
+        // Spawn enemy groups
+        for (let groupIndex = 0; groupIndex < numGroups; groupIndex++) {
+            // Calculate group center position
+            let groupCenter;
             
-            let desiredPosition = new THREE.Vector3(
-                Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
-                0,
-                Math.sin(angle) * distance + (Math.random() - 0.5) * 50
-            );
-
-            // Find a clear spawn position (not inside objects)
-            const position = this.collisionSystem ? 
-                this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
-                desiredPosition;
-
-            const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem);
-            enemy.init();
-            this.scene.add(enemy.mesh);
-            this.enemies.push(enemy);
-        }
-        
-        // Spawn remaining enemies scattered across the large map
-        const remainingEnemyCount = teamSize - nearbyEnemyCount; // 91 enemies
-        const farMinDistance = nearbyRadius + 500; // Start spawning beyond nearby radius
-        const farMaxDistance = mapSize * 0.9; // Use 90% of map size to avoid edges
-        
-        for (let i = 0; i < remainingEnemyCount; i++) {
-            // Random position across the large map
-            const angle = Math.random() * Math.PI * 2;
-            const distance = farMinDistance + Math.random() * (farMaxDistance - farMinDistance);
+            if (groupIndex < 3) {
+                // First 3 groups spawn nearby (within 300 units)
+                const angle = (Math.PI * 2 / 3) * groupIndex + Math.random() * 0.5;
+                const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
+                groupCenter = new THREE.Vector3(
+                    Math.cos(angle) * distance,
+                    0,
+                    Math.sin(angle) * distance
+                );
+            } else {
+                // Remaining groups spawn further away on the map
+                const farMinDistance = nearbyRadius + 500;
+                const farMaxDistance = mapSize * 0.9;
+                const angle = Math.random() * Math.PI * 2;
+                const distance = farMinDistance + Math.random() * (farMaxDistance - farMinDistance);
+                groupCenter = new THREE.Vector3(
+                    Math.cos(angle) * distance,
+                    0,
+                    Math.sin(angle) * distance
+                );
+            }
             
-            let desiredPosition = new THREE.Vector3(
-                Math.cos(angle) * distance + (Math.random() - 0.5) * 200,
-                0,
-                Math.sin(angle) * distance + (Math.random() - 0.5) * 200
-            );
+            // Create group object
+            const group = {
+                center: groupCenter.clone(),
+                enemies: [],
+                targetPosition: null // Will be set to player position
+            };
+            
+            // Spawn enemies in this group (close together)
+            for (let i = 0; i < enemiesPerGroup; i++) {
+                // Spawn enemies in a tight formation around group center
+                const angle = (Math.PI * 2 / enemiesPerGroup) * i + Math.random() * 0.3;
+                const distance = Math.random() * groupSpreadRadius;
+                
+                let desiredPosition = new THREE.Vector3(
+                    groupCenter.x + Math.cos(angle) * distance + (Math.random() - 0.5) * 5,
+                    0,
+                    groupCenter.z + Math.sin(angle) * distance + (Math.random() - 0.5) * 5
+                );
 
-            // Find a clear spawn position (not inside objects)
-            const position = this.collisionSystem ? 
-                this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
-                desiredPosition;
+                // Find a clear spawn position (not inside objects)
+                const position = this.collisionSystem ? 
+                    this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
+                    desiredPosition;
 
-            const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem);
-            enemy.init();
-            this.scene.add(enemy.mesh);
-            this.enemies.push(enemy);
+                const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem);
+                enemy.init();
+                // Assign enemy to group
+                enemy.group = group;
+                enemy.groupIndex = i; // Position in group formation
+                enemy.isInGroup = true;
+                this.scene.add(enemy.mesh);
+                this.enemies.push(enemy);
+                group.enemies.push(enemy);
+            }
+            
+            this.enemyGroups.push(group);
         }
     }
 
@@ -164,6 +183,15 @@ export class TeamManager {
         const index = this.enemies.indexOf(enemy);
         if (index > -1) {
             this.enemies.splice(index, 1);
+            
+            // Remove from group if in a group
+            if (enemy.isInGroup && enemy.group) {
+                const groupIndex = enemy.group.enemies.indexOf(enemy);
+                if (groupIndex > -1) {
+                    enemy.group.enemies.splice(groupIndex, 1);
+                }
+            }
+            
             this.scene.remove(enemy.mesh);
             enemy.dispose();
         }
