@@ -460,14 +460,18 @@ export class UIManager {
         ctx.fill();
         
         // Draw player direction arrow
+        // Adjust rotation: subtract π/2 so that forward (0) points up (bottom to top)
+        // In canvas: 0° = right, 90° = down, 180° = left, 270° = up
+        // We want: forward (0°) → up (270°), so subtract 90° (π/2)
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 2;
         ctx.beginPath();
         const arrowLength = 8;
+        const adjustedRotation = playerRotation - Math.PI / 2;
         ctx.moveTo(width / 2, height / 2);
         ctx.lineTo(
-            width / 2 + Math.cos(playerRotation) * arrowLength,
-            height / 2 + Math.sin(playerRotation) * arrowLength
+            width / 2 + Math.cos(adjustedRotation) * arrowLength,
+            height / 2 + Math.sin(adjustedRotation) * arrowLength
         );
         ctx.stroke();
     }
