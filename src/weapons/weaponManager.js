@@ -1,5 +1,7 @@
 import { PrimaryWeapon } from './primaryWeapon.js';
 import { SecondaryWeapon } from './secondaryWeapon.js';
+import { KnifeWeapon } from './knifeWeapon.js';
+import { GrenadeWeapon } from './grenadeWeapon.js';
 import { BulletManager } from './bulletManager.js';
 import { WEAPON_ICONS, getWeaponIcon } from '../config/weaponIcons.js';
 
@@ -14,6 +16,7 @@ export class WeaponManager {
         
         this.primaryWeapon = null;
         this.secondaryWeapon = null;
+        this.gadgetWeapons = {}; // Map of gadget names to weapon instances
         this.currentWeapon = null;
         this.weaponType = 'primary'; // 'primary', 'secondary', or 'gadget'
         this.selectedGadget = 'Grenade'; // Default gadget
@@ -28,6 +31,20 @@ export class WeaponManager {
         
         this.primaryWeapon.init();
         this.secondaryWeapon.init();
+        
+        // Create gadget weapons
+        this.gadgetWeapons['Knife'] = new KnifeWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
+        this.gadgetWeapons['Grenade'] = new GrenadeWeapon(this.camera, this.scene, this.teamManager, this.bulletManager, this.audioManager);
+        
+        this.gadgetWeapons['Knife'].init();
+        this.gadgetWeapons['Grenade'].init();
+        
+        // Hide all gadget weapons initially
+        Object.values(this.gadgetWeapons).forEach(weapon => {
+            if (weapon && weapon.hide) {
+                weapon.hide();
+            }
+        });
         
         // Preload weapon sounds to avoid network requests on each shot
         // CRITICAL: Wait for preloading to complete before continuing
@@ -138,16 +155,23 @@ export class WeaponManager {
     }
 
     switchWeapon(type) {
-        // Hide current weapon if it's a real weapon (not gadget)
-        if (this.currentWeapon && this.weaponType !== 'gadget') {
+        // Hide current weapon
+        if (this.currentWeapon && this.currentWeapon.hide) {
             this.currentWeapon.hide();
         }
 
         this.weaponType = type;
         
         if (type === 'gadget') {
-            // Gadget doesn't have a weapon mesh, just set currentWeapon to null
-            this.currentWeapon = null;
+            // Show the selected gadget weapon (if it has a 3D model)
+            const gadgetWeapon = this.gadgetWeapons[this.selectedGadget];
+            if (gadgetWeapon) {
+                this.currentWeapon = gadgetWeapon;
+                gadgetWeapon.show();
+            } else {
+                // Gadget without 3D model (medkit, binoculars, etc.)
+                this.currentWeapon = null;
+            }
         } else {
             this.currentWeapon = type === 'primary' ? this.primaryWeapon : this.secondaryWeapon;
             if (this.currentWeapon) {
@@ -159,27 +183,43 @@ export class WeaponManager {
     }
     
     setSelectedGadget(gadgetName) {
+        // Hide current gadget if switching
+        if (this.weaponType === 'gadget' && this.currentWeapon && this.currentWeapon.hide) {
+            this.currentWeapon.hide();
+        }
+        
         this.selectedGadget = gadgetName;
+        
+        // Show new gadget weapon if gadget type is selected
         if (this.weaponType === 'gadget') {
+            const gadgetWeapon = this.gadgetWeapons[gadgetName];
+            if (gadgetWeapon) {
+                // Hide previous gadget if switching
+                if (this.currentWeapon && this.currentWeapon.hide) {
+                    this.currentWeapon.hide();
+                }
+                this.currentWeapon = gadgetWeapon;
+                gadgetWeapon.show();
+            } else {
+                // Gadget without 3D model (medkit, binoculars, etc.)
+                if (this.currentWeapon && this.currentWeapon.hide) {
+                    this.currentWeapon.hide();
+                }
+                this.currentWeapon = null;
+            }
             this.updateUI();
         }
     }
 
     startFiring() {
-        // Don't fire if gadget is selected
-        if (this.weaponType === 'gadget') {
-            return;
-        }
+        // Allow gadgets to fire (knife melee, grenade throw)
         if (this.currentWeapon) {
             this.currentWeapon.startFiring();
         }
     }
 
     stopFiring() {
-        // Don't fire if gadget is selected
-        if (this.weaponType === 'gadget') {
-            return;
-        }
+        // Allow gadgets to stop firing
         if (this.currentWeapon) {
             this.currentWeapon.stopFiring();
         }
@@ -195,6 +235,13 @@ export class WeaponManager {
         if (this.currentWeapon) {
             this.currentWeapon.update(deltaTime);
         }
+        
+        // Update all gadget weapons (for grenade physics, etc.)
+        Object.values(this.gadgetWeapons).forEach(weapon => {
+            if (weapon && weapon.update && weapon !== this.currentWeapon) {
+                weapon.update(deltaTime);
+            }
+        });
         
         // Update bullet manager
         if (this.bulletManager) {
@@ -240,10 +287,23 @@ export class WeaponManager {
 
         // Update ammo display
         if (this.currentWeapon) {
-            if (ammoCurrent) ammoCurrent.textContent = this.currentWeapon.currentAmmo;
-            if (ammoReserve) ammoReserve.textContent = this.currentWeapon.reserveAmmo;
+            if (ammoCurrent) {
+                // Show ammo or special display for gadgets
+                if (this.weaponType === 'gadget' && this.selectedGadget === 'Knife') {
+                    ammoCurrent.textContent = '∞'; // Infinite for knife
+                } else {
+                    ammoCurrent.textContent = this.currentWeapon.currentAmmo;
+                }
+            }
+            if (ammoReserve) {
+                if (this.weaponType === 'gadget' && this.selectedGadget === 'Knife') {
+                    ammoReserve.textContent = '∞'; // Infinite for knife
+                } else {
+                    ammoReserve.textContent = this.currentWeapon.reserveAmmo;
+                }
+            }
         } else if (this.weaponType === 'gadget') {
-            // Gadgets don't have ammo
+            // Gadget not found
             if (ammoCurrent) ammoCurrent.textContent = '-';
             if (ammoReserve) ammoReserve.textContent = '-';
         }

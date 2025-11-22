@@ -55,6 +55,7 @@ export class SecondaryWeapon extends WeaponBase {
         // Position relative to camera
         group.position.set(0.25, -0.25, -0.5);
         group.rotation.x = 0.1;
+        group.rotation.y = Math.PI / 2; // Rotate 90 degrees to aim forward (into screen)
         
         this.weaponMesh = group;
         this.camera.add(group);

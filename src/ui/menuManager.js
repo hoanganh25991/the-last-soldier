@@ -232,10 +232,12 @@ export class MenuManager {
         const optionsHtml = options.map(option => {
             const isSelected = option.name === currentSelection;
             const optionClass = `weapon-option-${categoryType}`;
+            // Use option icon if available, otherwise fallback to default icon for category type
+            const icon = option.icon || getWeaponIconByType(categoryType);
             return `
                 <div class="${optionClass} ${isSelected ? 'selected' : ''}" 
                      data-${categoryType}="${option.name}">
-                    <div class="weapon-silhouette-small">${option.icon}</div>
+                    <div class="weapon-silhouette-small">${icon}</div>
                     <span>${option.name}</span>
                 </div>
             `;
@@ -288,19 +290,20 @@ export class MenuManager {
             const display = document.getElementById('primary-display');
             if (display) {
                 // Primary weapons use long-gun icon from config
-                display.textContent = WEAPON_ICONS.longGun;
+                display.textContent = WEAPON_ICONS.primary;
                 display.classList.remove('empty', 'rifle-icon');
             }
         } else if (type === 'secondary') {
             const display = document.getElementById('secondary-display');
             if (display) {
                 // Secondary weapons use pistol icon from config
-                display.textContent = WEAPON_ICONS.pistol;
+                display.textContent = WEAPON_ICONS.secondary;
                 display.classList.remove('empty');
             }
         } else if (type === 'gadget') {
             const display = document.getElementById('gadget-display');
             if (display) {
+                // Show the specific gadget icon based on selection
                 display.textContent = getWeaponIcon(itemName);
                 display.classList.remove('empty');
             }

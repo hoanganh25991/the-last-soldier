@@ -2,19 +2,19 @@
  * Weapon Icon Configuration
  * Consistent icon definitions for all weapons across the game
  */
-
 export const WEAPON_ICONS = {
-    // Primary weapons (long guns/rifles)
+    // Primary weapons
+    primary: 'ᡕᠵデᡁ᠊╾━',
     longGun: 'ᡕᠵデᡁ᠊╾━',
     
-    // Secondary weapons (pistols)
+    // Secondary weapons
+    secondary: ' ̸̳̔̎​̎̎ ̿̿̅̅/ ̔̅̅ ̿̿ ̿̿ ̿ ̿̿ ̿̿̅̅ ̿̿',
     pistol: ' ̸̳̔̎​̎̎ ̿̿̅̅/ ̔̅̅ ̿̿ ̿̿ ̿ ̿̿ ̿̿̅̅ ̿̿',
     
-    // Melee weapons
+    // Gadget category
+    gadget: '▬ι𓆃',
     knife: '▬ι𓆃',
-    
-    // Gadgets
-    grenade: '▬ι𓆃',
+    grenade: '💣',
     medkit: '🏥',
     binoculars: '🔭'
 };
@@ -51,14 +51,13 @@ export function getWeaponIcon(weaponName) {
  * @param {string} weaponName - Optional weapon name for gadgets
  * @returns {string} Icon string
  */
-export function getWeaponIconByType(type, weaponName = null) {
+export function getWeaponIconByType(type) {
     if (type === 'primary') {
         return WEAPON_ICONS.longGun;
     } else if (type === 'secondary') {
         return WEAPON_ICONS.pistol;
-    } else if (type === 'gadget' && weaponName) {
-        return getWeaponIcon(weaponName);
+    } else if (type === 'gadget') {
+        return WEAPON_ICONS.gadget; // Default gadget category icon (knife)
     }
     return WEAPON_ICONS.pistol;
 }
-
