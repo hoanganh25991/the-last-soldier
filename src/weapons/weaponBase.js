@@ -358,8 +358,10 @@ export class WeaponBase {
         const ejectionPosition = worldPosition.clone().add(ejectionOffset);
         
         // Number of shells = number of bullets currently in magazine (being ejected)
+        // When reloading, eject shells from the current magazine
+        // If magazine is empty (auto-reload), still create shells for visual effect (use maxAmmo)
         // Limit to reasonable number for performance (max 10 shells at once)
-        const shellCount = Math.min(this.currentAmmo || 1, 10);
+        const shellCount = Math.min(this.currentAmmo > 0 ? this.currentAmmo : Math.min(this.maxAmmo, 5), 10);
         
         // Create shells with staggered timing for more realistic effect
         for (let i = 0; i < shellCount; i++) {
