@@ -186,6 +186,9 @@ export class UIManager {
             this.weaponManager.updateUI();
         }
 
+        // Update grenade power bar
+        this.updateGrenadePowerBar();
+
         // Update player health
         if (this.player && typeof this.player.getHealth === 'function' && typeof this.player.getMaxHealth === 'function') {
             const healthElement = document.getElementById('player-health');
@@ -467,6 +470,38 @@ export class UIManager {
             height / 2 + Math.sin(playerRotation) * arrowLength
         );
         ctx.stroke();
+    }
+
+    updateGrenadePowerBar() {
+        const powerBarContainer = document.getElementById('grenade-power-bar-container');
+        const powerBarFill = document.getElementById('grenade-power-bar-fill');
+        
+        if (!powerBarContainer || !powerBarFill) {
+            return;
+        }
+
+        // Check if current weapon is grenade and is charging
+        if (this.weaponManager && 
+            this.weaponManager.currentWeapon && 
+            this.weaponManager.currentWeapon.name === 'Grenade' &&
+            typeof this.weaponManager.currentWeapon.getChargeRatio === 'function') {
+            
+            const chargeRatio = this.weaponManager.currentWeapon.getChargeRatio();
+            
+            if (chargeRatio > 0) {
+                // Show power bar
+                powerBarContainer.classList.add('visible');
+                powerBarFill.style.width = `${chargeRatio * 100}%`;
+            } else {
+                // Hide power bar
+                powerBarContainer.classList.remove('visible');
+                powerBarFill.style.width = '0%';
+            }
+        } else {
+            // Hide power bar if not grenade or not charging
+            powerBarContainer.classList.remove('visible');
+            powerBarFill.style.width = '0%';
+        }
     }
 }
 

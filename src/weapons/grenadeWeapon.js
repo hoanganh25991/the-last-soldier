@@ -115,6 +115,16 @@ export class GrenadeWeapon extends WeaponBase {
         this.throwGrenade(worldPosition, direction, throwSpeed);
     }
 
+    getChargeRatio() {
+        // Returns current charge ratio (0 to 1) for UI display
+        if (!this.isCharging) {
+            return 0;
+        }
+        const now = Date.now() / 1000;
+        const chargeTime = Math.min(now - this.chargeStartTime, this.maxChargeTime);
+        return chargeTime / this.maxChargeTime;
+    }
+
     fire() {
         // Legacy fire method - now handled by startFiring/stopFiring
         // This is kept for compatibility but shouldn't be called directly
