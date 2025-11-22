@@ -344,12 +344,16 @@ export class UIManager {
         if (!playerPosition) return;
         
         // Get player rotation for direction indicator
+        // Use forward vector from quaternion to get smooth 360-degree rotation
         const yawObject = this.player.getYawObject();
         let playerRotation = 0;
         if (yawObject) {
-            const euler = new THREE.Euler();
-            euler.setFromQuaternion(yawObject.quaternion);
-            playerRotation = euler.y;
+            // Get forward direction vector (0, 0, -1) rotated by quaternion
+            const forward = new THREE.Vector3(0, 0, -1);
+            forward.applyQuaternion(yawObject.quaternion);
+            // Use atan2 to get continuous angle from forward vector (X, Z)
+            // This gives smooth 360-degree rotation without wrapping issues
+            playerRotation = Math.atan2(forward.x, forward.z);
         }
         
         // Helper function to convert world position to minimap coordinates
@@ -460,20 +464,46 @@ export class UIManager {
         ctx.fill();
         
         // Draw player direction arrow
-        // Adjust rotation: subtract π/2 so that forward (0) points up (bottom to top)
-        // In canvas: 0° = right, 90° = down, 180° = left, 270° = up
-        // We want: forward (0°) → up (270°), so subtract 90° (π/2)
+        // playerRotation is from atan2(forward.x, forward.z) where forward = (0,0,-1) rotated
+        // When forward = (0,0,-1) (north), atan2(0,-1) = π
+        // Canvas: 0° = right, π/2 = down, π = left, -π/2 = up
+        // To map north (π) to up (-π/2), we add π/2: π + π/2 = 3π/2 ≡ -π/2
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 2;
+        ctx.fillStyle = '#00ff00';
+        const arrowLength = 10;
+        const arrowHeadLength = 5;
+        const arrowHeadAngle = Math.PI / 6; // 30 degrees
+        const adjustedRotation = playerRotation + Math.PI / 2;
+        
+        // Calculate arrow tip position
+        const tipX = width / 2 + Math.cos(adjustedRotation) * arrowLength;
+        const tipY = height / 2 + Math.sin(adjustedRotation) * arrowLength;
+        
+        // Draw arrow line
         ctx.beginPath();
-        const arrowLength = 8;
-        const adjustedRotation = playerRotation - Math.PI / 2;
         ctx.moveTo(width / 2, height / 2);
-        ctx.lineTo(
-            width / 2 + Math.cos(adjustedRotation) * arrowLength,
-            height / 2 + Math.sin(adjustedRotation) * arrowLength
-        );
+        ctx.lineTo(tipX, tipY);
         ctx.stroke();
+        
+        // Draw arrowhead for better visibility
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(
+            tipX - Math.cos(adjustedRotation - arrowHeadAngle) * arrowHeadLength,
+            tipY - Math.sin(adjustedRotation - arrowHeadAngle) * arrowHeadLength
+        );
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(
+            tipX - Math.cos(adjustedRotation + arrowHeadAngle) * arrowHeadLength,
+            tipY - Math.sin(adjustedRotation + arrowHeadAngle) * arrowHeadLength
+        );
+        ctx.lineTo(
+            tipX - Math.cos(adjustedRotation - arrowHeadAngle) * arrowHeadLength,
+            tipY - Math.sin(adjustedRotation - arrowHeadAngle) * arrowHeadLength
+        );
+        ctx.closePath();
+        ctx.fill();
     }
 
     updateGrenadePowerBar() {
