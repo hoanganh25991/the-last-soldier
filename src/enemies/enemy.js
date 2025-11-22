@@ -13,6 +13,13 @@ export class Enemy {
         this.playerPosition = null; // Player position for hunting
         this.huntMode = true; // Hunt player instead of random movement
         this.collisionSystem = collisionSystem;
+        
+        // Ally-specific properties
+        this.isAlly = false;
+        this.maxDistanceFromPlayer = 900; // Maximum distance from player for allies
+        this.nearbyEnemies = []; // List of nearby enemy meshes for allies to engage
+        this.lastTargetChangeTime = 0; // For slow movement around player
+        this.targetChangeInterval = 3.0; // Change target every 3 seconds (slow movement)
     }
 
     init() {
@@ -75,8 +82,161 @@ export class Enemy {
         );
     }
 
+    setAllyTargetAroundPlayer() {
+        // Set a target position around the player (within max distance)
+        if (!this.playerPosition) return;
+        
+        const distanceToPlayer = this.position.distanceTo(this.playerPosition);
+        const angle = Math.random() * Math.PI * 2;
+        
+        // Target should be between 50 and maxDistanceFromPlayer units from player
+        const targetDistance = 50 + Math.random() * (this.maxDistanceFromPlayer - 50);
+        
+        this.targetPosition = new THREE.Vector3(
+            this.playerPosition.x + Math.cos(angle) * targetDistance,
+            0,
+            this.playerPosition.z + Math.sin(angle) * targetDistance
+        );
+    }
+
+    findNearestEnemy() {
+        // Find the nearest enemy within engagement range
+        if (!this.nearbyEnemies || this.nearbyEnemies.length === 0) return null;
+        
+        const engagementRange = 200; // Maximum range to engage enemies
+        let nearestEnemy = null;
+        let nearestDistance = engagementRange;
+        
+        for (const enemyMesh of this.nearbyEnemies) {
+            if (!enemyMesh || !enemyMesh.position) continue;
+            
+            const distance = this.position.distanceTo(enemyMesh.position);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestEnemy = enemyMesh;
+            }
+        }
+        
+        return nearestEnemy;
+    }
+
+    updateAllyBehavior(deltaTime) {
+        if (!this.playerPosition) return;
+        
+        const distanceToPlayer = this.position.distanceTo(this.playerPosition);
+        
+        // Check if ally is too far from player - bring them back
+        if (distanceToPlayer > this.maxDistanceFromPlayer) {
+            // Move back towards player
+            const directionToPlayer = new THREE.Vector3()
+                .subVectors(this.playerPosition, this.position)
+                .normalize();
+            
+            const targetPos = this.position.clone().add(
+                directionToPlayer.multiplyScalar(this.maxDistanceFromPlayer * 0.8)
+            );
+            targetPos.y = 0;
+            this.targetPosition = targetPos;
+        } else {
+            // Check for nearby enemies to engage
+            const nearestEnemy = this.findNearestEnemy();
+            
+            if (nearestEnemy && nearestEnemy.position) {
+                // Engage enemy - move towards it but keep within max distance from player
+                const enemyPos = nearestEnemy.position.clone();
+                const directionToEnemy = new THREE.Vector3()
+                    .subVectors(enemyPos, this.position)
+                    .normalize();
+                
+                // Move towards enemy but ensure we don't go too far from player
+                const moveDistance = 30; // Move closer to enemy
+                const potentialPos = this.position.clone().add(
+                    directionToEnemy.multiplyScalar(moveDistance)
+                );
+                
+                // Check if this position is still within max distance from player
+                const distanceFromPlayerAtNewPos = potentialPos.distanceTo(this.playerPosition);
+                if (distanceFromPlayerAtNewPos <= this.maxDistanceFromPlayer) {
+                    this.targetPosition = potentialPos;
+                    this.targetPosition.y = 0;
+                } else {
+                    // Too far, set target around player instead
+                    this.setAllyTargetAroundPlayer();
+                }
+            } else {
+                // No nearby enemies, slowly move around player
+                this.lastTargetChangeTime += deltaTime;
+                
+                if (!this.targetPosition || this.lastTargetChangeTime >= this.targetChangeInterval) {
+                    this.setAllyTargetAroundPlayer();
+                    this.lastTargetChangeTime = 0;
+                }
+            }
+        }
+        
+        // Move towards target (use slower speed for allies)
+        const allySpeed = this.speed * 0.6; // 60% of normal speed for slower movement
+        if (this.targetPosition) {
+            const direction = new THREE.Vector3()
+                .subVectors(this.targetPosition, this.position)
+                .normalize();
+
+            const moveDistance = allySpeed * deltaTime;
+            const distanceToTarget = this.position.distanceTo(this.targetPosition);
+
+            if (distanceToTarget > 1) {
+                // Only move horizontally (X and Z), keep Y at 0
+                const horizontalMove = direction.clone();
+                horizontalMove.y = 0;
+                horizontalMove.normalize();
+                
+                const newPosition = this.position.clone();
+                newPosition.x += horizontalMove.x * moveDistance;
+                newPosition.z += horizontalMove.z * moveDistance;
+                newPosition.y = 0; // Always keep on ground
+                
+                // Check collision before moving
+                if (this.collisionSystem) {
+                    const collisionResult = this.collisionSystem.checkCollision(
+                        this.position,
+                        newPosition,
+                        0.5, // radius
+                        1.6  // height
+                    );
+                    this.position.copy(collisionResult.position);
+                } else {
+                    this.position.copy(newPosition);
+                }
+                
+                this.mesh.position.copy(this.position);
+                
+                // Rotate to face movement direction
+                if (horizontalMove.length() > 0) {
+                    this.mesh.lookAt(this.position.clone().add(horizontalMove));
+                }
+            } else {
+                // Reached target, set new one
+                this.setAllyTargetAroundPlayer();
+                this.lastTargetChangeTime = 0;
+            }
+        }
+
+        // Ensure position Y is always 0 (on ground)
+        this.position.y = 0;
+        this.mesh.position.y = 0;
+
+        // Update health bar to face camera (simplified)
+        if (this.healthBar) {
+            this.healthBar.lookAt(this.healthBar.position.clone().add(new THREE.Vector3(0, 0, -1)));
+        }
+    }
+
     setPlayerPosition(playerPosition) {
         this.playerPosition = playerPosition ? playerPosition.clone() : null;
+    }
+
+    setNearbyEnemies(enemyMeshes) {
+        this.nearbyEnemies = enemyMeshes || [];
     }
 
     takeDamage(amount) {
@@ -97,7 +257,13 @@ export class Enemy {
     update(deltaTime) {
         if (!this.mesh || this.health <= 0) return;
 
-        // AI: Hunt player if position is known, otherwise random movement
+        // Ally-specific behavior
+        if (this.isAlly && this.playerPosition) {
+            this.updateAllyBehavior(deltaTime);
+            return;
+        }
+
+        // Enemy AI: Hunt player if position is known, otherwise random movement
         let targetPos = this.targetPosition;
         
         if (this.huntMode && this.playerPosition) {

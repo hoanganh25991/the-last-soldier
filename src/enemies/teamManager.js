@@ -10,8 +10,8 @@ export class TeamManager {
         this.playerTeam = 'blue'; // Player is on blue team (allies)
         this.enemyTeam = 'red';   // Enemies are red
         
-        this.redScore = 100;
-        this.blueScore = 100;
+        this.redScore = 100; // 100 enemies total
+        this.blueScore = 10; // 1 player + 9 teammates = 10 total
         
         this.enemies = [];
         this.allies = [];
@@ -25,25 +25,18 @@ export class TeamManager {
 
     spawnEnemies() {
         // Spawn 100 enemy team members (red team)
-        // Spawn them around the deployment area (player starts at center 0,0,0)
+        // Player starts at center 0,0,0
         const teamSize = 100;
-        const spawnRadius = 300; // Spawn enemies within 300 units of deployment area
+        const nearbyEnemyCount = 9; // <10 enemies deployed around player
+        const currentSpawnRadius = 300; // Current spawn radius
+        const nearbyRadius = currentSpawnRadius * 3; // 3x far away = 900 units
         const minDistance = 50; // Minimum distance from center
+        const mapSize = 25000; // Map extends from -25000 to +25000
         
-        for (let i = 0; i < teamSize; i++) {
-            // Create a formation pattern - distribute around deployment area
-            // Mix of circular formation and random scatter
-            let angle, distance;
-            
-            if (i < teamSize * 0.7) {
-                // 70% spawn in circular formation around deployment
-                angle = (Math.PI * 2 / (teamSize * 0.7)) * i;
-                distance = minDistance + Math.random() * (spawnRadius - minDistance);
-            } else {
-                // 30% spawn randomly scattered around deployment area
-                angle = Math.random() * Math.PI * 2;
-                distance = minDistance + Math.random() * spawnRadius;
-            }
+        // Spawn nearby enemies (<10 enemies around player within 3x distance)
+        for (let i = 0; i < nearbyEnemyCount; i++) {
+            const angle = (Math.PI * 2 / nearbyEnemyCount) * i + Math.random() * 0.3; // Slight variation
+            const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
             
             let desiredPosition = new THREE.Vector3(
                 Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
@@ -61,35 +54,52 @@ export class TeamManager {
             this.scene.add(enemy.mesh);
             this.enemies.push(enemy);
         }
+        
+        // Spawn remaining enemies scattered across the large map
+        const remainingEnemyCount = teamSize - nearbyEnemyCount; // 91 enemies
+        const farMinDistance = nearbyRadius + 500; // Start spawning beyond nearby radius
+        const farMaxDistance = mapSize * 0.9; // Use 90% of map size to avoid edges
+        
+        for (let i = 0; i < remainingEnemyCount; i++) {
+            // Random position across the large map
+            const angle = Math.random() * Math.PI * 2;
+            const distance = farMinDistance + Math.random() * (farMaxDistance - farMinDistance);
+            
+            let desiredPosition = new THREE.Vector3(
+                Math.cos(angle) * distance + (Math.random() - 0.5) * 200,
+                0,
+                Math.sin(angle) * distance + (Math.random() - 0.5) * 200
+            );
+
+            // Find a clear spawn position (not inside objects)
+            const position = this.collisionSystem ? 
+                this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
+                desiredPosition;
+
+            const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem);
+            enemy.init();
+            this.scene.add(enemy.mesh);
+            this.enemies.push(enemy);
+        }
     }
 
     spawnAllies() {
-        // Spawn 100 friendly team members (blue team)
-        // Spawn them around the deployment area (player starts at center 0,0,0)
-        // Allies spawn slightly further out than enemies to create a defensive perimeter
-        const teamSize = 100;
-        const spawnRadius = 400; // Spawn allies within 400 units of deployment area
-        const minDistance = 200; // Minimum distance from center (further than enemies)
+        // Spawn 9 friendly team members (blue team) - 1 player + 9 teammates = 10 total
+        // Player starts at center 0,0,0
+        // Teammates start close to player (~100 units), can move away maximum 900 units
+        const teamSize = 9; // 9 teammates (player makes 10 total)
+        const startRadius = 100; // Start around 100 units from player
+        const maxDistance = 900; // Maximum distance from player (3x current spawn radius)
         
         for (let i = 0; i < teamSize; i++) {
-            // Create a formation pattern - distribute around deployment area
-            // Mix of circular formation and random scatter
-            let angle, distance;
-            
-            if (i < teamSize * 0.7) {
-                // 70% spawn in circular formation around deployment
-                angle = (Math.PI * 2 / (teamSize * 0.7)) * i;
-                distance = minDistance + Math.random() * (spawnRadius - minDistance);
-            } else {
-                // 30% spawn randomly scattered around deployment area
-                angle = Math.random() * Math.PI * 2;
-                distance = minDistance + Math.random() * (spawnRadius - minDistance);
-            }
+            // Distribute teammates evenly around player in circular formation
+            const angle = (Math.PI * 2 / teamSize) * i + Math.random() * 0.2; // Slight variation
+            const distance = startRadius * (0.7 + Math.random() * 0.6); // 70-130 units from player
             
             let desiredPosition = new THREE.Vector3(
-                Math.cos(angle) * distance + (Math.random() - 0.5) * 50,
+                Math.cos(angle) * distance + (Math.random() - 0.5) * 20,
                 0,
-                Math.sin(angle) * distance + (Math.random() - 0.5) * 50
+                Math.sin(angle) * distance + (Math.random() - 0.5) * 20
             );
 
             // Find a clear spawn position (not inside objects)
@@ -99,6 +109,9 @@ export class TeamManager {
 
             const ally = new Enemy(position, this.playerTeam, this.collisionSystem);
             ally.init();
+            // Mark as ally for special behavior
+            ally.isAlly = true;
+            ally.maxDistanceFromPlayer = maxDistance;
             this.scene.add(ally.mesh);
             this.allies.push(ally);
         }
@@ -175,8 +188,13 @@ export class TeamManager {
             enemy.update(deltaTime);
         }
 
-        // Update all allies (they don't hunt player, just move randomly)
+        // Update all allies (pass player position and enemies list for ally behavior)
         for (const ally of this.allies) {
+            if (playerPosition) {
+                ally.setPlayerPosition(playerPosition);
+            }
+            // Pass enemies list so allies can detect and engage them
+            ally.setNearbyEnemies(this.enemies.filter(e => e.health > 0).map(e => e.mesh));
             ally.update(deltaTime);
         }
         
