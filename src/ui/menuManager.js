@@ -644,6 +644,10 @@ export class MenuManager {
         // Start battlefield music
         this.startBattlefieldMusic();
         
+        // Reload weapon selections from localStorage before starting game
+        // This ensures we have the latest selections
+        this.selectedWeapons = this.loadWeaponSelections();
+        
         this.showScreen('game');
         
         // Import and start game
@@ -655,8 +659,10 @@ export class MenuManager {
             // Resume game if it already exists
             this.gameInstance.start();
             // Update selected weapons in case they changed
-            if (this.gameInstance.weaponManager && this.selectedWeapons.gadget) {
-                this.gameInstance.weaponManager.setSelectedGadget(this.selectedWeapons.gadget);
+            if (this.gameInstance.weaponManager) {
+                if (this.selectedWeapons.gadget) {
+                    this.gameInstance.weaponManager.setSelectedGadget(this.selectedWeapons.gadget);
+                }
             }
         }
         
@@ -752,7 +758,7 @@ export class MenuManager {
         const defaults = {
             primary: 'MP40',
             secondary: 'Pistol',
-            gadget: 'Grenade'
+            gadget: 'Knife'
         };
 
         try {

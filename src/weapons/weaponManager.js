@@ -19,7 +19,7 @@ export class WeaponManager {
         this.gadgetWeapons = {}; // Map of gadget names to weapon instances
         this.currentWeapon = null;
         this.weaponType = 'primary'; // 'primary', 'secondary', or 'gadget'
-        this.selectedGadget = 'Grenade'; // Default gadget
+        this.selectedGadget = 'Knife'; // Default gadget
         
         this.initControls();
     }

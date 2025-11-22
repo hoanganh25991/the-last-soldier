@@ -58,13 +58,19 @@ export class Game {
             this.teamManager,
             this.audioManager
         );
-        await this.weaponManager.init();
         
-        // Set selected weapons if provided
+        // Set selected weapons BEFORE init so they're applied during initialization
         if (selectedWeapons) {
             if (selectedWeapons.gadget) {
-                this.weaponManager.setSelectedGadget(selectedWeapons.gadget);
+                this.weaponManager.selectedGadget = selectedWeapons.gadget;
             }
+        }
+        
+        await this.weaponManager.init();
+        
+        // Ensure selected gadget is applied after init (in case weapon type is gadget)
+        if (selectedWeapons && selectedWeapons.gadget) {
+            this.weaponManager.setSelectedGadget(selectedWeapons.gadget);
         }
 
         // Initialize UI
