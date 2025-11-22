@@ -4,6 +4,7 @@ import { PlayModeBackground } from './playModeBackground.js';
 import { AudioManager } from '../core/audioManager.js';
 import { WEAPON_ICONS, getWeaponIcon, getWeaponIconByType } from '../config/weaponIcons.js';
 import { showAlert } from './dialogManager.js';
+import { LoadingManager } from './loadingManager.js';
 
 export class MenuManager {
     constructor() {
@@ -13,6 +14,7 @@ export class MenuManager {
         this.battlefieldDeployBackground = null;
         this.playModeBackgrounds = {};
         this.audioManager = new AudioManager();
+        this.loadingManager = new LoadingManager();
         this.settings = {
             music: 100,
             game: 100,
@@ -695,8 +697,9 @@ export class MenuManager {
         // Stop menu music when entering battlefield
         this.audioManager.stopMusic('menu');
         
-        // Start battlefield music
-        this.startBattlefieldMusic();
+        // Show loading screen
+        this.loadingManager.show();
+        this.loadingManager.setTotalSteps(6); // Estimate: Game import, Engine init, Battlefield, TeamManager, Player, WeaponManager
         
         // Reload weapon selections from localStorage before starting game
         // This ensures we have the latest selections
@@ -706,9 +709,17 @@ export class MenuManager {
         
         // Import and start game
         if (!this.gameInstance) {
+            // Step 1: Import Game module
+            await this.loadingManager.loadWithProgress(
+                import('../core/game.js'),
+                'Loading game modules...'
+            );
+            
             const { Game } = await import('../core/game.js');
             this.gameInstance = new Game(this.audioManager);
-            await this.gameInstance.init(this.selectedWeapons, this.settings);
+            
+            // Step 2-6: Initialize game with progress tracking
+            await this.gameInstance.init(this.selectedWeapons, this.settings, this.loadingManager);
         } else {
             // Resume game if it already exists
             this.gameInstance.start();
@@ -723,6 +734,14 @@ export class MenuManager {
                 this.gameInstance.engine.setFPSVisibility(this.settings.showFPS);
             }
         }
+        
+        // Hide loading screen
+        this.loadingManager.updateProgress(100, 'Ready!');
+        setTimeout(() => {
+            this.loadingManager.hide();
+            // Start battlefield music after loading
+            this.startBattlefieldMusic();
+        }, 500);
         
         // Auto-capture mouse (pointer lock) when game starts
         const gameContainer = document.getElementById('game-container');

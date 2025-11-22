@@ -21,10 +21,17 @@ export class Game {
         this.isRunning = false;
     }
 
-    async init(selectedWeapons = null, settings = null) {
+    async init(selectedWeapons = null, settings = null, loadingManager = null) {
         // Initialize core engine
         this.engine = new Engine();
-        await this.engine.init();
+        if (loadingManager) {
+            await loadingManager.loadWithProgress(
+                this.engine.init(),
+                'Initializing engine...'
+            );
+        } else {
+            await this.engine.init();
+        }
         
         // Apply FPS visibility setting if provided
         if (settings && settings.showFPS !== undefined) {
@@ -39,12 +46,26 @@ export class Game {
 
         // Initialize battlefield
         this.battlefield = new Battlefield(this.engine.scene);
-        await this.battlefield.init();
+        if (loadingManager) {
+            await loadingManager.loadWithProgress(
+                this.battlefield.init(),
+                'Loading battlefield...'
+            );
+        } else {
+            await this.battlefield.init();
+        }
 
         // Initialize team manager (will be updated with bulletManager after weaponManager is created)
         this.teamManager = new TeamManager(this.engine.scene, this.collisionSystem);
         // Spawn enemies and allies
-        this.teamManager.init();
+        if (loadingManager) {
+            await loadingManager.loadWithProgress(
+                Promise.resolve(this.teamManager.init()),
+                'Spawning teams...'
+            );
+        } else {
+            this.teamManager.init();
+        }
 
         // Initialize player
         this.player = new PlayerController(
@@ -52,7 +73,14 @@ export class Game {
             this.collisionSystem,
             this.engine.scene
         );
-        this.player.init();
+        if (loadingManager) {
+            await loadingManager.loadWithProgress(
+                Promise.resolve(this.player.init()),
+                'Initializing player...'
+            );
+        } else {
+            this.player.init();
+        }
 
         // Register battlefield objects for collision
         if (this.battlefield.objects) {
@@ -77,7 +105,14 @@ export class Game {
             }
         }
         
-        await this.weaponManager.init();
+        if (loadingManager) {
+            await loadingManager.loadWithProgress(
+                this.weaponManager.init(),
+                'Loading weapons...'
+            );
+        } else {
+            await this.weaponManager.init();
+        }
         
         // Set player reference in weapon manager for bullet collision detection
         this.weaponManager.player = this.player;
@@ -104,7 +139,14 @@ export class Game {
             this.teamManager,
             this.engine
         );
-        this.uiManager.init();
+        if (loadingManager) {
+            await loadingManager.loadWithProgress(
+                Promise.resolve(this.uiManager.init()),
+                'Initializing UI...'
+            );
+        } else {
+            this.uiManager.init();
+        }
         
         // Pass UI manager reference to team manager for deployment notifications
         this.teamManager.uiManager = this.uiManager;
