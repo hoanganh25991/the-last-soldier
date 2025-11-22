@@ -120,19 +120,32 @@ export class GrenadeWeapon extends WeaponBase {
             startTime: Date.now() / 1000,
             fuseTime: this.fuseTime,
             damage: this.damage,
-            blastRadius: this.blastRadius
+            blastRadius: this.blastRadius,
+            hasHitGround: false,
+            explosionTimeout: null
         };
 
         this.grenades.push(grenadeData);
 
-        // Set explosion timer
-        setTimeout(() => {
+        // Set explosion timer (will be cancelled if grenade hits ground)
+        grenadeData.explosionTimeout = setTimeout(() => {
             this.explodeGrenade(grenadeData);
         }, this.fuseTime * 1000);
     }
 
     explodeGrenade(grenadeData) {
+        // Prevent multiple explosions
+        if (!grenadeData.mesh || !grenadeData.mesh.parent) {
+            return;
+        }
+
         const position = grenadeData.mesh.position;
+        
+        // Cancel any pending explosion timeout
+        if (grenadeData.explosionTimeout) {
+            clearTimeout(grenadeData.explosionTimeout);
+            grenadeData.explosionTimeout = null;
+        }
         
         // Remove grenade mesh
         if (grenadeData.mesh.parent) {
@@ -183,8 +196,8 @@ export class GrenadeWeapon extends WeaponBase {
         // Create explosion particles/effect
         const explosionGroup = new THREE.Group();
         
-        // Main explosion sphere
-        const explosionGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+        // Main explosion sphere - made bigger
+        const explosionGeometry = new THREE.SphereGeometry(1.2, 16, 16);
         const explosionMaterial = new THREE.MeshBasicMaterial({
             color: 0xff6600,
             transparent: true,
@@ -195,9 +208,9 @@ export class GrenadeWeapon extends WeaponBase {
         const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
         explosionGroup.add(explosion);
 
-        // Fire particles
-        for (let i = 0; i < 20; i++) {
-            const particleGeometry = new THREE.SphereGeometry(0.05, 4, 4);
+        // Fire particles - more particles and bigger radius
+        for (let i = 0; i < 30; i++) {
+            const particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
             const particleMaterial = new THREE.MeshBasicMaterial({
                 color: 0xffff00,
                 transparent: true,
@@ -205,12 +218,12 @@ export class GrenadeWeapon extends WeaponBase {
             });
             const particle = new THREE.Mesh(particleGeometry, particleMaterial);
             
-            const angle = (Math.PI * 2 * i) / 20;
-            const radius = 0.3;
+            const angle = (Math.PI * 2 * i) / 30;
+            const radius = 0.8;
             particle.position.set(
                 Math.cos(angle) * radius,
                 Math.sin(angle) * radius,
-                (Math.random() - 0.5) * 0.5
+                (Math.random() - 0.5) * 0.8
             );
             explosionGroup.add(particle);
         }
@@ -218,14 +231,14 @@ export class GrenadeWeapon extends WeaponBase {
         explosionGroup.position.copy(position);
         this.scene.add(explosionGroup);
 
-        // Animate and remove explosion
+        // Animate and remove explosion - bigger final scale
         let scale = 0.1;
         const animate = () => {
-            scale += 0.1;
+            scale += 0.15;
             explosionGroup.scale.set(scale, scale, scale);
-            explosionMaterial.opacity = Math.max(0, 0.8 - scale * 0.2);
+            explosionMaterial.opacity = Math.max(0, 0.8 - scale * 0.15);
             
-            if (scale < 3) {
+            if (scale < 5) {
                 requestAnimationFrame(animate);
             } else {
                 if (explosionGroup.parent) {
@@ -255,6 +268,23 @@ export class GrenadeWeapon extends WeaponBase {
             // Check ground collision (simple)
             if (grenade.mesh.position.y < 0.1) {
                 grenade.mesh.position.y = 0.1;
+                
+                // If this is the first time hitting ground, set up 0.5 second explosion timer
+                if (!grenade.hasHitGround) {
+                    grenade.hasHitGround = true;
+                    
+                    // Cancel the fuse timer
+                    if (grenade.explosionTimeout) {
+                        clearTimeout(grenade.explosionTimeout);
+                        grenade.explosionTimeout = null;
+                    }
+                    
+                    // Set new timer for 0.5 seconds
+                    grenade.explosionTimeout = setTimeout(() => {
+                        this.explodeGrenade(grenade);
+                    }, 500);
+                }
+                
                 // Bounce or stop
                 grenade.velocity.y *= -0.3;
                 grenade.velocity.x *= 0.8;
