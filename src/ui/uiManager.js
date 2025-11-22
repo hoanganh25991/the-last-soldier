@@ -492,14 +492,14 @@ export class UIManager {
         // playerRotation is from atan2(forward.x, forward.z) where forward = (0,0,-1) rotated
         // When forward = (0,0,-1) (north), atan2(0,-1) = π
         // Canvas: 0° = right, π/2 = down, π = left, -π/2 = up
-        // To map north (π) to up (-π/2), we add π/2: π + π/2 = 3π/2 ≡ -π/2
+        // Arrow was pointing 180° opposite, so we flip it by adding π
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 2;
         ctx.fillStyle = '#00ff00';
         const arrowLength = 10;
         const arrowHeadLength = 5;
         const arrowHeadAngle = Math.PI / 6; // 30 degrees
-        const adjustedRotation = playerRotation + Math.PI / 2;
+        const adjustedRotation = playerRotation + Math.PI / 2 + Math.PI;
         
         // Calculate arrow tip position
         const tipX = width / 2 + Math.cos(adjustedRotation) * arrowLength;
