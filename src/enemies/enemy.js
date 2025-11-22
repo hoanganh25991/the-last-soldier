@@ -2,13 +2,33 @@ import * as THREE from 'three';
 import { createSoldierModel, updateWalkAnimation } from './soldierModel.js';
 
 export class Enemy {
-    constructor(position, team, collisionSystem = null, bulletManager = null, scene = null) {
+    constructor(position, team, collisionSystem = null, bulletManager = null, scene = null, waveNumber = 0, baseDamage = 20, damagePerWave = 5) {
         this.position = position.clone();
         this.team = team;
-        this.health = 100;
-        this.maxHealth = 100;
+        
+        // Base stats
+        const baseHealth = 100;
+        const baseSpeed = 5.0;
+        
+        // Enemy scaling: enemies are stronger than teammates
+        // For enemies (red team), apply wave-based scaling
+        if (team === 'red') {
+            // Enemies are stronger: 1.5x health, 1.3x speed
+            this.maxHealth = baseHealth * 1.5; // 150 health
+            this.health = this.maxHealth;
+            this.speed = baseSpeed * 1.3; // 6.5 speed (faster than teammates)
+            
+            // Wave-based damage scaling
+            this.shootDamage = baseDamage + (waveNumber * damagePerWave);
+        } else {
+            // Allies (blue team) keep base stats
+            this.health = baseHealth;
+            this.maxHealth = baseHealth;
+            this.speed = baseSpeed;
+            this.shootDamage = baseDamage; // Allies don't scale with waves
+        }
+        
         this.mesh = null;
-        this.speed = 5.0; // Match player speed
         this.targetPosition = null;
         this.lastMoveTime = 0;
         this.playerPosition = null; // Player position for hunting
@@ -54,7 +74,7 @@ export class Enemy {
         
         // Shooting properties
         this.shootRange = 150; // Maximum shooting range
-        this.shootDamage = 20; // 20 damage per hit (5 hits = 100 health = death)
+        // shootDamage is set above based on team and wave
         this.fireRate = 30; // rounds per minute (slower shooting - 2 seconds per shot)
         this.lastShotTime = 0;
         this.fireInterval = 60 / this.fireRate; // Time between shots in seconds (2 seconds per shot)

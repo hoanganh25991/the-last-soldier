@@ -298,9 +298,10 @@ export class Game {
             // Reset game ended flag
             this.teamManager.setGameEnded(false);
             this.teamManager.enemyRespawnTimer = 0;
+            this.teamManager.waveNumber = 0; // Reset wave number
             
             // Reset scores
-            this.teamManager.redScore = 100;
+            this.teamManager.redScore = 0; // Will be updated as enemies spawn
             this.teamManager.blueScore = 10;
             
             // Respawn enemies and allies

@@ -11,7 +11,7 @@ export class TeamManager {
         this.playerTeam = 'blue'; // Player is on blue team (allies)
         this.enemyTeam = 'red';   // Enemies are red
         
-        this.redScore = 100; // 100 enemies total
+        this.redScore = 0; // Will be updated as enemies spawn (matches teammate count)
         this.blueScore = 10; // 1 player + 9 teammates = 10 total
         
         this.enemies = [];
@@ -25,12 +25,13 @@ export class TeamManager {
         this.maxAllies = 9; // Maximum number of allies (9 teammates + 1 player = 10 total)
         this.allAlliesDeadTime = null; // Track when all allies died (for full respawn)
         
-        // Respawn system for enemies - keep spawning until game ends
-        this.targetEnemyCount = 100; // Target number of enemies to maintain
+        // Respawn system for enemies - spawn based on teammate count
         this.enemyRespawnTimer = 0; // Timer for enemy respawning
-        this.enemyRespawnInterval = 5.0; // Spawn enemies every 5 seconds
-        this.enemiesPerSpawn = 10; // Number of enemies to spawn per respawn cycle
+        this.enemyRespawnInterval = 5.0; // Spawn enemies every 5 seconds (wave interval)
         this.gameEnded = false; // Track if game has ended
+        this.waveNumber = 0; // Track current wave number
+        this.baseEnemyDamage = 20; // Base damage per wave
+        this.damagePerWave = 5; // Damage increase per wave
     }
 
     init() {
@@ -39,94 +40,21 @@ export class TeamManager {
     }
 
     spawnEnemies() {
-        // Spawn 100 enemy team members (red team) in groups of 10
-        // Player starts at center 0,0,0
-        const teamSize = 100;
-        const enemiesPerGroup = 10;
-        const numGroups = teamSize / enemiesPerGroup; // 10 groups
-        const groupSpreadRadius = 20; // Enemies in a group spawn within 20 units of group center
-        const nearbyRadius = 500; // Spawn groups within 500 units (matching minimap range)
-        const minDistance = 50; // Minimum distance from center for nearby groups (closer!)
-        const mapSize = 25000; // Map extends from -25000 to +25000
-        
-        // Spawn enemy groups
-        for (let groupIndex = 0; groupIndex < numGroups; groupIndex++) {
-            // Calculate group center position
-            let groupCenter;
-            
-            if (groupIndex < 5) {
-                // First 5 groups spawn nearby (within 500 units) - more groups closer!
-                // Distribute evenly around player
-                const angle = (Math.PI * 2 / 5) * groupIndex + Math.random() * 0.3;
-                const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
-                groupCenter = new THREE.Vector3(
-                    Math.cos(angle) * distance,
-                    0,
-                    Math.sin(angle) * distance
-                );
-            } else {
-                // Remaining groups spawn further away on the map
-                const farMinDistance = nearbyRadius + 500;
-                const farMaxDistance = mapSize * 0.9;
-                const angle = Math.random() * Math.PI * 2;
-                const distance = farMinDistance + Math.random() * (farMaxDistance - farMinDistance);
-                groupCenter = new THREE.Vector3(
-                    Math.cos(angle) * distance,
-                    0,
-                    Math.sin(angle) * distance
-                );
-            }
-            
-            // Create group object
-            const group = {
-                center: groupCenter.clone(),
-                enemies: [],
-                targetPosition: null // Will be set to player position
-            };
-            
-            // Spawn enemies in this group (close together)
-            for (let i = 0; i < enemiesPerGroup; i++) {
-                // Spawn enemies in a tight formation around group center
-                const angle = (Math.PI * 2 / enemiesPerGroup) * i + Math.random() * 0.3;
-                const distance = Math.random() * groupSpreadRadius;
-                
-                let desiredPosition = new THREE.Vector3(
-                    groupCenter.x + Math.cos(angle) * distance + (Math.random() - 0.5) * 5,
-                    0,
-                    groupCenter.z + Math.sin(angle) * distance + (Math.random() - 0.5) * 5
-                );
-
-                // Find a clear spawn position (not inside objects)
-                const position = this.collisionSystem ? 
-                    this.collisionSystem.findClearSpawnPosition(desiredPosition, 0.5, 1.6) : 
-                    desiredPosition;
-                
-                // Ensure Y is always 0 (on ground)
-                position.y = 0;
-
-                const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem, this.bulletManager, this.scene);
-                enemy.init();
-                // Assign enemy to group
-                enemy.group = group;
-                enemy.groupIndex = i; // Position in group formation
-                enemy.isInGroup = true;
-                if (enemy.mesh) {
-                    this.scene.add(enemy.mesh);
-                }
-                this.enemies.push(enemy);
-                group.enemies.push(enemy);
-            }
-            
-            this.enemyGroups.push(group);
-        }
+        // Initial spawn: spawn enemies matching initial teammate count (9 teammates = 9 enemies)
+        // This is wave 0
+        this.waveNumber = 0;
+        const initialTeammateCount = this.maxAllies; // 9 teammates
+        this.spawnEnemyWave(initialTeammateCount, null);
     }
 
-    spawnEnemyGroup(playerPosition = null) {
-        // Spawn a small group of enemies (for respawning)
+    spawnEnemyWave(enemyCount, playerPosition = null) {
+        // Spawn a wave of enemies matching the teammate count
+        // Each wave increases enemy damage
         // If playerPosition is provided, spawn enemies away from player
         // Otherwise spawn randomly on the map
         
-        const enemiesPerGroup = this.enemiesPerSpawn;
+        if (enemyCount <= 0) return; // Don't spawn if no enemies needed
+        
         const groupSpreadRadius = 20; // Enemies in a group spawn within 20 units of group center
         const nearbyRadius = 500; // Spawn groups within 500 units
         const minDistance = 50; // Minimum distance from center
@@ -166,9 +94,12 @@ export class TeamManager {
             targetPosition: null
         };
         
-        // Spawn enemies in this group
-        for (let i = 0; i < enemiesPerGroup; i++) {
-            const angle = (Math.PI * 2 / enemiesPerGroup) * i + Math.random() * 0.3;
+        // Calculate damage for this wave
+        const waveDamage = this.baseEnemyDamage + (this.waveNumber * this.damagePerWave);
+        
+        // Spawn enemies in this wave
+        for (let i = 0; i < enemyCount; i++) {
+            const angle = (Math.PI * 2 / enemyCount) * i + Math.random() * 0.3;
             const distance = Math.random() * groupSpreadRadius;
             
             let desiredPosition = new THREE.Vector3(
@@ -185,7 +116,17 @@ export class TeamManager {
             // Ensure Y is always 0 (on ground)
             position.y = 0;
 
-            const enemy = new Enemy(position, this.enemyTeam, this.collisionSystem, this.bulletManager, this.scene);
+            // Create enemy with wave number and damage scaling
+            const enemy = new Enemy(
+                position, 
+                this.enemyTeam, 
+                this.collisionSystem, 
+                this.bulletManager, 
+                this.scene,
+                this.waveNumber,
+                this.baseEnemyDamage,
+                this.damagePerWave
+            );
             enemy.init();
             // Assign enemy to group
             enemy.group = group;
@@ -201,7 +142,10 @@ export class TeamManager {
         this.enemyGroups.push(group);
         
         // Update red score (track total enemies spawned)
-        this.redScore += enemiesPerGroup;
+        this.redScore += enemyCount;
+        
+        // Increment wave number for next wave
+        this.waveNumber++;
     }
 
     spawnAllies(playerPosition = null) {
@@ -469,31 +413,22 @@ export class TeamManager {
             this.blueScore = 1 + Math.min(currentAliveAllies, this.maxAllies);
         }
         
-        // Handle enemy respawning - continuously spawn enemies until game ends
+        // Handle enemy respawning - spawn enemies matching alive teammate count
+        const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
         const aliveEnemiesCount = this.enemies.filter(e => e.health > 0).length;
         
         // Update respawn timer
         this.enemyRespawnTimer += deltaTime;
         
-        // Spawn enemies if timer reached interval AND we're below target count
-        if (this.enemyRespawnTimer >= this.enemyRespawnInterval && aliveEnemiesCount < this.targetEnemyCount) {
-            // Calculate how many enemies to spawn (up to target count)
-            const enemiesToSpawn = Math.min(
-                this.enemiesPerSpawn,
-                this.targetEnemyCount - aliveEnemiesCount
-            );
-            
-            // Only spawn if we need enemies
-            if (enemiesToSpawn > 0) {
-                // Temporarily set enemiesPerSpawn to the calculated amount
-                const originalEnemiesPerSpawn = this.enemiesPerSpawn;
-                this.enemiesPerSpawn = enemiesToSpawn;
+        // Spawn enemies if timer reached interval AND enemy count doesn't match teammate count
+        if (this.enemyRespawnTimer >= this.enemyRespawnInterval) {
+            // Spawn enemies matching the number of alive teammates
+            // Each spawn is a new wave with increased damage
+            if (aliveEnemiesCount < aliveAlliesCount) {
+                const enemiesToSpawn = aliveAlliesCount - aliveEnemiesCount;
                 
-                // Spawn enemy group
-                this.spawnEnemyGroup(playerPosition);
-                
-                // Restore original value
-                this.enemiesPerSpawn = originalEnemiesPerSpawn;
+                // Spawn enemy wave matching teammate count
+                this.spawnEnemyWave(enemiesToSpawn, playerPosition);
                 
                 // Update bullet manager references for newly spawned enemies
                 if (this.bulletManager) {
