@@ -28,6 +28,7 @@ export class WeaponManager {
         this.secondaryWeapon.init();
         
         // Preload weapon sounds to avoid network requests on each shot
+        // CRITICAL: Wait for preloading to complete before continuing
         if (this.audioManager) {
             const soundsToPreload = [
                 this.primaryWeapon.bulletSoundUrl,
@@ -35,14 +36,16 @@ export class WeaponManager {
                 'sounds/bullet-shoot.mp3' // Fallback
             ];
             
-            // Preload all sounds in parallel
-            Promise.all(
+            // Preload all sounds in parallel and wait for completion
+            await Promise.allSettled(
                 soundsToPreload.map(url => 
                     this.audioManager.preloadSound(url).catch(() => {
                         // Silently fail - sound will be skipped if not found
                     })
                 )
             );
+            
+            console.log('Weapon sounds preloaded - ready to fire without network requests');
         }
         
         // Start with primary weapon

@@ -30,9 +30,9 @@
     <div>
         <button onclick="generateMenuMusic()">Generate Menu Music</button>
         <button onclick="generateBattlefieldMusic()">Generate Battlefield Music</button>
-        <button onclick="generateBulletSound()">Generate Bullet Sound</button>
-        <button onclick="generatePistolSound()">Generate Pistol Sound</button>
-        <button onclick="generateRifleSound()">Generate Rifle Sound</button>
+        <button onclick="generateBulletSoundFile()">Generate Bullet Sound</button>
+        <button onclick="generatePistolSoundFile()">Generate Pistol Sound</button>
+        <button onclick="generateRifleSoundFile()">Generate Rifle Sound</button>
     </div>
     
     <div class="status" id="status">Ready to generate sounds...</div>
@@ -186,21 +186,21 @@
             document.getElementById('status').textContent = '✓ Battlefield music generated!';
         }
         
-        function generateBulletSound() {
+        function generateBulletSoundFile() {
             document.getElementById('status').textContent = 'Generating bullet sound...';
             const buffer = generateBulletSound();
             downloadBuffer(buffer, 'bullet-shoot.wav');
             document.getElementById('status').textContent = '✓ Bullet sound generated!';
         }
         
-        function generatePistolSound() {
+        function generatePistolSoundFile() {
             document.getElementById('status').textContent = 'Generating pistol sound...';
             const buffer = generateBulletSound();
             downloadBuffer(buffer, 'pistol-shoot.wav');
             document.getElementById('status').textContent = '✓ Pistol sound generated!';
         }
         
-        function generateRifleSound() {
+        function generateRifleSoundFile() {
             document.getElementById('status').textContent = 'Generating rifle sound...';
             const buffer = generateBulletSound();
             downloadBuffer(buffer, 'rifle-shoot.wav');
