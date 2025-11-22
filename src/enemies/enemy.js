@@ -16,7 +16,7 @@ export class Enemy {
         
         // Ally-specific properties
         this.isAlly = false;
-        this.maxDistanceFromPlayer = 900; // Maximum distance from player for allies
+        this.maxDistanceFromPlayer = 300; // Maximum distance from player for allies
         this.nearbyEnemies = []; // List of nearby enemy meshes for allies to engage
         this.lastTargetChangeTime = 0; // For slow movement around player
         this.targetChangeInterval = 3.0; // Change target every 3 seconds (slow movement)

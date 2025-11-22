@@ -28,12 +28,11 @@ export class TeamManager {
         // Player starts at center 0,0,0
         const teamSize = 100;
         const nearbyEnemyCount = 9; // <10 enemies deployed around player
-        const currentSpawnRadius = 300; // Current spawn radius
-        const nearbyRadius = currentSpawnRadius * 3; // 3x far away = 900 units
+        const nearbyRadius = 300; // Spawn nearby enemies within 300 units
         const minDistance = 50; // Minimum distance from center
         const mapSize = 25000; // Map extends from -25000 to +25000
         
-        // Spawn nearby enemies (<10 enemies around player within 3x distance)
+        // Spawn nearby enemies (<10 enemies around player within 300 units)
         for (let i = 0; i < nearbyEnemyCount; i++) {
             const angle = (Math.PI * 2 / nearbyEnemyCount) * i + Math.random() * 0.3; // Slight variation
             const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
@@ -86,10 +85,10 @@ export class TeamManager {
     spawnAllies() {
         // Spawn 9 friendly team members (blue team) - 1 player + 9 teammates = 10 total
         // Player starts at center 0,0,0
-        // Teammates start close to player (~100 units), can move away maximum 900 units
+        // Teammates start close to player (~100 units), can move away maximum 300 units
         const teamSize = 9; // 9 teammates (player makes 10 total)
         const startRadius = 100; // Start around 100 units from player
-        const maxDistance = 900; // Maximum distance from player (3x current spawn radius)
+        const maxDistance = 300; // Maximum distance from player
         
         for (let i = 0; i < teamSize; i++) {
             // Distribute teammates evenly around player in circular formation
