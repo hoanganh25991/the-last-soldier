@@ -499,14 +499,14 @@ export class UIManager {
         // Draw player direction arrow
         // playerRotation is from atan2(forward.x, -forward.z) which gives correct canvas angle
         // Canvas: 0° = right, π/2 = down, π = left, -π/2 = up
-        // No adjustment needed - playerRotation is already in canvas coordinate system
+        // Rotate by 180 degrees (Math.PI) to flip the direction indicator
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 2;
         ctx.fillStyle = '#00ff00';
         const arrowLength = 10;
         const arrowHeadLength = 5;
         const arrowHeadAngle = Math.PI / 6; // 30 degrees
-        const adjustedRotation = playerRotation;
+        const adjustedRotation = playerRotation + Math.PI;
         
         // Calculate arrow tip position
         const tipX = width / 2 + Math.cos(adjustedRotation) * arrowLength;
