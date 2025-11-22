@@ -222,19 +222,19 @@ export class UIManager {
         let targetRotation = 0;
         
         if (movementIntensity > 0.1) {
-            // Walking/sprinting - continuous shake with sine waves (keep position shake strong)
-            const shakeAmount = movementIntensity * 5; // Max 10px shake when sprinting (increased for better control challenge)
+            // Walking/sprinting - continuous shake with sine waves (much bigger position movement)
+            const shakeAmount = movementIntensity * 12; // Max 24px shake when sprinting (much bigger!)
             targetOffsetX += Math.sin(this.jitterTime * 2.5) * shakeAmount;
             targetOffsetY += Math.cos(this.jitterTime * 3.2) * shakeAmount;
-            targetRotation += Math.sin(this.jitterTime * 1.8) * movementIntensity * 2; // Max 4 degrees (increased for better feel)
+            targetRotation += Math.sin(this.jitterTime * 1.8) * movementIntensity * 4; // Max 8 degrees (bigger rotation)
         }
         
-        // Add recoil kick to position (keep recoil shake strong)
+        // Add recoil kick to position (much bigger recoil shake)
         if (recoilIntensity > 0.1) {
-            // Recoil causes sharp upward kick and random horizontal offset (keep strong for control challenge)
-            targetOffsetY -= recoilIntensity * 8; // Kick upward (increased for better feedback)
-            targetOffsetX += Math.sin(this.jitterTime * 10) * recoilIntensity * 6; // Random horizontal (increased)
-            targetRotation += Math.sin(this.jitterTime * 15) * recoilIntensity * 3; // Sharp rotation (increased)
+            // Recoil causes sharp upward kick and random horizontal offset (much bigger!)
+            targetOffsetY -= recoilIntensity * 20; // Kick upward (much bigger - was 8)
+            targetOffsetX += Math.sin(this.jitterTime * 10) * recoilIntensity * 15; // Random horizontal (much bigger - was 6)
+            targetRotation += Math.sin(this.jitterTime * 15) * recoilIntensity * 8; // Sharp rotation (much bigger - was 3)
         }
         
         // Smoothly interpolate position offsets (faster response for snappy feel)
