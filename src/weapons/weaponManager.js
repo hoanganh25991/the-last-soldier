@@ -116,15 +116,10 @@ export class WeaponManager {
             if (e.code === 'Digit2') this.switchWeapon('secondary');
         });
 
-        // Touch weapon switch (double tap on weapon icon)
-        let lastTap = 0;
+        // Weapon switch (click on weapon icon)
         const weaponIcon = document.getElementById('weapon-icon');
         weaponIcon.addEventListener('click', () => {
-            const now = Date.now();
-            if (now - lastTap < 300) {
-                this.switchWeapon(this.weaponType === 'primary' ? 'secondary' : 'primary');
-            }
-            lastTap = now;
+            this.switchWeapon(this.weaponType === 'primary' ? 'secondary' : 'primary');
         });
     }
 

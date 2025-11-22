@@ -284,10 +284,10 @@ export class MenuManager {
     updateWeaponDisplay(type, itemName) {
         // Primary = long gun (rifle), Secondary = short gun (pistol)
         const weaponIcons = {
-            'MP40': '🔫',      // Long gun
-            'Sten': '🔫',      // Long gun
-            'Pistol': '🔫',    // Short gun
-            'Luger': '🔫',    // Short gun
+            'MP40': '🔫',      // Long gun (rifle)
+            'Sten': '🔫',      // Long gun (rifle)
+            'Pistol': '🔫',    // Short gun (pistol)
+            'Luger': '🔫',    // Short gun (pistol)
             'Grenade': '💣',
             'Medkit': '🏥',
             'Binoculars': '🔭'
@@ -296,14 +296,17 @@ export class MenuManager {
         if (type === 'primary') {
             const display = document.getElementById('primary-display');
             if (display) {
-                display.textContent = weaponIcons[itemName] || '🔫';
+                // Primary weapons use CSS-based long-gun icon (empty text, styled with CSS)
+                display.textContent = '';
                 display.classList.remove('empty');
+                display.classList.add('rifle-icon');
             }
         } else if (type === 'secondary') {
             const display = document.getElementById('secondary-display');
             if (display) {
-                display.textContent = weaponIcons[itemName] || '🔫';
-                display.classList.remove('empty');
+                // Secondary weapons should always use short-gun icon
+                display.textContent = '🔫';
+                display.classList.remove('empty', 'rifle-icon');
             }
         } else if (type === 'gadget') {
             const display = document.getElementById('gadget-display');
@@ -585,12 +588,15 @@ export class MenuManager {
         if (screenName === 'customize') {
             // Small delay to ensure DOM is ready
             setTimeout(() => {
+                // Initialize weapon displays
+                this.updateWeaponDisplay('primary', this.selectedWeapons.primary);
+                this.updateWeaponDisplay('secondary', this.selectedWeapons.secondary);
+                this.updateWeaponDisplay('gadget', this.selectedWeapons.gadget);
+                
                 const primarySection = document.querySelector('.weapon-section[data-section="primary"]');
                 if (primarySection) {
                     primarySection.click();
                 }
-                // Initialize gadget display
-                this.updateWeaponDisplay('gadget', this.selectedWeapons.gadget);
             }, 100);
         }
 

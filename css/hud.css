@@ -164,6 +164,13 @@
     border-radius: 5px;
     min-width: 60px;
     text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.weapon-icon:hover {
+    background: rgba(0, 0, 0, 0.7);
+    transform: scale(1.05);
 }
 
 .ammo-count {

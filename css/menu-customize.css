@@ -91,10 +91,46 @@
     color: rgba(255, 255, 255, 0.9);
 }
 
-/* Primary weapons = long gun (rifle) - make it appear longer */
+/* Primary weapons = long gun (rifle) - CSS-based rifle icon */
 #primary-display {
-    transform: scaleX(1.3) scaleY(0.9);
-    font-size: 52px;
+    transform: none;
+    font-size: 0;
+    position: relative;
+    overflow: visible;
+}
+
+/* CSS-based rifle icon using pseudo-elements */
+/* Main rifle body */
+#primary-display.rifle-icon::before {
+    content: '';
+    position: absolute;
+    width: 70px;
+    height: 14px;
+    background: linear-gradient(to right, #555 0%, #777 20%, #777 80%, #555 100%);
+    border-radius: 3px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        inset 0 1px 2px rgba(255, 255, 255, 0.15),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Rifle barrel (longer front part) */
+#primary-display.rifle-icon::after {
+    content: '';
+    position: absolute;
+    width: 50px;
+    height: 10px;
+    background: linear-gradient(to right, #333 0%, #555 100%);
+    border-radius: 2px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) translateX(35px);
+    box-shadow: 
+        0 0 0 1px rgba(0, 0, 0, 0.6),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 /* Secondary weapons = short gun (pistol) - make it appear shorter */
