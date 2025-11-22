@@ -112,6 +112,31 @@ export class UIManager {
             }
         });
 
+        // Jump button - one-time action (not toggle)
+        const jumpBtn = document.getElementById('btn-jump');
+        if (jumpBtn) {
+            const handleJump = () => {
+                if (this.player && this.player.canJump && !this.player.isCrouching) {
+                    this.player.velocity.y = this.player.jumpSpeed;
+                    this.player.canJump = false;
+                    // Visual feedback
+                    jumpBtn.classList.add('btn-active');
+                    setTimeout(() => {
+                        jumpBtn.classList.remove('btn-active');
+                    }, 200);
+                }
+            };
+            
+            jumpBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleJump();
+            });
+            jumpBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                handleJump();
+            });
+        }
+
         // Aim button
         const aimBtn = document.getElementById('btn-aim');
         if (aimBtn) {

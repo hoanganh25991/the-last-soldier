@@ -59,8 +59,8 @@ export class TeamManager {
         if (enemyCount <= 0) return; // Don't spawn if no enemies needed
         
         const groupSpreadRadius = 20; // Enemies in a group spawn within 20 units of group center
-        const nearbyRadius = 500; // Spawn groups within 500 units
-        const minDistance = 50; // Minimum distance from center
+        const nearbyRadius = 150; // Spawn groups within 150 units (reduced from 500 for closer encounters)
+        const minDistance = 30; // Minimum distance from center (reduced from 50)
         const mapSize = 25000; // Map extends from -25000 to +25000
         
         // Calculate group center position
@@ -70,6 +70,7 @@ export class TeamManager {
         // Spawn enemies away from player (or randomly if no player position)
         if (playerPosition) {
             // Spawn enemies at a distance from player (not too close, not too far)
+            // With player speed of 5-8 units/sec, 30-150 units = 4-30 seconds to reach (good for encounters)
             const angle = Math.random() * Math.PI * 2;
             const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
             groupCenter = new THREE.Vector3(
@@ -78,11 +79,9 @@ export class TeamManager {
                 spawnCenter.z + Math.sin(angle) * distance
             );
         } else {
-            // Random spawn on map
-            const farMinDistance = nearbyRadius + 500;
-            const farMaxDistance = mapSize * 0.9;
+            // Initial spawn: spawn closer to center (30-150 units) so player can find them quickly
             const angle = Math.random() * Math.PI * 2;
-            const distance = farMinDistance + Math.random() * (farMaxDistance - farMinDistance);
+            const distance = minDistance + Math.random() * (nearbyRadius - minDistance);
             groupCenter = new THREE.Vector3(
                 Math.cos(angle) * distance,
                 0,
