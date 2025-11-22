@@ -43,11 +43,14 @@ export class TeamManager {
     spawnEnemies() {
         // Initial spawn: spawn enemies matching initial soldier count (9 teammates + 1 player = 10)
         // This is wave 0
+        // Note: Initial spawn happens before player position is known, so spawn at center
         this.waveNumber = 0;
         const initialSoldierCount = this.maxAllies + 1; // 9 teammates + 1 player = 10
         const enemiesToSpawn = Math.min(initialSoldierCount, this.redScore);
         if (enemiesToSpawn > 0) {
-            this.spawnEnemyWave(enemiesToSpawn, null);
+            // Spawn enemies near center (0,0,0) for initial spawn
+            const centerPosition = new THREE.Vector3(0, 0, 0);
+            this.spawnEnemyWave(enemiesToSpawn, centerPosition);
         }
     }
 
@@ -438,8 +441,11 @@ export class TeamManager {
                     const enemiesToSpawn = Math.min(enemiesNeeded, this.redScore);
                     
                     if (enemiesToSpawn > 0) {
+                        // Use player position if available, otherwise use center
+                        const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
+                        
                         // Spawn enemy wave matching soldier count
-                        this.spawnEnemyWave(enemiesToSpawn, playerPosition);
+                        this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
                         
                         // Update bullet manager references for newly spawned enemies
                         if (this.bulletManager) {
