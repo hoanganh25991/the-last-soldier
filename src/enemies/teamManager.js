@@ -385,9 +385,26 @@ export class TeamManager {
             return;
         }
         
-        // Handle ally respawning - only respawn when ALL teammates die + 10 seconds
+        // Handle ally respawning
         if (playerPosition) {
             const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
+            
+            // NEW: Respawn allies if count drops below 5 to bring back to 10 total (9 teammates + 1 player)
+            if (aliveAlliesCount < 5) {
+                const alliesNeeded = 9 - aliveAlliesCount; // Need 9 teammates total (player makes 10)
+                
+                // Respawn the needed allies
+                for (let i = 0; i < alliesNeeded; i++) {
+                    this.respawnAlly(playerPosition);
+                }
+                
+                // Update bullet manager references
+                if (this.bulletManager) {
+                    this.allies.forEach(ally => {
+                        ally.bulletManager = this.bulletManager;
+                    });
+                }
+            }
             
             // Track when all allies die (all teammates dead, not including player)
             if (aliveAlliesCount === 0 && this.allies.length === 0) {
@@ -413,7 +430,6 @@ export class TeamManager {
             } else {
                 // Reset all allies dead timer if we have allies again
                 this.allAlliesDeadTime = null;
-                // Don't respawn individual allies - only respawn all when all die
             }
             
             // Update blue score based on alive teammates count
@@ -422,9 +438,32 @@ export class TeamManager {
             this.blueScore = 1 + Math.min(currentAliveAllies, this.maxAllies);
         }
         
-        // Handle wave-based enemy spawning - spawn next wave when all enemies in current wave die
+        // Handle wave-based enemy spawning
         // Check if all enemies in current wave are dead (array is empty means all were removed/dead)
         const aliveEnemiesCount = this.enemies.filter(e => e.health > 0).length;
+        
+        // NEW: Respawn enemies if count drops below 5 to bring back to 10
+        if (aliveEnemiesCount < 5 && this.redScore > 0) {
+            const enemiesNeeded = 10 - aliveEnemiesCount;
+            const enemiesToSpawn = Math.min(enemiesNeeded, this.redScore);
+            
+            if (enemiesToSpawn > 0) {
+                // Use player position if available, otherwise use center
+                const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
+                
+                // Spawn enemies to bring count back to 10
+                this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
+                
+                // Update bullet manager references for newly spawned enemies
+                if (this.bulletManager) {
+                    // Get the last spawned enemies (the ones we just added)
+                    const newlySpawned = this.enemies.slice(-enemiesToSpawn);
+                    newlySpawned.forEach(enemy => {
+                        enemy.bulletManager = this.bulletManager;
+                    });
+                }
+            }
+        }
         
         // If current wave is empty (all enemies died) and we have enemies left in pool, spawn next wave
         if (this.currentWaveEnemies.length === 0 && this.redScore > 0 && aliveEnemiesCount === 0) {
