@@ -31,7 +31,8 @@ export class MenuManager {
         };
         // Load weapon selections from localStorage or use defaults
         this.selectedWeapons = this.loadWeaponSelections();
-        this.playerName = 'player name...';
+        // Load player name from localStorage or use default
+        this.playerName = this.loadPlayerName();
     }
 
     init() {
@@ -202,10 +203,20 @@ export class MenuManager {
         // Player name input
         const playerNameInput = document.getElementById('player-name-input');
         if (playerNameInput) {
+            // Load player name from localStorage
+            const savedPlayerName = this.loadPlayerName();
+            this.playerName = savedPlayerName;
+            playerNameInput.value = this.playerName;
+            
             playerNameInput.addEventListener('input', (e) => {
                 this.playerName = e.target.value || 'player name...';
+                this.savePlayerName();
             });
-            playerNameInput.value = this.playerName;
+            
+            // Also save on blur (when user leaves the input field)
+            playerNameInput.addEventListener('blur', () => {
+                this.savePlayerName();
+            });
         }
 
         // Initialize with primary section active
@@ -710,9 +721,31 @@ export class MenuManager {
     saveWeaponSelections() {
         try {
             localStorage.setItem('selectedWeapons', JSON.stringify(this.selectedWeapons));
+            console.log('Weapon selections saved:', this.selectedWeapons);
         } catch (error) {
             console.warn('Failed to save weapon selections to localStorage:', error);
         }
+    }
+
+    savePlayerName() {
+        try {
+            localStorage.setItem('playerName', this.playerName);
+            console.log('Player name saved:', this.playerName);
+        } catch (error) {
+            console.warn('Failed to save player name to localStorage:', error);
+        }
+    }
+
+    loadPlayerName() {
+        try {
+            const saved = localStorage.getItem('playerName');
+            if (saved) {
+                return saved;
+            }
+        } catch (error) {
+            console.warn('Failed to load player name from localStorage:', error);
+        }
+        return 'player name...';
     }
 
     loadWeaponSelections() {
