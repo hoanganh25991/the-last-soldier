@@ -604,7 +604,12 @@ export class MenuManager {
 
         // Start/stop main menu background animation
         if (screenName === 'main-menu' && this.mainMenuBackground) {
-            this.mainMenuBackground.start();
+            // Small delay to ensure screen is visible and container has proper dimensions
+            setTimeout(() => {
+                if (this.mainMenuBackground) {
+                    this.mainMenuBackground.start();
+                }
+            }, 50);
         } else if (this.mainMenuBackground) {
             this.mainMenuBackground.stop();
         }

@@ -277,6 +277,18 @@ export class MainMenuBackground {
 
     start() {
         if (!this.animationId) {
+            // Ensure renderer is properly sized when starting (in case container was hidden)
+            if (this.container && this.renderer && this.camera) {
+                const width = this.container.clientWidth || window.innerWidth;
+                const height = this.container.clientHeight || window.innerHeight;
+                
+                // Only resize if dimensions are valid
+                if (width > 0 && height > 0) {
+                    this.camera.aspect = width / height;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(width, height);
+                }
+            }
             this.animate();
         }
     }
