@@ -59,8 +59,8 @@ export class TeamManager {
         if (enemyCount <= 0) return; // Don't spawn if no enemies needed
         
         const groupSpreadRadius = 20; // Enemies in a group spawn within 20 units of group center
-        const nearbyRadius = 450; // Spawn groups within 450 units (3x increased from 150)
-        const minDistance = 90; // Minimum distance from center (3x increased from 30)
+        const nearbyRadius = 225; // Spawn groups within 225 units (reduced by half from 450)
+        const minDistance = 45; // Minimum distance from center (reduced by half from 90)
         const mapSize = 25000; // Map extends from -25000 to +25000
         
         // Calculate group center position

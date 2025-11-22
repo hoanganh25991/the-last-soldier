@@ -71,6 +71,9 @@ export class Enemy {
         this.soldierData = null; // Store soldier model data for animation
         this.animationTime = 0; // Track animation time
         this.isMoving = false; // Track if enemy is moving
+        this.targetRotationY = 0; // Target Y rotation for smooth interpolation
+        this.currentRotationY = 0; // Current Y rotation
+        this.rotationSpeed = 5.0; // Rotation interpolation speed
         
         // Shooting properties
         this.shootRange = 150; // Maximum shooting range
@@ -308,10 +311,13 @@ export class Enemy {
                 }
                 
                 this.mesh.position.copy(this.position);
+                this.mesh.position.y = 0; // Ensure mesh is on ground
                 
                 // Rotate to face movement direction (unless shooting at target)
+                // Use smooth interpolation to prevent jitter
                 if (!this.currentTarget && horizontalMove.length() > 0) {
-                    this.mesh.lookAt(this.position.clone().add(horizontalMove));
+                    const angle = Math.atan2(horizontalMove.x, horizontalMove.z);
+                    this.targetRotationY = angle;
                 }
             } else {
                 // Reached target, mark as not moving
@@ -321,10 +327,15 @@ export class Enemy {
 
         // Ensure position Y is always 0 (on ground)
         this.position.y = 0;
-        this.mesh.position.y = 0;
+        if (this.mesh) {
+            this.mesh.position.y = 0;
+        }
 
         // Update shooting (this will handle facing target and aiming rifle)
         this.updateShooting(deltaTime);
+
+        // Update rotation smoothly
+        this.updateRotation(deltaTime);
 
         // Update walk animation if moving
         if (this.soldierData && this.isMoving) {
@@ -419,9 +430,10 @@ export class Enemy {
         }
         
         // Rotate body to face forward direction (while scanning)
+        // Use smooth interpolation to prevent jitter
         if (this.mesh && this.forwardDirection.length() > 0) {
-            const lookAtPos = this.position.clone().add(this.forwardDirection);
-            this.mesh.lookAt(lookAtPos);
+            const angle = Math.atan2(this.forwardDirection.x, this.forwardDirection.z);
+            this.targetRotationY = angle;
         }
     }
 
@@ -551,9 +563,10 @@ export class Enemy {
                 .normalize();
             
             // Rotate soldier body to face target (only Y rotation for horizontal facing)
+            // Use smooth interpolation to prevent jitter
             if (this.mesh) {
                 const angle = Math.atan2(directionToTarget.x, directionToTarget.z);
-                this.mesh.rotation.y = angle;
+                this.targetRotationY = angle;
             }
             
             // Aim rifle at adjusted target
@@ -723,10 +736,13 @@ export class Enemy {
             }
             
             this.mesh.position.copy(this.position);
+            this.mesh.position.y = 0; // Ensure mesh is on ground
             
             // Rotate to face movement direction
+            // Use smooth interpolation to prevent jitter
             if (horizontalMove.length() > 0) {
-                this.mesh.lookAt(this.position.clone().add(horizontalMove));
+                const angle = Math.atan2(horizontalMove.x, horizontalMove.z);
+                this.targetRotationY = angle;
             }
         } else {
             // Reached target, stop moving
@@ -753,6 +769,9 @@ export class Enemy {
         // Update shooting
         this.updateShooting(deltaTime);
         
+        // Update rotation smoothly
+        this.updateRotation(deltaTime);
+        
         // Update health bar to face camera
         if (this.healthBar) {
             this.healthBar.lookAt(this.healthBar.position.clone().add(new THREE.Vector3(0, 0, -1)));
@@ -772,6 +791,36 @@ export class Enemy {
                 healthPercent > 0.5 ? 0x00ff00 : healthPercent > 0.25 ? 0xffff00 : 0xff0000
             );
         }
+    }
+
+    updateRotation(deltaTime) {
+        // Smoothly interpolate rotation to prevent jitter
+        if (!this.mesh) return;
+        
+        // Initialize rotation from mesh if not set
+        if (this.currentRotationY === 0 && this.mesh.rotation.y !== 0) {
+            this.currentRotationY = this.mesh.rotation.y;
+            this.targetRotationY = this.mesh.rotation.y;
+        }
+        
+        // Normalize angles to [-PI, PI] range for proper interpolation
+        let current = this.currentRotationY;
+        let target = this.targetRotationY;
+        
+        // Handle angle wrapping (shortest path)
+        let diff = target - current;
+        if (diff > Math.PI) diff -= 2 * Math.PI;
+        if (diff < -Math.PI) diff += 2 * Math.PI;
+        
+        // Smooth interpolation
+        this.currentRotationY += diff * Math.min(1.0, this.rotationSpeed * deltaTime);
+        
+        // Normalize current rotation
+        while (this.currentRotationY > Math.PI) this.currentRotationY -= 2 * Math.PI;
+        while (this.currentRotationY < -Math.PI) this.currentRotationY += 2 * Math.PI;
+        
+        // Apply to mesh
+        this.mesh.rotation.y = this.currentRotationY;
     }
 
     update(deltaTime) {
@@ -883,11 +932,13 @@ export class Enemy {
             // Always ensure Y is 0
             this.position.y = 0;
             this.mesh.position.copy(this.position);
-            this.mesh.position.y = 0; // Force Y to 0
+            this.mesh.position.y = 0; // Force Y to 0 (ground level)
             
             // Rotate to face movement direction (unless shooting at target)
+            // Use direct rotation.y instead of lookAt for smoother rotation
             if (!this.currentTarget && horizontalMove.length() > 0) {
-                this.mesh.lookAt(this.position.clone().add(horizontalMove));
+                const angle = Math.atan2(horizontalMove.x, horizontalMove.z);
+                this.mesh.rotation.y = angle;
             }
         } else {
             // Reached target, stop moving
@@ -903,8 +954,24 @@ export class Enemy {
         this.position.y = 0;
         this.mesh.position.y = 0;
 
+        // Update walk animation if moving
+        if (this.soldierData && this.isMoving) {
+            this.animationTime += deltaTime;
+            updateWalkAnimation(this.soldierData, this.animationTime, 8);
+        } else if (this.soldierData && !this.isMoving) {
+            // Reset to idle pose when not moving
+            if (this.soldierData.leftLeg) this.soldierData.leftLeg.rotation.x = 0;
+            if (this.soldierData.rightLeg) this.soldierData.rightLeg.rotation.x = 0;
+            if (this.soldierData.leftArm) this.soldierData.leftArm.rotation.x = 0;
+            if (this.soldierData.rightArm) this.soldierData.rightArm.rotation.x = 0;
+            if (this.soldierData.group) this.soldierData.group.position.y = 0;
+        }
+
         // Update shooting
         this.updateShooting(deltaTime);
+
+        // Update rotation smoothly
+        this.updateRotation(deltaTime);
 
         // Update health bar to face camera (simplified)
         if (this.healthBar) {
