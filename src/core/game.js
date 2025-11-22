@@ -99,7 +99,11 @@ export class Game {
 
             // Update systems
             this.player.update(deltaTime);
-            this.weaponManager.update(deltaTime);
+            
+            // Pass player velocity to weapon manager for weapon sway
+            const playerVelocity = this.player.velocity;
+            this.weaponManager.update(deltaTime, playerVelocity);
+            
             this.teamManager.update(deltaTime);
             this.uiManager.update(deltaTime);
             this.battlefield.update(this.engine.camera);

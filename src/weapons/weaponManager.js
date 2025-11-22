@@ -241,15 +241,15 @@ export class WeaponManager {
         }
     }
 
-    update(deltaTime) {
+    update(deltaTime, playerVelocity = null) {
         if (this.currentWeapon) {
-            this.currentWeapon.update(deltaTime);
+            this.currentWeapon.update(deltaTime, playerVelocity);
         }
         
         // Update all gadget weapons (for grenade physics, etc.)
         Object.values(this.gadgetWeapons).forEach(weapon => {
             if (weapon && weapon.update && weapon !== this.currentWeapon) {
-                weapon.update(deltaTime);
+                weapon.update(deltaTime, playerVelocity);
             }
         });
         

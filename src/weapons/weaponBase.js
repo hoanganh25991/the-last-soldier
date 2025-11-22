@@ -28,6 +28,20 @@ export class WeaponBase {
         
         // Bullet sound URL (can be overridden by subclasses)
         this.bulletSoundUrl = 'sounds/bullet-shoot.mp3'; // Placeholder - user should add actual file
+        
+        // Weapon sway and recoil system
+        this.basePosition = new THREE.Vector3(0.3, -0.3, -0.6);
+        this.baseRotation = new THREE.Euler(0.1, 0, 0);
+        this.currentSway = new THREE.Vector3(0, 0, 0);
+        this.currentRecoil = new THREE.Vector3(0, 0, 0);
+        this.swaySpeed = 0; // Current movement speed for sway calculation
+        this.swayTime = 0; // Time accumulator for sway animation
+        this.recoilDecay = 0.85; // How fast recoil returns to normal
+        
+        // Sway parameters (can be overridden by subclasses)
+        this.swayIntensity = 0.015; // Base sway amount
+        this.recoilAmount = 0.15; // How much gun kicks back on shot
+        this.recoilRotation = 0.08; // How much gun rotates up on shot
     }
 
     init() {
@@ -121,6 +135,11 @@ export class WeaponBase {
 
         this.currentAmmo--;
         this.lastFireTime = now;
+        
+        // Apply recoil effect - weapon kicks back and up
+        this.currentRecoil.y -= this.recoilAmount; // Kick back
+        this.currentRecoil.z += this.recoilAmount * 0.3; // Slight backward push
+        this.currentRecoil.x += (Math.random() - 0.5) * this.recoilAmount * 0.5; // Random horizontal kick
 
         // Muzzle flash - enhanced visibility
         if (this.muzzleFlash) {
@@ -363,10 +382,19 @@ export class WeaponBase {
         }, 2000);
     }
 
-    update(deltaTime) {
+    update(deltaTime, playerVelocity = null) {
         if (this.isFiring && !this.isReloading) {
             this.fire();
         }
+
+        // Calculate movement speed for sway (if player velocity provided)
+        if (playerVelocity) {
+            // Calculate horizontal movement speed (ignore Y velocity)
+            this.swaySpeed = Math.sqrt(playerVelocity.x * playerVelocity.x + playerVelocity.z * playerVelocity.z);
+        }
+
+        // Update weapon sway and recoil
+        this.updateWeaponSway(deltaTime);
 
         // Update reload animation
         if (this.isReloading && this.weaponMesh && this.reloadStartTime > 0) {
@@ -394,6 +422,50 @@ export class WeaponBase {
         if (this.currentAmmo <= 0 && this.reserveAmmo > 0 && !this.isReloading) {
             this.reload();
         }
+    }
+
+    updateWeaponSway(deltaTime) {
+        if (!this.weaponMesh || this.isReloading) return;
+        
+        // Calculate sway intensity based on movement speed
+        // Stand still (speed ~0) = no sway
+        // Walking (speed ~5) = medium sway
+        // Sprinting (speed ~8) = high sway
+        const movementMultiplier = Math.min(this.swaySpeed / 5.0, 2.0); // Cap at 2x intensity
+        
+        // Update sway time for animation
+        if (this.swaySpeed > 0.1) {
+            this.swayTime += deltaTime * (5 + this.swaySpeed); // Faster sway when moving faster
+            
+            // Calculate sway offsets based on movement
+            const swayX = Math.sin(this.swayTime) * this.swayIntensity * movementMultiplier;
+            const swayY = Math.cos(this.swayTime * 1.5) * this.swayIntensity * movementMultiplier;
+            const swayZ = Math.sin(this.swayTime * 0.5) * this.swayIntensity * 0.5 * movementMultiplier;
+            
+            // Apply sway with smoothing
+            this.currentSway.x += (swayX - this.currentSway.x) * 0.1;
+            this.currentSway.y += (swayY - this.currentSway.y) * 0.1;
+            this.currentSway.z += (swayZ - this.currentSway.z) * 0.1;
+        } else {
+            // Return to center when standing still
+            this.currentSway.multiplyScalar(0.9);
+        }
+        
+        // Apply recoil decay
+        this.currentRecoil.multiplyScalar(this.recoilDecay);
+        
+        // Combine base position with sway and recoil
+        this.weaponMesh.position.x = this.basePosition.x + this.currentSway.x + this.currentRecoil.x;
+        this.weaponMesh.position.y = this.basePosition.y + this.currentSway.y + this.currentRecoil.y;
+        this.weaponMesh.position.z = this.basePosition.z + this.currentSway.z + this.currentRecoil.z;
+        
+        // Apply rotation sway and recoil
+        const rotationSwayX = Math.sin(this.swayTime * 1.2) * 0.02 * movementMultiplier;
+        const rotationSwayY = Math.cos(this.swayTime * 0.8) * 0.015 * movementMultiplier;
+        const recoilRotationX = this.currentRecoil.y * this.recoilRotation * 2; // Kick up when shooting
+        
+        this.weaponMesh.rotation.x = this.baseRotation.x + rotationSwayX + recoilRotationX;
+        this.weaponMesh.rotation.y = this.baseRotation.y + rotationSwayY;
     }
 
     updateReloadShells(deltaTime) {

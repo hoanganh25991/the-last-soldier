@@ -19,6 +19,12 @@ export class PrimaryWeapon extends WeaponBase {
         
         // Rifle sound (can be overridden)
         this.bulletSoundUrl = 'sounds/rifle-shoot.mp3'; // Placeholder - user should add actual file
+        
+        // Rifle has moderate recoil and sway
+        this.swayIntensity = 0.02; // More sway than pistol
+        this.recoilAmount = 0.18; // Strong recoil
+        this.recoilRotation = 0.1; // Strong upward kick
+        this.basePosition = new THREE.Vector3(0.3, -0.3, -0.6); // Rifle position
     }
 
     init() {
