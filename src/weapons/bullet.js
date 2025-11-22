@@ -58,7 +58,7 @@ export class Bullet {
         
         // Outer glow effect
         const glowGeometry = new THREE.SphereGeometry(0.3, 12, 12);
-        const glowMaterial = new THREE.MeshBasicMaterial({ 
+        const glowMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xffaa00,
             transparent: true,
             opacity: 0.7,
