@@ -600,10 +600,10 @@ export class UIManager {
             this.deploymentNotification.classList.add('show');
         }, 10);
         
-        // Hide after 0.3 seconds
+        // Hide after 0.5 seconds
         setTimeout(() => {
             this.deploymentNotification.classList.remove('show');
-        }, 300);
+        }, 500);
     }
 }
 
