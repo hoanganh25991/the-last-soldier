@@ -50,6 +50,9 @@ export class WeaponManager {
         
         // Start with primary weapon
         this.switchWeapon('primary');
+        
+        // Initialize UI to show both weapons
+        this.updateUI();
     }
 
     initControls() {
@@ -116,11 +119,19 @@ export class WeaponManager {
             if (e.code === 'Digit2') this.switchWeapon('secondary');
         });
 
-        // Weapon switch (click on weapon icon)
-        const weaponIcon = document.getElementById('weapon-icon');
-        weaponIcon.addEventListener('click', () => {
-            this.switchWeapon(this.weaponType === 'primary' ? 'secondary' : 'primary');
-        });
+        // Weapon switch (click on weapon slots)
+        const weaponSwitch = document.getElementById('weapon-switch');
+        if (weaponSwitch) {
+            weaponSwitch.addEventListener('click', (e) => {
+                const weaponSlot = e.target.closest('.weapon-slot');
+                if (weaponSlot) {
+                    const weaponType = weaponSlot.dataset.weaponType;
+                    if (weaponType && weaponType !== this.weaponType) {
+                        this.switchWeapon(weaponType);
+                    }
+                }
+            });
+        }
     }
 
     switchWeapon(type) {
@@ -173,12 +184,34 @@ export class WeaponManager {
     updateUI() {
         const ammoCurrent = document.getElementById('ammo-current');
         const ammoReserve = document.getElementById('ammo-reserve');
-        const weaponIcon = document.getElementById('weapon-icon');
+        const primaryIcon = document.getElementById('weapon-icon-primary');
+        const secondaryIcon = document.getElementById('weapon-icon-secondary');
+        const primarySlot = document.getElementById('weapon-slot-primary');
+        const secondarySlot = document.getElementById('weapon-slot-secondary');
 
+        // Update weapon icons
+        if (this.primaryWeapon && primaryIcon) {
+            primaryIcon.textContent = this.primaryWeapon.icon;
+        }
+        if (this.secondaryWeapon && secondaryIcon) {
+            secondaryIcon.textContent = this.secondaryWeapon.icon;
+        }
+
+        // Update active weapon slot
+        if (primarySlot && secondarySlot) {
+            if (this.weaponType === 'primary') {
+                primarySlot.classList.add('active');
+                secondarySlot.classList.remove('active');
+            } else {
+                primarySlot.classList.remove('active');
+                secondarySlot.classList.add('active');
+            }
+        }
+
+        // Update ammo display
         if (this.currentWeapon) {
-            ammoCurrent.textContent = this.currentWeapon.currentAmmo;
-            ammoReserve.textContent = this.currentWeapon.reserveAmmo;
-            weaponIcon.textContent = this.currentWeapon.icon;
+            if (ammoCurrent) ammoCurrent.textContent = this.currentWeapon.currentAmmo;
+            if (ammoReserve) ammoReserve.textContent = this.currentWeapon.reserveAmmo;
         }
     }
 }
