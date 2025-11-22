@@ -118,6 +118,17 @@ export class TeamManager {
         // Spawn 9 friendly team members (blue team) - 1 player + 9 teammates = 10 total
         // If playerPosition is provided, spawn near player (for respawning)
         // Otherwise spawn at center 0,0,0 (initial spawn)
+        
+        // Clear existing allies before spawning new ones (for respawn scenario)
+        // This ensures we don't exceed maxAllies
+        this.allies.forEach(ally => {
+            if (ally.mesh) {
+                this.scene.remove(ally.mesh);
+                ally.dispose();
+            }
+        });
+        this.allies = [];
+        
         const teamSize = this.maxAllies; // 9 teammates (player makes 10 total)
         const startRadius = 100; // Start around 100 units from player
         const maxDistance = 300; // Maximum distance from player
@@ -154,6 +165,12 @@ export class TeamManager {
             }
             this.allies.push(ally);
         }
+        
+        // Update blue score when teammates are deployed
+        // Count only alive teammates (not including player, so max is 9)
+        const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
+        // blueScore should be 1 (player) + aliveAlliesCount
+        this.blueScore = 1 + aliveAlliesCount;
     }
     
     respawnAlly(playerPosition) {
@@ -283,12 +300,11 @@ export class TeamManager {
             this.bloodEffects.push(bloodEffect);
             
             if (ally.health <= 0) {
-                // Track dead ally for respawn (store death time in game time, not Date.now)
-                this.deadAllies.push({
-                    deathTime: 0 // Will be set in update method
-                });
+                // Remove dead ally (no individual respawn - only respawn all when all die)
                 this.removeAlly(ally);
-                this.blueScore = Math.max(0, this.blueScore - 1); // Each kill minus 1
+                // Update blue score: 1 (player) + alive teammates count
+                const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
+                this.blueScore = 1 + aliveAlliesCount;
             }
         }
     }
@@ -321,20 +337,20 @@ export class TeamManager {
     }
 
     update(deltaTime, playerPosition = null, playerMesh = null) {
-        // Handle ally respawning
+        // Handle ally respawning - only respawn when ALL teammates die + 10 seconds
         if (playerPosition) {
             const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
             
-            // Track when all allies die
+            // Track when all allies die (all teammates dead, not including player)
             if (aliveAlliesCount === 0 && this.allies.length === 0) {
                 if (this.allAlliesDeadTime === null) {
                     this.allAlliesDeadTime = 0; // Start timer
                 }
                 this.allAlliesDeadTime += deltaTime;
                 
-                // If all allies are dead, respawn all after delay
+                // If all allies are dead, respawn all after delay (10 seconds)
                 if (this.allAlliesDeadTime >= this.respawnDelay) {
-                    // Respawn all allies
+                    // Respawn all allies (max 9 teammates)
                     this.spawnAllies(playerPosition);
                     this.allAlliesDeadTime = null; // Reset timer
                     this.deadAllies = []; // Clear dead allies list
@@ -349,19 +365,13 @@ export class TeamManager {
             } else {
                 // Reset all allies dead timer if we have allies again
                 this.allAlliesDeadTime = null;
-                
-                // Update death times for dead allies and respawn them
-                for (let i = this.deadAllies.length - 1; i >= 0; i--) {
-                    const deadAlly = this.deadAllies[i];
-                    deadAlly.deathTime += deltaTime;
-                    
-                    // If enough time has passed and we haven't reached max allies, respawn
-                    if (deadAlly.deathTime >= this.respawnDelay && aliveAlliesCount < this.maxAllies) {
-                        this.respawnAlly(playerPosition);
-                        this.deadAllies.splice(i, 1); // Remove from dead list
-                    }
-                }
+                // Don't respawn individual allies - only respawn all when all die
             }
+            
+            // Update blue score based on alive teammates count
+            // blueScore = 1 (player) + aliveAlliesCount (max 9)
+            const currentAliveAllies = this.allies.filter(a => a.health > 0).length;
+            this.blueScore = 1 + Math.min(currentAliveAllies, this.maxAllies);
         }
         
         // Get target lists for shooting
