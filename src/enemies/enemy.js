@@ -24,6 +24,16 @@ export class Enemy {
         this.lastTargetChangeTime = 0; // For slow movement around player
         this.targetChangeInterval = 3.0; // Change target every 3 seconds (slow movement)
         
+        // Forward movement and scanning behavior for allies
+        this.forwardDirection = new THREE.Vector3(1, 0, 0); // Direction ally is moving forward
+        this.scanAngle = 0; // Current scan angle when looking around
+        this.scanSpeed = 1.5; // How fast ally scans left/right (radians per second)
+        this.scanRange = Math.PI * 0.6; // Scan ±60 degrees left/right
+        this.lastScanChange = 0; // Time since last scan direction change
+        this.scanChangeInterval = 1.5; // Change scan direction every 1.5 seconds
+        this.scanDirection = 1; // 1 for right, -1 for left
+        this.forwardMoveSpeed = 4.0; // Speed when moving forward (slightly slower than max speed)
+        
         // Group-specific properties
         this.isInGroup = false;
         this.group = null; // Reference to group object
@@ -87,8 +97,14 @@ export class Enemy {
         this.mesh = group;
         this.updateHealthBar();
         
-        // Set random target position
-        this.setRandomTarget();
+        // Initialize forward direction randomly for allies (will be updated when ally starts moving)
+        const randomAngle = Math.random() * Math.PI * 2;
+        this.forwardDirection.set(Math.cos(randomAngle), 0, Math.sin(randomAngle));
+        
+        // Set random target position for enemies
+        if (!this.isAlly) {
+            this.setRandomTarget();
+        }
     }
 
 
@@ -157,16 +173,22 @@ export class Enemy {
             );
             targetPos.y = 0;
             this.targetPosition = targetPos;
+            
+            // Reset forward direction to point toward player
+            this.forwardDirection.copy(directionToPlayer);
         } else {
             // Check for nearby enemies to engage
             const nearestEnemy = this.findNearestEnemy();
             
             if (nearestEnemy && nearestEnemy.position) {
-                // Engage enemy - move towards it but keep within max distance from player
+                // Enemy found! Engage enemy - move towards it but keep within max distance from player
                 const enemyPos = nearestEnemy.position.clone();
                 const directionToEnemy = new THREE.Vector3()
                     .subVectors(enemyPos, this.position)
                     .normalize();
+                
+                // Update forward direction to point toward enemy
+                this.forwardDirection.copy(directionToEnemy);
                 
                 // Move towards enemy but ensure we don't go too far from player
                 const moveDistance = 30; // Move closer to enemy
@@ -180,30 +202,33 @@ export class Enemy {
                     this.targetPosition = potentialPos;
                     this.targetPosition.y = 0;
                 } else {
-                    // Too far, set target around player instead
-                    this.setAllyTargetAroundPlayer();
+                    // Too far, move forward but stay within range
+                    const directionToPlayer = new THREE.Vector3()
+                        .subVectors(this.playerPosition, this.position)
+                        .normalize();
+                    const safeForward = directionToPlayer.clone().multiplyScalar(this.maxDistanceFromPlayer * 0.7);
+                    this.targetPosition = this.playerPosition.clone().add(safeForward);
+                    this.targetPosition.y = 0;
                 }
             } else {
-                // No nearby enemies, slowly move around player
-                this.lastTargetChangeTime += deltaTime;
-                
-                if (!this.targetPosition || this.lastTargetChangeTime >= this.targetChangeInterval) {
-                    this.setAllyTargetAroundPlayer();
-                    this.lastTargetChangeTime = 0;
-                }
+                // No nearby enemies - move forward while looking around to find enemies
+                this.updateForwardMovementAndScanning(deltaTime);
             }
         }
         
-        // Move towards target (normal speed)
+        // Move towards target
         if (this.targetPosition) {
             const direction = new THREE.Vector3()
                 .subVectors(this.targetPosition, this.position)
                 .normalize();
 
-            const moveDistance = this.speed * deltaTime; // Normal speed
+            const moveDistance = this.speed * deltaTime;
             const distanceToTarget = this.position.distanceTo(this.targetPosition);
 
             if (distanceToTarget > 1) {
+                // Mark as moving for animation
+                this.isMoving = true;
+                
                 // Only move horizontally (X and Z), keep Y at 0
                 const horizontalMove = direction.clone();
                 horizontalMove.y = 0;
@@ -234,9 +259,8 @@ export class Enemy {
                     this.mesh.lookAt(this.position.clone().add(horizontalMove));
                 }
             } else {
-                // Reached target, set new one
-                this.setAllyTargetAroundPlayer();
-                this.lastTargetChangeTime = 0;
+                // Reached target, mark as not moving
+                this.isMoving = false;
             }
         }
 
@@ -247,9 +271,102 @@ export class Enemy {
         // Update shooting (this will handle facing target and aiming rifle)
         this.updateShooting(deltaTime);
 
+        // Update walk animation if moving
+        if (this.soldierData && this.isMoving) {
+            this.animationTime += deltaTime;
+            updateWalkAnimation(this.soldierData, this.animationTime, 8);
+        } else if (this.soldierData && !this.isMoving) {
+            // Reset to idle pose when not moving
+            if (this.soldierData.leftLeg) this.soldierData.leftLeg.rotation.x = 0;
+            if (this.soldierData.rightLeg) this.soldierData.rightLeg.rotation.x = 0;
+            if (this.soldierData.leftArm) this.soldierData.leftArm.rotation.x = 0;
+            if (this.soldierData.rightArm) this.soldierData.rightArm.rotation.x = 0;
+            if (this.soldierData.group) this.soldierData.group.position.y = 0;
+        }
+
         // Update health bar to face camera (simplified)
         if (this.healthBar) {
             this.healthBar.lookAt(this.healthBar.position.clone().add(new THREE.Vector3(0, 0, -1)));
+        }
+    }
+    
+    updateForwardMovementAndScanning(deltaTime) {
+        // Update scanning behavior - look left and right while moving forward
+        this.lastScanChange += deltaTime;
+        
+        if (this.lastScanChange >= this.scanChangeInterval) {
+            // Change scan direction (left to right or right to left)
+            this.scanDirection *= -1;
+            this.lastScanChange = 0;
+            this.scanChangeInterval = 1.0 + Math.random() * 1.0; // 1-2 seconds between direction changes
+        }
+        
+        // Update scan angle (sweep left/right)
+        this.scanAngle += this.scanDirection * this.scanSpeed * deltaTime;
+        
+        // Clamp scan angle to scan range
+        if (this.scanAngle > this.scanRange) {
+            this.scanAngle = this.scanRange;
+            this.scanDirection = -1; // Start scanning left
+        } else if (this.scanAngle < -this.scanRange) {
+            this.scanAngle = -this.scanRange;
+            this.scanDirection = 1; // Start scanning right
+        }
+        
+        // Calculate forward direction based on player position (move forward relative to player)
+        // Get direction from player to ally, then move forward in that direction
+        const directionFromPlayer = new THREE.Vector3()
+            .subVectors(this.position, this.playerPosition)
+            .normalize();
+        
+        // If ally is at center or very close to player, pick a random forward direction
+        if (directionFromPlayer.length() < 0.1) {
+            const randomAngle = Math.random() * Math.PI * 2;
+            directionFromPlayer.set(Math.cos(randomAngle), 0, Math.sin(randomAngle));
+        }
+        
+        // Apply scan angle to forward direction (rotate left/right)
+        const cos = Math.cos(this.scanAngle);
+        const sin = Math.sin(this.scanAngle);
+        const scannedDirection = new THREE.Vector3(
+            directionFromPlayer.x * cos - directionFromPlayer.z * sin,
+            0,
+            directionFromPlayer.x * sin + directionFromPlayer.z * cos
+        ).normalize();
+        
+        // Update forward direction
+        this.forwardDirection.copy(scannedDirection);
+        
+        // Set target position - move forward while scanning
+        const forwardDistance = 20; // Move forward 20 units ahead
+        const targetPos = this.position.clone().add(
+            this.forwardDirection.multiplyScalar(forwardDistance)
+        );
+        
+        // Ensure target is within max distance from player
+        const distanceFromPlayerAtTarget = targetPos.distanceTo(this.playerPosition);
+        if (distanceFromPlayerAtTarget <= this.maxDistanceFromPlayer) {
+            this.targetPosition = targetPos;
+            this.targetPosition.y = 0;
+        } else {
+            // Too far, adjust target to stay within range
+            const directionToPlayer = new THREE.Vector3()
+                .subVectors(this.playerPosition, this.position)
+                .normalize();
+            const safeDistance = this.maxDistanceFromPlayer * 0.8;
+            this.targetPosition = this.playerPosition.clone().add(
+                directionToPlayer.multiplyScalar(-safeDistance)
+            );
+            this.targetPosition.y = 0;
+            
+            // Update forward direction to point away from player
+            this.forwardDirection.copy(directionToPlayer.multiplyScalar(-1));
+        }
+        
+        // Rotate body to face forward direction (while scanning)
+        if (this.mesh && this.forwardDirection.length() > 0) {
+            const lookAtPos = this.position.clone().add(this.forwardDirection);
+            this.mesh.lookAt(lookAtPos);
         }
     }
 
