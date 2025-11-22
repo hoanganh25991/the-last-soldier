@@ -333,12 +333,29 @@ export class CollisionSystem {
         const minZ = Math.min(origin.z, endPoint.z);
         const maxZ = Math.max(origin.z, endPoint.z);
 
-        const nearbyColliders = this.spatialGrid.getObjectsInArea(minX, maxX, minZ, maxZ);
+        // Add padding to ensure we catch all objects along the path
+        const padding = 10; // Add padding to account for object sizes
+        const nearbyColliders = this.spatialGrid.getObjectsInArea(
+            minX - padding, 
+            maxX + padding, 
+            minZ - padding, 
+            maxZ + padding
+        );
 
         for (const collider of nearbyColliders) {
+            // Skip ground plane
+            if (collider.userData && collider.userData.isGround) {
+                continue;
+            }
+            
             const intersect = raycaster.intersectObject(collider, true);
             if (intersect.length > 0) {
-                intersects.push(...intersect);
+                // Only include intersections within maxDistance
+                for (const hit of intersect) {
+                    if (hit.distance <= maxDistance) {
+                        intersects.push(hit);
+                    }
+                }
             }
         }
 
@@ -353,40 +370,41 @@ export class CollisionSystem {
     /**
      * Check bullet collision with world objects
      */
-    checkBulletCollision(bulletPosition, bulletDirection, bulletRadius = 0.2) {
+    checkBulletCollision(bulletPosition, bulletDirection, maxDistance = 100.0) {
         // Use raycast to check if bullet hits any world object
-        const hit = this.raycast(bulletPosition, bulletDirection, 1.0);
-        if (hit && hit.distance < 1.0) {
+        // Use a longer distance to catch fast-moving bullets
+        const hit = this.raycast(bulletPosition, bulletDirection, maxDistance);
+        if (hit && hit.distance <= maxDistance) {
             // Check if it's a world object (not enemy/ally)
-            // Traverse up the parent chain to find the root object with userData
+            // Traverse up the parent chain to find the root object
             let object = hit.object;
             let rootObject = object;
             
-            // Find the root object (group that contains userData)
-            while (object.parent) {
-                if (object.userData && (object.userData.isEnemy !== undefined || object.userData.team)) {
-                    rootObject = object;
-                    break;
-                }
+            // Find the root object by traversing up the parent chain
+            while (object.parent && object.parent !== this.scene) {
                 object = object.parent;
+                // If this object has enemy/ally userData, it's the root we're looking for
                 if (object.userData && (object.userData.isEnemy !== undefined || object.userData.team)) {
                     rootObject = object;
                     break;
                 }
+                // Otherwise, keep this as potential root (could be a tree group, house group, etc.)
+                rootObject = object;
             }
             
             // Skip if it's an enemy or ally (they have userData.isEnemy or userData.team)
             if (rootObject.userData) {
                 if (rootObject.userData.isEnemy || rootObject.userData.team === 'blue' || rootObject.userData.team === 'red') {
-                    return { hit: false }; // This is an enemy/ally, not a world object
+                    return { hit: false, distance: hit.distance }; // This is an enemy/ally, not a world object
                 }
             }
             
-            // It's a world object (house, tree, wall, etc.)
+            // It's a world object (house, tree, wall, etc.) - no userData or userData doesn't indicate enemy/ally
             return {
                 hit: true,
                 point: hit.point,
-                object: rootObject
+                object: rootObject,
+                distance: hit.distance
             };
         }
         return { hit: false };

@@ -71,12 +71,14 @@ export class BulletManager {
             // Then check world object collisions (walls, houses, trees, etc.)
             // Only check if bullet hasn't hit player
             if (this.collisionSystem) {
+                // Use the actual path distance plus a buffer for safety
+                const checkDistance = pathDistance + 2.0;
                 const worldCollision = this.collisionSystem.checkBulletCollision(
                     previousPos,
                     pathDirection.length() > 0 ? pathDirection : bullet.direction,
-                    0.2
+                    checkDistance
                 );
-                if (worldCollision.hit && worldCollision.distance < pathDistance + 2.0) {
+                if (worldCollision.hit && worldCollision.distance <= checkDistance) {
                     // Bullet hit a world object, destroy it
                     bullet.destroy();
                     continue;
