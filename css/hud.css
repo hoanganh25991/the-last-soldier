@@ -157,24 +157,41 @@
 }
 
 .weapon-icon {
-    font-size: 24px;
+    font-size: 20px;
     font-family: monospace;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.8));
     background: rgba(0, 0, 0, 0.5);
-    padding: 5px 10px;
+    padding: 8px 10px;
     border-radius: 5px;
-    min-width: 60px;
+    width: 90px;
+    height: 40px;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
     color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Scale down pistol icon to fit better */
+.weapon-icon.weapon-secondary {
+    font-size: 12px;
+    transform: scale(0.7);
+    transform-origin: center;
 }
 
 .weapon-icon:hover {
     background: rgba(0, 0, 0, 0.7);
     transform: scale(1.05);
+}
+
+.weapon-icon.weapon-secondary:hover {
+    transform: scale(0.75);
 }
 
 .ammo-count {

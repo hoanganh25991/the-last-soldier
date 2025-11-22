@@ -215,12 +215,18 @@ export class WeaponManager {
 
         // Update weapon icon based on current selection
         if (weaponIcon) {
+            // Remove all weapon type classes
+            weaponIcon.classList.remove('weapon-primary', 'weapon-secondary', 'weapon-gadget');
+            
             if (this.weaponType === 'primary') {
                 weaponIcon.textContent = WEAPON_ICONS.longGun;
+                weaponIcon.classList.add('weapon-primary');
             } else if (this.weaponType === 'secondary') {
                 weaponIcon.textContent = WEAPON_ICONS.pistol;
+                weaponIcon.classList.add('weapon-secondary');
             } else if (this.weaponType === 'gadget') {
                 weaponIcon.textContent = getWeaponIcon(this.selectedGadget);
+                weaponIcon.classList.add('weapon-gadget');
             }
         }
 
