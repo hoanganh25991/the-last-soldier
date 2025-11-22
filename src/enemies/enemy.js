@@ -304,9 +304,17 @@ export class Enemy {
     shoot(targetPosition) {
         if (!this.bulletManager || !this.mesh || this.health <= 0) return;
         
-        // Calculate direction to target
+        // Adjust target position to aim at body center instead of camera/head height
+        // Player camera is at Y=1.6, but hitbox is around Y=0.8-1.0 (body center)
+        const adjustedTarget = targetPosition.clone();
+        // If target is too high (likely camera), aim at body center
+        if (adjustedTarget.y > 1.2) {
+            adjustedTarget.y = 0.9; // Aim at body center height
+        }
+        
+        // Calculate direction to adjusted target
         const direction = new THREE.Vector3()
-            .subVectors(targetPosition, this.position)
+            .subVectors(adjustedTarget, this.position)
             .normalize();
         
         // Add some spread for realism (soldiers aren't perfect shots)
@@ -341,9 +349,16 @@ export class Enemy {
         const target = this.findShootingTarget();
         
         if (target) {
-            // Calculate direction to target
+            // Adjust target position to aim at body center instead of camera/head height
+            const adjustedTargetPos = target.position.clone();
+            // If target is too high (likely camera), aim at body center
+            if (adjustedTargetPos.y > 1.2) {
+                adjustedTargetPos.y = 0.9; // Aim at body center height
+            }
+            
+            // Calculate direction to adjusted target
             const directionToTarget = new THREE.Vector3()
-                .subVectors(target.position, this.position)
+                .subVectors(adjustedTargetPos, this.position)
                 .normalize();
             
             // Rotate soldier body to face target (only Y rotation for horizontal facing)
@@ -352,15 +367,15 @@ export class Enemy {
                 this.mesh.rotation.y = angle;
             }
             
-            // Aim rifle at target
+            // Aim rifle at adjusted target
             if (this.soldierData && this.soldierData.rifle && this.soldierData.group) {
                 // Get rifle position in world space
                 const rifleWorldPos = new THREE.Vector3();
                 this.soldierData.rifle.getWorldPosition(rifleWorldPos);
                 
-                // Calculate direction from rifle to target
+                // Calculate direction from rifle to adjusted target
                 const rifleToTarget = new THREE.Vector3()
-                    .subVectors(target.position, rifleWorldPos)
+                    .subVectors(adjustedTargetPos, rifleWorldPos)
                     .normalize();
                 
                 // Convert world direction to local space (relative to soldier body)
@@ -382,9 +397,9 @@ export class Enemy {
                 this.soldierData.rifle.rotation.set(-verticalAngle, horizontalAngle, -0.1);
             }
             
-            // Shoot if ready
+            // Shoot if ready (use adjusted target position)
             if (this.lastShotTime >= this.fireInterval) {
-                this.shoot(target.position);
+                this.shoot(adjustedTargetPos);
                 this.lastShotTime = 0;
                 this.currentTarget = target;
             } else {
