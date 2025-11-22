@@ -58,7 +58,7 @@ export class WeaponBase {
         
         // Main flash - bright yellow/orange
         const flashGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-        const flashMaterial = new THREE.MeshBasicMaterial({ 
+        const flashMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xffff00,
             transparent: true,
             opacity: 0.9,
@@ -70,7 +70,7 @@ export class WeaponBase {
         
         // Outer glow - orange
         const glowGeometry = new THREE.SphereGeometry(0.25, 8, 8);
-        const glowMaterial = new THREE.MeshBasicMaterial({ 
+        const glowMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xff6600,
             transparent: true,
             opacity: 0.6,
@@ -82,7 +82,7 @@ export class WeaponBase {
         
         // Bright core - white
         const coreGeometry = new THREE.SphereGeometry(0.08, 6, 6);
-        const coreMaterial = new THREE.MeshBasicMaterial({ 
+        const coreMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xffffff,
             transparent: true,
             opacity: 1.0,

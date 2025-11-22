@@ -33,7 +33,7 @@ export class Bullet {
         
         // Main bullet body - bright, emissive material (larger for visibility)
         const geometry = new THREE.SphereGeometry(0.2, 12, 12);
-        const material = new THREE.MeshBasicMaterial({ 
+        const material = new THREE.MeshStandardMaterial({ 
             color: 0xffff00, // Bright yellow
             transparent: false,
             opacity: 1.0,
@@ -46,7 +46,7 @@ export class Bullet {
         
         // Add bright core glow
         const coreGeometry = new THREE.SphereGeometry(0.12, 8, 8);
-        const coreMaterial = new THREE.MeshBasicMaterial({ 
+        const coreMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xffffff,
             transparent: true,
             opacity: 1.0,

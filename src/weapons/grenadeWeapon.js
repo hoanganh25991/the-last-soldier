@@ -198,7 +198,7 @@ export class GrenadeWeapon extends WeaponBase {
         
         // Main explosion sphere - made bigger
         const explosionGeometry = new THREE.SphereGeometry(1.2, 16, 16);
-        const explosionMaterial = new THREE.MeshBasicMaterial({
+        const explosionMaterial = new THREE.MeshStandardMaterial({
             color: 0xff6600,
             transparent: true,
             opacity: 0.8,
