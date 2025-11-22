@@ -104,6 +104,15 @@ export class WeaponManager {
                 e.stopPropagation();
                 this.startFiring();
             }
+            // Aim on right mouse button (button 2) when pointer is locked
+            if (document.pointerLockElement && e.button === 2) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Set aiming state in player controller if available
+                if (this.player && this.player.isAiming !== undefined) {
+                    this.player.isAiming = true;
+                }
+            }
         };
 
         const handleMouseUp = (e) => {
@@ -112,11 +121,27 @@ export class WeaponManager {
                 e.stopPropagation();
                 this.stopFiring();
             }
+            // Stop aiming on right mouse button release
+            if (document.pointerLockElement && e.button === 2) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Set aiming state in player controller if available
+                if (this.player && this.player.isAiming !== undefined) {
+                    this.player.isAiming = false;
+                }
+            }
         };
 
         // Add listeners to document for pointer lock mode
         document.addEventListener('mousedown', handleMouseDown, true);
         document.addEventListener('mouseup', handleMouseUp, true);
+        
+        // Prevent context menu on right click
+        document.addEventListener('contextmenu', (e) => {
+            if (document.pointerLockElement) {
+                e.preventDefault();
+            }
+        }, true);
         
         // Also handle clicks on the game container canvas
         const gameContainer = document.getElementById('game-container');
@@ -126,10 +151,30 @@ export class WeaponManager {
                 if (document.pointerLockElement && e.button === 0) {
                     this.startFiring();
                 }
+                // Handle right mouse button for aiming
+                if (document.pointerLockElement && e.button === 2) {
+                    e.preventDefault();
+                    if (this.player && this.player.isAiming !== undefined) {
+                        this.player.isAiming = true;
+                    }
+                }
             });
             gameContainer.addEventListener('mouseup', (e) => {
                 if (document.pointerLockElement && e.button === 0) {
                     this.stopFiring();
+                }
+                // Handle right mouse button release for aiming
+                if (document.pointerLockElement && e.button === 2) {
+                    e.preventDefault();
+                    if (this.player && this.player.isAiming !== undefined) {
+                        this.player.isAiming = false;
+                    }
+                }
+            });
+            // Prevent context menu on right click
+            gameContainer.addEventListener('contextmenu', (e) => {
+                if (document.pointerLockElement) {
+                    e.preventDefault();
                 }
             });
         }
@@ -147,6 +192,18 @@ export class WeaponManager {
             if (e.code === 'KeyR') {
                 e.preventDefault();
                 this.reload();
+            }
+            // Use gadget with 'G' key - switch to gadget and fire current gadget
+            if (e.code === 'KeyG') {
+                e.preventDefault();
+                // Switch to gadget type if not already
+                if (this.weaponType !== 'gadget') {
+                    this.switchWeapon('gadget');
+                }
+                // Fire the current gadget weapon
+                if (this.currentWeapon && this.currentWeapon.fire) {
+                    this.currentWeapon.fire();
+                }
             }
         });
 

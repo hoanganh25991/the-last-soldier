@@ -10,10 +10,17 @@ export class PlayerController {
         this.direction = new THREE.Vector3();
         this.moveSpeed = 5.0;
         this.sprintSpeed = 8.0;
+        this.crouchSpeed = 2.5;
         this.currentSpeed = this.moveSpeed;
         this.canJump = false;
         this.isSprinting = false;
         this.isCrouching = false;
+        this.isAiming = false;
+        
+        // Aim/zoom settings
+        this.defaultFOV = 75;
+        this.aimFOV = 45; // Zoomed in FOV
+        this.aimTransitionSpeed = 8.0; // Speed of FOV transition
         
         // Player health
         this.health = 100;
@@ -23,6 +30,9 @@ export class PlayerController {
         this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
         this.pitchObject = new THREE.Object3D();
         this.yawObject = new THREE.Object3D();
+        
+        // Current FOV for smooth zoom transition
+        this.currentFOV = this.defaultFOV;
         
         // Touch controls
         this.touchJoystick = { x: 0, y: 0 };
@@ -43,6 +53,13 @@ export class PlayerController {
         
         // Set initial position
         this.yawObject.position.set(0, 1.6, 0);
+        
+        // Initialize camera FOV
+        if (this.camera && this.camera.fov !== undefined) {
+            this.camera.fov = this.defaultFOV;
+            this.currentFOV = this.defaultFOV;
+            this.camera.updateProjectionMatrix();
+        }
         
         // Create invisible collider mesh for bullet collision detection
         // This represents the player's body at center height (Y=0.9)
@@ -118,6 +135,21 @@ export class PlayerController {
                 e.stopPropagation();
                 this.keys[e.code] = true;
             }
+            // Handle Shift for sprint
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+                if (!this.isCrouching) { // Can't sprint while crouching
+                    this.isSprinting = true;
+                    this.currentSpeed = this.sprintSpeed;
+                }
+            }
+            // Handle C for crouch
+            if (e.code === 'KeyC') {
+                e.preventDefault();
+                this.isCrouching = true;
+                this.currentSpeed = this.crouchSpeed;
+                // Lower camera position
+                this.pitchObject.position.y = -0.4; // Lower camera when crouching
+            }
         };
 
         const handleKeyUp = (e) => {
@@ -126,6 +158,25 @@ export class PlayerController {
                 e.preventDefault();
                 e.stopPropagation();
                 this.keys[e.code] = false;
+            }
+            // Handle Shift release
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+                this.isSprinting = false;
+                if (!this.isCrouching) {
+                    this.currentSpeed = this.moveSpeed;
+                }
+            }
+            // Handle C release
+            if (e.code === 'KeyC') {
+                e.preventDefault();
+                this.isCrouching = false;
+                if (!this.isSprinting) {
+                    this.currentSpeed = this.moveSpeed;
+                } else {
+                    this.currentSpeed = this.sprintSpeed;
+                }
+                // Return camera to normal position
+                this.pitchObject.position.y = 0;
             }
         };
 
@@ -260,6 +311,14 @@ export class PlayerController {
     }
 
     update(deltaTime) {
+        // Update aim/zoom FOV smoothly
+        const targetFOV = this.isAiming ? this.aimFOV : this.defaultFOV;
+        this.currentFOV += (targetFOV - this.currentFOV) * this.aimTransitionSpeed * deltaTime;
+        if (this.camera && this.camera.fov !== undefined) {
+            this.camera.fov = this.currentFOV;
+            this.camera.updateProjectionMatrix();
+        }
+        
         // Update camera rotation from touch
         if (Math.abs(this.touchRotation.x) > 0.001 || Math.abs(this.touchRotation.y) > 0.001) {
             this.euler.setFromQuaternion(this.yawObject.quaternion);
@@ -370,6 +429,10 @@ export class PlayerController {
 
     getMaxHealth() {
         return this.maxHealth;
+    }
+    
+    isAimingMode() {
+        return this.isAiming;
     }
 }
 

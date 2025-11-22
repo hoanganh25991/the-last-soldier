@@ -55,31 +55,91 @@ export class UIManager {
             }
         });
 
+        // Helper function to add button visual feedback
+        const addButtonFeedback = (button, action) => {
+            const handleStart = (e) => {
+                e.preventDefault();
+                button.classList.add('btn-active');
+                action(true);
+            };
+            const handleEnd = (e) => {
+                e.preventDefault();
+                button.classList.remove('btn-active');
+                action(false);
+            };
+            
+            button.addEventListener('touchstart', handleStart);
+            button.addEventListener('touchend', handleEnd);
+            button.addEventListener('mousedown', handleStart);
+            button.addEventListener('mouseup', handleEnd);
+            button.addEventListener('mouseleave', handleEnd); // Release if mouse leaves button
+        };
+
         // Sprint button
         const sprintBtn = document.getElementById('btn-sprint');
-        sprintBtn.addEventListener('touchstart', () => {
+        addButtonFeedback(sprintBtn, (isActive) => {
             if (this.player) {
-                this.player.isSprinting = true;
-                this.player.currentSpeed = this.player.sprintSpeed;
-            }
-        });
-        sprintBtn.addEventListener('touchend', () => {
-            if (this.player) {
-                this.player.isSprinting = false;
-                this.player.currentSpeed = this.player.moveSpeed;
+                if (isActive && !this.player.isCrouching) {
+                    this.player.isSprinting = true;
+                    this.player.currentSpeed = this.player.sprintSpeed;
+                } else {
+                    this.player.isSprinting = false;
+                    if (!this.player.isCrouching) {
+                        this.player.currentSpeed = this.player.moveSpeed;
+                    }
+                }
             }
         });
 
         // Crouch button
         const crouchBtn = document.getElementById('btn-crouch');
         let isCrouching = false;
-        crouchBtn.addEventListener('click', () => {
-            isCrouching = !isCrouching;
+        addButtonFeedback(crouchBtn, (isActive) => {
             if (this.player) {
+                isCrouching = isActive;
                 this.player.isCrouching = isCrouching;
-                this.player.currentSpeed = isCrouching ? this.player.moveSpeed * 0.5 : this.player.moveSpeed;
+                if (isCrouching) {
+                    this.player.currentSpeed = this.player.crouchSpeed;
+                    this.player.pitchObject.position.y = -0.4; // Lower camera when crouching
+                } else {
+                    if (this.player.isSprinting) {
+                        this.player.currentSpeed = this.player.sprintSpeed;
+                    } else {
+                        this.player.currentSpeed = this.player.moveSpeed;
+                    }
+                    this.player.pitchObject.position.y = 0; // Return camera to normal position
+                }
             }
         });
+
+        // Aim button
+        const aimBtn = document.getElementById('btn-aim');
+        if (aimBtn) {
+            addButtonFeedback(aimBtn, (isActive) => {
+                if (this.player && this.player.isAiming !== undefined) {
+                    this.player.isAiming = isActive;
+                }
+            });
+        }
+
+        // Grenade/Gadget button
+        const grenadeBtn = document.getElementById('btn-grenade');
+        if (grenadeBtn && this.weaponManager) {
+            grenadeBtn.addEventListener('click', () => {
+                // Switch to gadget and fire
+                if (this.weaponManager.weaponType !== 'gadget') {
+                    this.weaponManager.switchWeapon('gadget');
+                }
+                if (this.weaponManager.currentWeapon && this.weaponManager.currentWeapon.fire) {
+                    this.weaponManager.currentWeapon.fire();
+                }
+                // Add visual feedback
+                grenadeBtn.classList.add('btn-active');
+                setTimeout(() => {
+                    grenadeBtn.classList.remove('btn-active');
+                }, 200);
+            });
+        }
     }
 
     update(deltaTime) {
