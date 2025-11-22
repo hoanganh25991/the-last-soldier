@@ -76,9 +76,9 @@ export class WeaponBase {
         
         this.muzzleFlash = flashGroup;
         this.muzzleFlash.visible = false;
-        // Position at barrel end - barrel extends along Z, forward end is at -Z
-        // Barrel center at Z=-0.9, extends 0.8 along Z, so forward end at Z=-0.9-0.4=-1.3
-        this.muzzleFlash.position.set(0.3, -0.2, -1.3);
+        // Position at barrel end - barrel extends along X, rotated -90deg, so forward end is at -Z
+        // After rotation: X position becomes Z, so barrel end at X=0.7 becomes Z=-0.7
+        this.muzzleFlash.position.set(0.4, -0.2, -0.5);
         this.weaponMesh.add(this.muzzleFlash);
     }
 
