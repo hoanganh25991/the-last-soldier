@@ -29,11 +29,8 @@ export class MenuManager {
             lookSensitivity: 50,
             adsSens: 25
         };
-        this.selectedWeapons = {
-            primary: 'MP40',
-            secondary: 'Pistol',
-            gadget: 'Grenade'
-        };
+        // Load weapon selections from localStorage or use defaults
+        this.selectedWeapons = this.loadWeaponSelections();
         this.playerName = 'player name...';
     }
 
@@ -107,11 +104,8 @@ export class MenuManager {
     }
 
     initializeWeaponSelection() {
-        // Set initial selected weapon based on HTML
-        const selectedPrimary = document.querySelector('.weapon-option-primary.selected');
-        if (selectedPrimary) {
-            this.selectedWeapons.primary = selectedPrimary.dataset.weapon || 'MP40';
-        }
+        // Weapon selections are already loaded from localStorage in constructor
+        // This method is kept for compatibility but no longer overrides loaded selections
     }
 
     setupEventListeners() {
@@ -268,6 +262,9 @@ export class MenuManager {
     selectItem(categoryType, itemName, options) {
         // Update selection
         this.selectedWeapons[categoryType] = itemName;
+        
+        // Save to localStorage
+        this.saveWeaponSelections();
         
         // Update selected state in UI
         const optionElements = document.querySelectorAll(`[data-${categoryType}]`);
@@ -633,6 +630,9 @@ export class MenuManager {
         // Stop menu music when entering battlefield
         this.audioManager.stopMusic('menu');
         
+        // Start battlefield music
+        this.startBattlefieldMusic();
+        
         this.showScreen('game');
         
         // Import and start game
@@ -669,6 +669,9 @@ export class MenuManager {
         }
         // Stop battlefield music when leaving game
         this.audioManager.stopMusic('battlefield');
+        
+        // Restart menu music when exiting game
+        this.startMenuMusic();
     }
 
     getSettings() {
@@ -691,9 +694,48 @@ export class MenuManager {
         });
     }
 
+    startBattlefieldMusic() {
+        // Try to load battlefield music file
+        const battlefieldMusicUrl = 'sounds/battlefield-music.mp3';
+        this.audioManager.playBattlefieldMusic(battlefieldMusicUrl).catch(() => {
+            // Fallback handled in AudioManager, this is just for safety
+        });
+    }
+
 
     getAudioManager() {
         return this.audioManager;
+    }
+
+    saveWeaponSelections() {
+        try {
+            localStorage.setItem('selectedWeapons', JSON.stringify(this.selectedWeapons));
+        } catch (error) {
+            console.warn('Failed to save weapon selections to localStorage:', error);
+        }
+    }
+
+    loadWeaponSelections() {
+        const defaults = {
+            primary: 'MP40',
+            secondary: 'Pistol',
+            gadget: 'Grenade'
+        };
+
+        try {
+            const saved = localStorage.getItem('selectedWeapons');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Validate that all required keys exist
+                if (parsed.primary && parsed.secondary && parsed.gadget) {
+                    return parsed;
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to load weapon selections from localStorage:', error);
+        }
+
+        return defaults;
     }
 }
 

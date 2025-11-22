@@ -31,31 +31,31 @@ export class PrimaryWeapon extends WeaponBase {
         // Create a simple rifle model
         const group = new THREE.Group();
 
-        // Barrel - oriented along Z axis (forward/backward) instead of X
-        const barrelGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.8);
+        // Barrel - extends along X axis (will be rotated to point forward)
+        const barrelGeometry = new THREE.BoxGeometry(0.8, 0.1, 0.1);
         const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
         const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
-        barrel.position.set(0.3, -0.2, -0.1); // Adjusted Z position since barrel now extends along Z
+        barrel.position.set(0.3, -0.2, -0.5);
         group.add(barrel);
 
-        // Stock - oriented along Z axis
-        const stockGeometry = new THREE.BoxGeometry(0.15, 0.15, 0.3);
+        // Stock
+        const stockGeometry = new THREE.BoxGeometry(0.3, 0.15, 0.4);
         const stockMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
         const stock = new THREE.Mesh(stockGeometry, stockMaterial);
-        stock.position.set(-0.2, -0.15, -0.3); // Adjusted Z position
+        stock.position.set(-0.2, -0.15, -0.5);
         group.add(stock);
 
-        // Body - oriented along Z axis
-        const bodyGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.6);
+        // Body
+        const bodyGeometry = new THREE.BoxGeometry(0.6, 0.2, 0.2);
         const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 });
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.set(0, -0.2, -0.2); // Adjusted Z position
+        body.position.set(0, -0.2, -0.5);
         group.add(body);
 
         // Position relative to camera
         group.position.set(0.3, -0.3, -0.6);
         group.rotation.x = 0.1;
-        // No Y rotation needed - geometry is already oriented along Z axis (forward)
+        group.rotation.y = -Math.PI / 2; // Rotate -90 degrees: +X (right) -> -Z (forward into screen)
         
         this.weaponMesh = group;
         this.camera.add(group);
