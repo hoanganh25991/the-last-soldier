@@ -45,7 +45,7 @@ export class TeamManager {
         // This is wave 0
         this.waveNumber = 0;
         const initialSoldierCount = this.maxAllies + 1; // 9 teammates + 1 player = 10
-        const enemiesToSpawn = Math.min(initialSoldierCount, this.totalEnemyPool);
+        const enemiesToSpawn = Math.min(initialSoldierCount, this.redScore);
         if (enemiesToSpawn > 0) {
             this.spawnEnemyWave(enemiesToSpawn, null);
         }
@@ -428,26 +428,27 @@ export class TeamManager {
         
         // Spawn enemies if timer reached interval AND enemy count doesn't match soldier count
         if (this.enemyRespawnTimer >= this.enemyRespawnInterval) {
-            // Spawn enemies to match soldier count, but only if we have enemies left in pool
-            if (aliveEnemiesCount < totalSoldierCount && this.redScore > 0) {
-                // Calculate how many enemies to spawn
-                // Don't exceed soldier count and don't exceed available pool
-                const enemiesToSpawn = Math.min(
-                    totalSoldierCount - aliveEnemiesCount,
-                    this.redScore // Don't spawn more than available in pool
-                );
+            // Always try to spawn enemies to match soldier count, as long as pool has enemies
+            if (this.redScore > 0) {
+                // Calculate how many enemies we need to match soldier count
+                const enemiesNeeded = totalSoldierCount - aliveEnemiesCount;
                 
-                if (enemiesToSpawn > 0) {
-                    // Spawn enemy wave matching soldier count
-                    this.spawnEnemyWave(enemiesToSpawn, playerPosition);
+                if (enemiesNeeded > 0) {
+                    // Calculate how many enemies to spawn (don't exceed pool)
+                    const enemiesToSpawn = Math.min(enemiesNeeded, this.redScore);
                     
-                    // Update bullet manager references for newly spawned enemies
-                    if (this.bulletManager) {
-                        // Get the last spawned enemies (the ones we just added)
-                        const newlySpawned = this.enemies.slice(-enemiesToSpawn);
-                        newlySpawned.forEach(enemy => {
-                            enemy.bulletManager = this.bulletManager;
-                        });
+                    if (enemiesToSpawn > 0) {
+                        // Spawn enemy wave matching soldier count
+                        this.spawnEnemyWave(enemiesToSpawn, playerPosition);
+                        
+                        // Update bullet manager references for newly spawned enemies
+                        if (this.bulletManager) {
+                            // Get the last spawned enemies (the ones we just added)
+                            const newlySpawned = this.enemies.slice(-enemiesToSpawn);
+                            newlySpawned.forEach(enemy => {
+                                enemy.bulletManager = this.bulletManager;
+                            });
+                        }
                     }
                 }
             }
