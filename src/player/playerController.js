@@ -15,6 +15,10 @@ export class PlayerController {
         this.isSprinting = false;
         this.isCrouching = false;
         
+        // Player health
+        this.health = 100;
+        this.maxHealth = 100;
+        
         // Mouse/pointer controls
         this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
         this.pitchObject = new THREE.Object3D();
@@ -338,6 +342,20 @@ export class PlayerController {
 
     getYawObject() {
         return this.yawObject;
+    }
+
+    takeDamage(amount) {
+        this.health = Math.max(0, this.health - amount);
+        // Health update will be handled by UI manager
+        return this.health;
+    }
+
+    getHealth() {
+        return this.health;
+    }
+
+    getMaxHealth() {
+        return this.maxHealth;
     }
 }
 

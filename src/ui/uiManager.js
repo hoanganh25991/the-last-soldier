@@ -107,6 +107,31 @@ export class UIManager {
         if (this.weaponManager) {
             this.weaponManager.updateUI();
         }
+
+        // Update player health
+        if (this.player) {
+            const healthElement = document.getElementById('player-health');
+            const healthBarElement = document.getElementById('player-health-bar');
+            if (healthElement) {
+                const health = this.player.getHealth();
+                const maxHealth = this.player.getMaxHealth();
+                healthElement.textContent = `${Math.max(0, Math.floor(health))} / ${maxHealth}`;
+                
+                // Update health bar visual (scale based on health percentage)
+                if (healthBarElement) {
+                    const healthPercent = Math.max(0, health / maxHealth);
+                    // Find the inner bar element or create visual feedback
+                    // The health bar background color changes based on health
+                    if (healthPercent > 0.5) {
+                        healthBarElement.style.background = 'rgba(0, 255, 0, 0.4)'; // Green
+                    } else if (healthPercent > 0.25) {
+                        healthBarElement.style.background = 'rgba(255, 255, 0, 0.4)'; // Yellow
+                    } else {
+                        healthBarElement.style.background = 'rgba(255, 0, 0, 0.4)'; // Red
+                    }
+                }
+            }
+        }
         
         // Update crosshair spread based on movement and shooting
         this.updateCrosshair(deltaTime);

@@ -312,9 +312,14 @@ export class Enemy {
             adjustedTarget.y = 0.9; // Aim at body center height
         }
         
-        // Calculate direction to adjusted target
+        // Bullet start position (from soldier's rifle position)
+        const bulletStart = this.position.clone();
+        bulletStart.y += 1.0; // Height of rifle
+        
+        // Calculate direction FROM rifle position TO adjusted target
+        // This is critical - direction must be calculated from where bullet starts, not from ground level
         const direction = new THREE.Vector3()
-            .subVectors(adjustedTarget, this.position)
+            .subVectors(adjustedTarget, bulletStart)
             .normalize();
         
         // Add some spread for realism (soldiers aren't perfect shots)
@@ -323,10 +328,6 @@ export class Enemy {
         direction.y += (Math.random() - 0.5) * spread * 0.5; // Less vertical spread
         direction.z += (Math.random() - 0.5) * spread;
         direction.normalize();
-        
-        // Bullet start position (from soldier's rifle position)
-        const bulletStart = this.position.clone();
-        bulletStart.y += 1.0; // Height of rifle
         
         // Create bullet (without trail for enemies/teammates)
         this.bulletManager.createBullet(

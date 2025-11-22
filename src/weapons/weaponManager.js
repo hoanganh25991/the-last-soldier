@@ -278,9 +278,10 @@ export class WeaponManager {
                 },
                 playerCollider,
                 (damage, hitPosition) => {
-                    // Player hit callback - you can add health system here later
-                    console.log(`Player hit! Damage: ${damage}`);
-                    // TODO: Implement player health system
+                    // Player hit callback - reduce player health
+                    if (this.player && this.player.takeDamage) {
+                        this.player.takeDamage(damage);
+                    }
                 }
             );
         }
