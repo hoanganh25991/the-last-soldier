@@ -156,7 +156,7 @@ export class Enemy {
     }
 
     findNearestEnemy() {
-        // Find the nearest enemy within engagement range
+        // Find the nearest enemy within engagement range that has clear line-of-sight
         if (!this.nearbyEnemies || this.nearbyEnemies.length === 0) return null;
         
         const engagementRange = 200; // Maximum range to engage enemies
@@ -166,8 +166,32 @@ export class Enemy {
         for (const enemyMesh of this.nearbyEnemies) {
             if (!enemyMesh || !enemyMesh.position) continue;
             
-            const distance = this.position.distanceTo(enemyMesh.position);
+            // Get the world position of the enemy
+            const enemyWorldPos = new THREE.Vector3();
+            if (enemyMesh.getWorldPosition) {
+                enemyMesh.getWorldPosition(enemyWorldPos);
+            } else if (enemyMesh.position) {
+                enemyWorldPos.copy(enemyMesh.position);
+            } else {
+                continue;
+            }
+            
+            const distance = this.position.distanceTo(enemyWorldPos);
             if (distance < nearestDistance) {
+                // Check line-of-sight before considering this enemy
+                if (this.collisionSystem && this.collisionSystem.checkLineOfSight) {
+                    const hasLineOfSight = this.collisionSystem.checkLineOfSight(
+                        this.position,
+                        enemyWorldPos,
+                        1.0 // Eye height (soldier's eye level)
+                    );
+                    
+                    // Only consider enemies with clear line-of-sight
+                    if (!hasLineOfSight) {
+                        continue; // Vision blocked, skip this enemy
+                    }
+                }
+                
                 nearestDistance = distance;
                 nearestEnemy = enemyMesh;
             }
@@ -197,12 +221,23 @@ export class Enemy {
             // Reset forward direction to point toward player
             this.forwardDirection.copy(directionToPlayer);
         } else {
-            // Check for nearby enemies to engage
+            // Check for nearby enemies to engage (with line-of-sight check)
             const nearestEnemy = this.findNearestEnemy();
             
-            if (nearestEnemy && nearestEnemy.position) {
-                // Enemy found! Engage enemy - move towards it but keep within max distance from player
-                const enemyPos = nearestEnemy.position.clone();
+            if (nearestEnemy) {
+                // Get the world position of the enemy
+                const enemyPos = new THREE.Vector3();
+                if (nearestEnemy.getWorldPosition) {
+                    nearestEnemy.getWorldPosition(enemyPos);
+                } else if (nearestEnemy.position) {
+                    enemyPos.copy(nearestEnemy.position);
+                } else {
+                    // Can't get position, continue scanning
+                    this.updateForwardMovementAndScanning(deltaTime);
+                    return;
+                }
+                
+                // Enemy found with clear line-of-sight! Engage enemy - move towards it but keep within max distance from player
                 const directionToEnemy = new THREE.Vector3()
                     .subVectors(enemyPos, this.position)
                     .normalize();
@@ -231,7 +266,7 @@ export class Enemy {
                     this.targetPosition.y = 0;
                 }
             } else {
-                // No nearby enemies - move forward while looking around to find enemies
+                // No visible enemies - move forward while scanning to find enemies
                 this.updateForwardMovementAndScanning(deltaTime);
             }
         }
@@ -406,7 +441,7 @@ export class Enemy {
     }
 
     findShootingTarget() {
-        // Find the nearest target within shooting range
+        // Find the nearest target within shooting range that has clear line-of-sight
         if (!this.targets || this.targets.length === 0) return null;
         
         let nearestTarget = null;
@@ -427,6 +462,20 @@ export class Enemy {
             
             const distance = this.position.distanceTo(targetWorldPos);
             if (distance < nearestDistance && distance > 0) {
+                // Check line-of-sight before considering this target
+                if (this.collisionSystem && this.collisionSystem.checkLineOfSight) {
+                    const hasLineOfSight = this.collisionSystem.checkLineOfSight(
+                        this.position,
+                        targetWorldPos,
+                        1.0 // Eye height (soldier's eye level)
+                    );
+                    
+                    // Only consider targets with clear line-of-sight
+                    if (!hasLineOfSight) {
+                        continue; // Vision blocked, skip this target
+                    }
+                }
+                
                 nearestDistance = distance;
                 nearestTarget = {
                     mesh: targetMesh,

@@ -439,4 +439,127 @@ export class CollisionSystem {
         }
         return { hit: false };
     }
+
+    /**
+     * Check line-of-sight from one position to another
+     * Returns true if there's a clear line-of-sight (no world objects blocking)
+     * Returns false if vision is blocked by world objects
+     * Note: Enemies and allies don't block vision - only world objects (trees, buildings, walls, etc.)
+     */
+    checkLineOfSight(fromPosition, toPosition, eyeHeight = 1.0) {
+        // Calculate direction from origin to target
+        const direction = new THREE.Vector3()
+            .subVectors(toPosition, fromPosition);
+        const distance = direction.length();
+        
+        if (distance < 0.1) {
+            // Very close, consider it visible
+            return true;
+        }
+        
+        // Start raycast from eye level (soldier's eye height)
+        const eyePosition = fromPosition.clone();
+        eyePosition.y += eyeHeight;
+        
+        // Target at body center height (where targets are)
+        const targetEyePosition = toPosition.clone();
+        targetEyePosition.y += 0.9; // Body center height
+        
+        // Calculate direction from eye to target eye
+        const eyeDirection = new THREE.Vector3()
+            .subVectors(targetEyePosition, eyePosition)
+            .normalize();
+        
+        // Cast ray and check all hits along the path
+        // We need to check if any world object blocks before reaching the target
+        const raycaster = new THREE.Raycaster(eyePosition, eyeDirection, 0, distance * 0.98); // 98% to account for target size
+        const intersects = [];
+        
+        // Use spatial grid to get objects along ray path
+        const endPoint = eyePosition.clone().add(eyeDirection.clone().multiplyScalar(distance * 0.98));
+        const minX = Math.min(eyePosition.x, endPoint.x);
+        const maxX = Math.max(eyePosition.x, endPoint.x);
+        const minZ = Math.min(eyePosition.z, endPoint.z);
+        const maxZ = Math.max(eyePosition.z, endPoint.z);
+        
+        const padding = 10;
+        const nearbyColliders = this.spatialGrid.getObjectsInArea(
+            minX - padding, 
+            maxX + padding, 
+            minZ - padding, 
+            maxZ + padding
+        );
+        
+        // Check all objects along the path
+        for (const collider of nearbyColliders) {
+            // Skip ground plane
+            if (collider.userData && collider.userData.isGround) {
+                continue;
+            }
+            
+            const intersect = raycaster.intersectObject(collider, true);
+            if (intersect.length > 0) {
+                for (const hit of intersect) {
+                    if (hit.distance <= distance * 0.98) {
+                        intersects.push(hit);
+                    }
+                }
+            }
+        }
+        
+        if (intersects.length === 0) {
+            // No hits means clear line-of-sight
+            return true;
+        }
+        
+        // Sort by distance to find the closest hit
+        intersects.sort((a, b) => a.distance - b.distance);
+        const closestHit = intersects[0];
+        
+        // Check if the closest hit is a world object (blocks vision) or enemy/ally (doesn't block)
+        let object = closestHit.object;
+        let rootObject = object;
+        
+        // Find the root object by traversing up the parent chain
+        while (object.parent && object.parent !== this.scene) {
+            object = object.parent;
+            if (object.userData && (object.userData.isEnemy !== undefined || object.userData.team)) {
+                rootObject = object;
+                break;
+            }
+            rootObject = object;
+        }
+        
+        // Check if it's an enemy or ally (they don't block vision)
+        if (rootObject.userData) {
+            if (rootObject.userData.isEnemy || rootObject.userData.team === 'blue' || rootObject.userData.team === 'red') {
+                // This is an enemy/ally - they don't block vision
+                // Check if there are any world objects before this hit
+                for (let i = 1; i < intersects.length; i++) {
+                    const hit = intersects[i];
+                    let hitObject = hit.object;
+                    let hitRoot = hitObject;
+                    
+                    while (hitObject.parent && hitObject.parent !== this.scene) {
+                        hitObject = hitObject.parent;
+                        if (hitObject.userData && (hitObject.userData.isEnemy !== undefined || hitObject.userData.team)) {
+                            hitRoot = hitObject;
+                            break;
+                        }
+                        hitRoot = hitObject;
+                    }
+                    
+                    // If this hit is a world object (not enemy/ally), it's blocking vision
+                    if (!hitRoot.userData || (!hitRoot.userData.isEnemy && hitRoot.userData.team !== 'blue' && hitRoot.userData.team !== 'red')) {
+                        return false; // World object is blocking
+                    }
+                }
+                // Only enemies/allies in the way, can see through them
+                return true;
+            }
+        }
+        
+        // It's a world object (house, tree, wall, etc.) - blocks vision
+        return false;
+    }
 }
