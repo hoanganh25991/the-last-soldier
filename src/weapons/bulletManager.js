@@ -8,8 +8,8 @@ export class BulletManager {
         this.bullets = [];
     }
 
-    createBullet(startPosition, direction, speed, range, damage) {
-        const bullet = new Bullet(startPosition, direction, speed, range, damage, this.scene);
+    createBullet(startPosition, direction, speed, range, damage, showTrail = true) {
+        const bullet = new Bullet(startPosition, direction, speed, range, damage, this.scene, showTrail);
         this.bullets.push(bullet);
         return bullet;
     }

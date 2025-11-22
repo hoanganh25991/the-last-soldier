@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 
 export class Bullet {
-    constructor(startPosition, direction, speed, range, damage, scene) {
+    constructor(startPosition, direction, speed, range, damage, scene, showTrail = true) {
         this.startPosition = startPosition.clone();
         this.direction = direction.clone().normalize();
         this.speed = speed;
         this.range = range;
         this.damage = damage;
         this.scene = scene;
+        this.showTrail = showTrail;
         
         this.traveledDistance = 0;
         this.position = startPosition.clone();
@@ -18,7 +19,9 @@ export class Bullet {
         this.isActive = true;
         
         this.createMesh();
-        this.createTrail();
+        if (this.showTrail) {
+            this.createTrail();
+        }
     }
 
     createMesh() {
@@ -108,7 +111,7 @@ export class Bullet {
             this.mesh.rotation.y += deltaTime * 10;
         }
 
-        // Update trail
+        // Update trail (only if trail exists - trails are disabled for enemies/teammates)
         if (this.trail) {
             // Add current position to trail
             this.trailPositions.push(this.position.x, this.position.y, this.position.z);

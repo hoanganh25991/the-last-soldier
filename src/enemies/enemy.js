@@ -45,9 +45,9 @@ export class Enemy {
         // Shooting properties
         this.shootRange = 150; // Maximum shooting range
         this.shootDamage = 30; // Same as primary weapon
-        this.fireRate = 600; // rounds per minute (same as primary weapon)
+        this.fireRate = 40; // rounds per minute (much slower than player - 1-2 seconds per shot)
         this.lastShotTime = 0;
-        this.fireInterval = 60 / this.fireRate; // Time between shots in seconds
+        this.fireInterval = 60 / this.fireRate; // Time between shots in seconds (1.5 seconds per shot)
         this.bulletSpeed = 100; // Same as primary weapon
         this.currentTarget = null; // Current target to shoot at
         this.targets = []; // List of potential targets (enemies for allies, player/allies for enemies)
@@ -320,13 +320,14 @@ export class Enemy {
         const bulletStart = this.position.clone();
         bulletStart.y += 1.0; // Height of rifle
         
-        // Create bullet
+        // Create bullet (without trail for enemies/teammates)
         this.bulletManager.createBullet(
             bulletStart,
             direction,
             this.bulletSpeed,
             this.shootRange,
-            this.shootDamage
+            this.shootDamage,
+            false // showTrail = false for enemies/teammates
         );
     }
 
