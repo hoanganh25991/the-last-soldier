@@ -148,7 +148,31 @@ export class TeamManager {
     }
 
     damageEnemy(enemyMesh, damage, hitPosition = null) {
-        const enemy = this.enemies.find(e => e.mesh === enemyMesh || e.mesh === enemyMesh.parent);
+        // Traverse up parent chain to find the root mesh
+        let targetMesh = enemyMesh;
+        while (targetMesh.parent && targetMesh.parent !== this.scene) {
+            if (targetMesh.userData && (targetMesh.userData.isEnemy !== undefined || targetMesh.userData.team)) {
+                break; // Found the root group with userData
+            }
+            targetMesh = targetMesh.parent;
+        }
+        
+        const enemy = this.enemies.find(e => {
+            // Check if this is the enemy's mesh or any parent/child
+            let checkMesh = e.mesh;
+            while (checkMesh) {
+                if (checkMesh === targetMesh) return true;
+                checkMesh = checkMesh.parent;
+            }
+            // Also check children
+            let checkTarget = targetMesh;
+            while (checkTarget) {
+                if (checkTarget === e.mesh) return true;
+                checkTarget = checkTarget.parent;
+            }
+            return false;
+        });
+        
         if (enemy) {
             enemy.takeDamage(damage);
             
@@ -166,7 +190,31 @@ export class TeamManager {
     }
 
     damageAlly(allyMesh, damage, hitPosition = null) {
-        const ally = this.allies.find(a => a.mesh === allyMesh || a.mesh === allyMesh.parent);
+        // Traverse up parent chain to find the root mesh
+        let targetMesh = allyMesh;
+        while (targetMesh.parent && targetMesh.parent !== this.scene) {
+            if (targetMesh.userData && (targetMesh.userData.isEnemy !== undefined || targetMesh.userData.team)) {
+                break; // Found the root group with userData
+            }
+            targetMesh = targetMesh.parent;
+        }
+        
+        const ally = this.allies.find(a => {
+            // Check if this is the ally's mesh or any parent/child
+            let checkMesh = a.mesh;
+            while (checkMesh) {
+                if (checkMesh === targetMesh) return true;
+                checkMesh = checkMesh.parent;
+            }
+            // Also check children
+            let checkTarget = targetMesh;
+            while (checkTarget) {
+                if (checkTarget === a.mesh) return true;
+                checkTarget = checkTarget.parent;
+            }
+            return false;
+        });
+        
         if (ally) {
             ally.takeDamage(damage);
             

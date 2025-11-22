@@ -61,15 +61,27 @@ export class BulletManager {
             const intersects = raycaster.intersectObjects(allTargets, true);
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                const target = hit.object.parent || hit.object;
-                if (target && target.userData.isEnemy) {
-                    // Hit an enemy
-                    enemyCallback(target, bullet.damage, hit.point);
-                    bullet.destroy();
-                } else if (target && target.userData.team === 'blue') {
-                    // Hit an ally (friendly fire)
-                    allyCallback(target, bullet.damage, hit.point);
-                    bullet.destroy();
+                // Traverse up the parent chain to find the root group with userData
+                let target = hit.object;
+                while (target.parent && target.parent !== this.scene) {
+                    // Check if current target has userData with team info
+                    if (target.userData && (target.userData.isEnemy !== undefined || target.userData.team)) {
+                        break; // Found the root group with userData
+                    }
+                    target = target.parent;
+                }
+                
+                // If we found userData on the target
+                if (target.userData) {
+                    if (target.userData.isEnemy || target.userData.team === 'red') {
+                        // Hit an enemy
+                        enemyCallback(target, bullet.damage, hit.point);
+                        bullet.destroy();
+                    } else if (target.userData.team === 'blue') {
+                        // Hit an ally (friendly fire)
+                        allyCallback(target, bullet.damage, hit.point);
+                        bullet.destroy();
+                    }
                 }
             }
         }
