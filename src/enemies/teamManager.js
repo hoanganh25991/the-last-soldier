@@ -25,14 +25,14 @@ export class TeamManager {
         this.maxAllies = 9; // Maximum number of allies (9 teammates + 1 player = 10 total)
         this.allAlliesDeadTime = null; // Track when all allies died (for full respawn)
         
-        // Respawn system for enemies - spawn to match soldier count (allies + player)
-        this.enemyRespawnTimer = 0; // Timer for enemy respawning
-        this.enemyRespawnInterval = 2.0; // Check and spawn enemies every 2 seconds
+        // Wave-based enemy spawning system
         this.gameEnded = false; // Track if game has ended
         this.waveNumber = 0; // Track current wave number
         this.baseEnemyDamage = 20; // Base damage per wave
         this.damagePerWave = 5; // Damage increase per wave
+        this.enemiesPerWave = 10; // 10 enemies per wave
         this.totalEnemyPool = 100; // Total enemies available (pool decreases when enemies die)
+        this.currentWaveEnemies = []; // Track enemies in current wave
     }
 
     init() {
@@ -41,17 +41,13 @@ export class TeamManager {
     }
 
     spawnEnemies() {
-        // Initial spawn: spawn enemies matching initial soldier count (9 teammates + 1 player = 10)
+        // Initial spawn: spawn first wave (10 enemies)
         // This is wave 0
         // Note: Initial spawn happens before player position is known, so spawn at center
         this.waveNumber = 0;
-        const initialSoldierCount = this.maxAllies + 1; // 9 teammates + 1 player = 10
-        const enemiesToSpawn = Math.min(initialSoldierCount, this.redScore);
-        if (enemiesToSpawn > 0) {
-            // Spawn enemies near center (0,0,0) for initial spawn
-            const centerPosition = new THREE.Vector3(0, 0, 0);
-            this.spawnEnemyWave(enemiesToSpawn, centerPosition);
-        }
+        this.currentWaveEnemies = [];
+        const centerPosition = new THREE.Vector3(0, 0, 0);
+        this.spawnEnemyWave(this.enemiesPerWave, centerPosition);
     }
 
     spawnEnemyWave(enemyCount, playerPosition = null) {
@@ -139,10 +135,13 @@ export class TeamManager {
             enemy.group = group;
             enemy.groupIndex = i;
             enemy.isInGroup = true;
+            // Track which wave this enemy belongs to
+            enemy.waveNumber = this.waveNumber;
             if (enemy.mesh) {
                 this.scene.add(enemy.mesh);
             }
             this.enemies.push(enemy);
+            this.currentWaveEnemies.push(enemy); // Track in current wave
             group.enemies.push(enemy);
         }
         
@@ -150,9 +149,6 @@ export class TeamManager {
         
         // Note: Pool (redScore) is NOT reduced when enemies spawn
         // Pool is only reduced when enemies die (in damageEnemy method)
-        
-        // Increment wave number for next wave
-        this.waveNumber++;
     }
 
     spawnAllies(playerPosition = null) {
@@ -356,6 +352,12 @@ export class TeamManager {
         if (index > -1) {
             this.enemies.splice(index, 1);
             
+            // Remove from current wave tracking
+            const waveIndex = this.currentWaveEnemies.indexOf(enemy);
+            if (waveIndex > -1) {
+                this.currentWaveEnemies.splice(waveIndex, 1);
+            }
+            
             // Remove from group if in a group
             if (enemy.isInGroup && enemy.group) {
                 const groupIndex = enemy.group.enemies.indexOf(enemy);
@@ -421,46 +423,34 @@ export class TeamManager {
             this.blueScore = 1 + Math.min(currentAliveAllies, this.maxAllies);
         }
         
-        // Handle enemy respawning - spawn enemies to match soldier count (allies + player)
+        // Handle wave-based enemy spawning - spawn next wave when all enemies in current wave die
+        // Check if all enemies in current wave are dead (array is empty means all were removed/dead)
         const aliveEnemiesCount = this.enemies.filter(e => e.health > 0).length;
-        const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
-        const totalSoldierCount = aliveAlliesCount + 1; // Allies + player
         
-        // Calculate how many enemies we need to match soldier count
-        const enemiesNeeded = totalSoldierCount - aliveEnemiesCount;
-        
-        // Update respawn timer
-        this.enemyRespawnTimer += deltaTime;
-        
-        // Spawn enemies if timer reached interval OR if we have no enemies at all (immediate spawn)
-        const shouldSpawn = this.enemyRespawnTimer >= this.enemyRespawnInterval || (aliveEnemiesCount === 0 && enemiesNeeded > 0);
-        
-        if (shouldSpawn) {
-            // Always try to spawn enemies to match soldier count, as long as pool has enemies
-            if (this.redScore > 0 && enemiesNeeded > 0) {
-                // Calculate how many enemies to spawn (don't exceed pool)
-                const enemiesToSpawn = Math.min(enemiesNeeded, this.redScore);
+        // If current wave is empty (all enemies died) and we have enemies left in pool, spawn next wave
+        if (this.currentWaveEnemies.length === 0 && this.redScore > 0 && aliveEnemiesCount === 0) {
+            // Increment wave number for next wave
+            this.waveNumber++;
+            
+            // Calculate how many enemies to spawn (10 per wave, but don't exceed pool)
+            const enemiesToSpawn = Math.min(this.enemiesPerWave, this.redScore);
+            
+            if (enemiesToSpawn > 0) {
+                // Use player position if available, otherwise use center
+                const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
                 
-                if (enemiesToSpawn > 0) {
-                    // Use player position if available, otherwise use center
-                    const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
-                    
-                    // Spawn enemy wave matching soldier count
-                    this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
-                    
-                    // Update bullet manager references for newly spawned enemies
-                    if (this.bulletManager) {
-                        // Get the last spawned enemies (the ones we just added)
-                        const newlySpawned = this.enemies.slice(-enemiesToSpawn);
-                        newlySpawned.forEach(enemy => {
-                            enemy.bulletManager = this.bulletManager;
-                        });
-                    }
+                // Spawn next wave
+                this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
+                
+                // Update bullet manager references for newly spawned enemies
+                if (this.bulletManager) {
+                    // Get the last spawned enemies (the ones we just added)
+                    const newlySpawned = this.enemies.slice(-enemiesToSpawn);
+                    newlySpawned.forEach(enemy => {
+                        enemy.bulletManager = this.bulletManager;
+                    });
                 }
             }
-            
-            // Reset timer
-            this.enemyRespawnTimer = 0;
         }
         
         // Get target lists for shooting

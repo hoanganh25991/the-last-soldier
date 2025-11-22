@@ -297,8 +297,8 @@ export class Game {
             
             // Reset game ended flag
             this.teamManager.setGameEnded(false);
-            this.teamManager.enemyRespawnTimer = 0;
             this.teamManager.waveNumber = 0; // Reset wave number
+            this.teamManager.currentWaveEnemies = []; // Reset current wave tracking
             
             // Reset scores
             this.teamManager.redScore = 100; // Reset enemy pool to 100
