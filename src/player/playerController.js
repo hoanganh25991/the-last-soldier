@@ -39,6 +39,20 @@ export class PlayerController {
         
         // Set initial position
         this.yawObject.position.set(0, 1.6, 0);
+        
+        // Create invisible collider mesh for bullet collision detection
+        // This represents the player's body at center height (Y=0.9)
+        // Use cylinder geometry as a capsule approximation
+        const colliderGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.6, 8);
+        const colliderMaterial = new THREE.MeshBasicMaterial({ 
+            visible: false, // Invisible
+            transparent: true,
+            opacity: 0
+        });
+        this.colliderMesh = new THREE.Mesh(colliderGeometry, colliderMaterial);
+        this.colliderMesh.userData.isPlayer = true;
+        this.colliderMesh.userData.team = 'blue'; // Player is on blue team
+        this.scene.add(this.colliderMesh);
     }
 
     getCamera() {
@@ -296,12 +310,22 @@ export class PlayerController {
         } else {
             this.yawObject.position.copy(newPosition);
         }
+        
+        // Update collider mesh position to match player position (at body center height)
+        if (this.colliderMesh) {
+            this.colliderMesh.position.copy(this.yawObject.position);
+            this.colliderMesh.position.y = 0.9; // Body center height
+        }
 
         // Damping only when not moving
         if (moveDirection.length() === 0) {
             this.velocity.x *= 0.9;
             this.velocity.z *= 0.9;
         }
+    }
+    
+    getColliderMesh() {
+        return this.colliderMesh;
     }
 
     getPosition() {

@@ -50,41 +50,6 @@
     border-color: rgba(255, 255, 255, 0.5);
 }
 
-.compass {
-    width: 75px;
-    height: 75px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.8);
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.compass-arrow {
-    width: 4px;
-    height: 30px;
-    background: #0f0;
-    position: absolute;
-    transform-origin: bottom center;
-    border-radius: 2px;
-}
-
-.compass-labels {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-}
-
-.compass-label {
-    position: absolute;
-    font-size: 12px;
-    font-weight: bold;
-    color: #fff;
-}
-
 .minimap {
     width: 150px;
     height: 150px;
@@ -278,19 +243,6 @@
     left: 50%;
     transform: translate(-50%, -50%);
     transition: transform 0.1s;
-}
-
-.fps-counter {
-    font-size: 16px;
-    font-weight: bold;
-    color: rgba(255, 255, 255, 0.9);
-    text-align: left;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 5px 10px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    min-width: 50px;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Bottom Right */

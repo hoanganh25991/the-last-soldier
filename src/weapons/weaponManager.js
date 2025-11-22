@@ -11,6 +11,7 @@ export class WeaponManager {
         this.scene = scene;
         this.teamManager = teamManager;
         this.audioManager = audioManager;
+        this.player = null; // Will be set after player initialization
         
         this.bulletManager = new BulletManager(scene, collisionSystem);
         
@@ -260,6 +261,12 @@ export class WeaponManager {
             // Check bullet collisions with both enemies and allies (friendly fire)
             const enemies = this.teamManager.getEnemies();
             const allies = this.teamManager.getAllies();
+            
+            // Get player collider mesh if available
+            const playerCollider = this.player && this.player.getColliderMesh 
+                ? this.player.getColliderMesh() 
+                : null;
+            
             this.bulletManager.checkCollisions(
                 enemies,
                 allies,
@@ -268,6 +275,12 @@ export class WeaponManager {
                 },
                 (ally, damage, hitPosition) => {
                     this.teamManager.damageAlly(ally, damage, hitPosition);
+                },
+                playerCollider,
+                (damage, hitPosition) => {
+                    // Player hit callback - you can add health system here later
+                    console.log(`Player hit! Damage: ${damage}`);
+                    // TODO: Implement player health system
                 }
             );
         }

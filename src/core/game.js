@@ -70,6 +70,9 @@ export class Game {
         
         await this.weaponManager.init();
         
+        // Set player reference in weapon manager for bullet collision detection
+        this.weaponManager.player = this.player;
+        
         // Update team manager with bullet manager for soldier shooting
         this.teamManager.bulletManager = this.weaponManager.bulletManager;
         // Update existing enemies and allies with bullet manager
