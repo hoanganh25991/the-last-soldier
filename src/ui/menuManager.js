@@ -3,6 +3,7 @@ import { BattlefieldDeployBackground } from './battlefieldDeployBackground.js';
 import { PlayModeBackground } from './playModeBackground.js';
 import { AudioManager } from '../core/audioManager.js';
 import { WEAPON_ICONS, getWeaponIcon, getWeaponIconByType } from '../config/weaponIcons.js';
+import { showAlert } from './dialogManager.js';
 
 export class MenuManager {
     constructor() {
@@ -162,17 +163,17 @@ export class MenuManager {
         });
 
         // Play Mode Selection
-        document.getElementById('play-mode-map-editor').addEventListener('click', () => {
+        document.getElementById('play-mode-map-editor').addEventListener('click', async () => {
             // TODO: Implement map editor
-            alert('Map Editor chưa được triển khai');
+            await showAlert('Map Editor chưa được triển khai', 'Thông báo');
         });
-        document.getElementById('play-mode-join-match').addEventListener('click', () => {
+        document.getElementById('play-mode-join-match').addEventListener('click', async () => {
             // TODO: Implement join match
-            alert('Join Match chưa được triển khai');
+            await showAlert('Join Match chưa được triển khai', 'Thông báo');
         });
-        document.getElementById('play-mode-online-match').addEventListener('click', () => {
+        document.getElementById('play-mode-online-match').addEventListener('click', async () => {
             // TODO: Implement online match
-            alert('Online Match chưa được triển khai');
+            await showAlert('Online Match chưa được triển khai', 'Thông báo');
         });
         document.getElementById('play-mode-create-match').addEventListener('click', () => {
             this.showScreen('battlefield-deploy');

@@ -5,6 +5,7 @@ import { Battlefield } from '../world/battlefield.js';
 import { CollisionSystem } from '../collision/collisionSystem.js';
 import { TeamManager } from '../enemies/teamManager.js';
 import { UIManager } from '../ui/uiManager.js';
+import { showAlert } from '../ui/dialogManager.js';
 
 export class Game {
     constructor(audioManager = null) {
@@ -138,9 +139,19 @@ export class Game {
             const gameEndResult = this.teamManager.checkGameEnd();
             if (gameEndResult.ended) {
                 this.stop();
-                // Show game end message (you can enhance this with UI later)
+                // Release pointer lock so player can interact with dialog
+                if (document.pointerLockElement) {
+                    document.exitPointerLock();
+                }
+                // Show game end message with custom dialog
                 const winnerText = gameEndResult.winner === 'blue' ? 'Blue Team Wins!' : 'Red Team Wins!';
-                alert(`Game Over!\n${winnerText}\nBlue Score: ${this.teamManager.blueScore}\nRed Score: ${this.teamManager.redScore}`);
+                const message = `${winnerText}\n\nBlue Score: ${this.teamManager.blueScore}\nRed Score: ${this.teamManager.redScore}`;
+                showAlert(message, 'Game Over').then(() => {
+                    // Return to main menu after dialog is closed
+                    if (window.menuManager) {
+                        window.menuManager.showScreen('main-menu');
+                    }
+                });
                 return;
             }
             

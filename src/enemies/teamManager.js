@@ -405,13 +405,24 @@ export class TeamManager {
     }
 
     checkGameEnd() {
-        // Check if game should end (one team reaches 0)
-        if (this.redScore <= 0) {
+        // Check if game should end - only win when all enemies are actually killed
+        // Note: enemies are removed from array when they die, so we check if array is empty
+        // AND verify that we had enemies spawned (redScore started at 100)
+        const aliveEnemies = this.enemies.filter(e => e.health > 0).length;
+        const aliveAllies = this.allies.filter(a => a.health > 0).length;
+        
+        // Blue team wins only when all enemies are killed
+        // Check: no alive enemies AND we've killed all 100 (redScore reached 0 from initial 100)
+        if (aliveEnemies === 0 && this.redScore === 0) {
             return { ended: true, winner: 'blue' };
         }
-        if (this.blueScore <= 0) {
+        
+        // Red team wins when all allies are dead (including player)
+        // Check: no alive allies AND we've killed all allies (blueScore reached 0 from initial 10)
+        if (aliveAllies === 0 && this.blueScore === 0) {
             return { ended: true, winner: 'red' };
         }
+        
         return { ended: false, winner: null };
     }
 }
