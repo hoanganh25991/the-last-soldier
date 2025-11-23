@@ -40,6 +40,7 @@ export class PlayerController {
         this.touchRotation = { x: 0, y: 0 };
         this.lastTouch = null;
         this.joystickTouchId = null; // Track which touch is controlling the joystick
+        this.aimTouchId = null; // Track which touch is controlling the aim/camera
         this.touchControlsInitialized = false; // Prevent duplicate initialization
         
         // Bind mouse move handler once so we can properly remove it
@@ -298,11 +299,19 @@ export class PlayerController {
 
         // Global touch handlers to track joystick drag anywhere on screen
         const handleGlobalTouchMove = (e) => {
+            // Handle joystick touch
             const joystickTouch = findJoystickTouch(e.touches);
             if (joystickTouch) {
                 e.preventDefault();
                 e.stopPropagation();
                 this.updateJoystick(joystickTouch, joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+            }
+            
+            // Handle aim touch (will be handled separately, but we prevent default here if needed)
+            const aimTouch = findAimTouch(e.touches);
+            if (aimTouch && !joystickTouch) {
+                // Aim touch handling is done in handleAimTouchMove
+                // We just need to make sure preventDefault is called
             }
         };
 
@@ -336,56 +345,99 @@ export class PlayerController {
         document.addEventListener('touchend', handleGlobalTouchEnd);
         document.addEventListener('touchcancel', handleGlobalTouchEnd);
 
-        // Screen rotation for camera (only when joystick is not active)
-        let isRotating = false;
-        let rotationTouchId = null;
-
-        this.container.addEventListener('touchstart', (e) => {
-            // Only allow rotation if joystick is not active and this is a different touch
-            if (this.joystickTouchId === null && e.touches.length === 1) {
-                isRotating = true;
-                rotationTouchId = e.touches[0].identifier;
-                this.lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        // Helper function to find aim touch in touch list
+        const findAimTouch = (touches) => {
+            if (this.aimTouchId === null) return null;
+            for (let i = 0; i < touches.length; i++) {
+                if (touches[i].identifier === this.aimTouchId) {
+                    return touches[i];
+                }
             }
-        });
+            return null;
+        };
 
-        this.container.addEventListener('touchmove', (e) => {
-            if (isRotating && this.joystickTouchId === null) {
-                // Find the rotation touch
-                let rotationTouch = null;
-                for (let i = 0; i < e.touches.length; i++) {
-                    if (e.touches[i].identifier === rotationTouchId) {
-                        rotationTouch = e.touches[i];
+        // Helper function to check if touch is on right half of screen
+        const isOnRightHalf = (clientX) => {
+            return clientX > window.innerWidth / 2;
+        };
+
+        // Helper function to check if touch is on joystick area (left side, bottom area)
+        const isOnJoystickArea = (clientX, clientY) => {
+            const joystickRect = joystickContainer.getBoundingClientRect();
+            const padding = 50; // Extra padding around joystick
+            return clientX < window.innerWidth / 2 && 
+                   clientY > window.innerHeight - 200; // Bottom area
+        };
+
+        // Aim/camera rotation touch handlers - right half of screen
+        const handleAimTouchStart = (e) => {
+            // Check all touches to find one on right half that's not the joystick
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                // Skip if this is the joystick touch
+                if (touch.identifier === this.joystickTouchId) continue;
+                // Skip if this is already the aim touch
+                if (touch.identifier === this.aimTouchId) {
+                    // Update last touch position if it's already the aim touch
+                    this.lastTouch = { x: touch.clientX, y: touch.clientY };
+                    continue;
+                }
+                
+                // If touch is on right half and not on joystick area, use it for aiming
+                if (isOnRightHalf(touch.clientX) && !isOnJoystickArea(touch.clientX, touch.clientY)) {
+                    if (this.aimTouchId === null) {
+                        this.aimTouchId = touch.identifier;
+                        this.lastTouch = { x: touch.clientX, y: touch.clientY };
+                        console.log('Aim touch started on right side, ID:', this.aimTouchId);
                         break;
                     }
                 }
-                
-                if (rotationTouch) {
+            }
+        };
+
+        const handleAimTouchMove = (e) => {
+            const aimTouch = findAimTouch(e.touches);
+            if (aimTouch) {
+                // Only handle if this is not a joystick touch
+                if (aimTouch.identifier !== this.joystickTouchId) {
                     e.preventDefault();
-                    const deltaX = rotationTouch.clientX - this.lastTouch.x;
-                    const deltaY = rotationTouch.clientY - this.lastTouch.y;
+                    e.stopPropagation();
                     
+                    const deltaX = aimTouch.clientX - this.lastTouch.x;
+                    const deltaY = aimTouch.clientY - this.lastTouch.y;
+                    
+                    // Apply camera rotation
                     this.touchRotation.x += deltaX * 0.002;
                     this.touchRotation.y += deltaY * 0.002;
                     this.touchRotation.y = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.touchRotation.y));
                     
-                    this.lastTouch = { x: rotationTouch.clientX, y: rotationTouch.clientY };
+                    this.lastTouch = { x: aimTouch.clientX, y: aimTouch.clientY };
                 }
             }
-        });
+        };
 
-        this.container.addEventListener('touchend', (e) => {
-            // Check if rotation touch ended
-            if (rotationTouchId !== null) {
+        const handleAimTouchEnd = (e) => {
+            // Check if aim touch ended
+            if (this.aimTouchId !== null) {
                 for (let i = 0; i < e.changedTouches.length; i++) {
-                    if (e.changedTouches[i].identifier === rotationTouchId) {
-                        isRotating = false;
-                        rotationTouchId = null;
+                    if (e.changedTouches[i].identifier === this.aimTouchId) {
+                        // Check if it's still in active touches (shouldn't happen, but safety check)
+                        const aimTouch = findAimTouch(e.touches);
+                        if (!aimTouch) {
+                            this.aimTouchId = null;
+                            console.log('Aim touch ended');
+                        }
                         break;
                     }
                 }
             }
-        });
+        };
+
+        // Add touch handlers for aim control on right half of screen
+        this.container.addEventListener('touchstart', handleAimTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleAimTouchMove, { passive: false });
+        document.addEventListener('touchend', handleAimTouchEnd);
+        document.addEventListener('touchcancel', handleAimTouchEnd);
     }
 
     updateJoystick(touch, container, joystick, radius, handleRadius) {
