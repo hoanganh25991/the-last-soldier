@@ -39,7 +39,7 @@ export class TeamManager {
         this.currentWaveEnemies = []; // Track enemies in current wave
         
         // Player respawn system
-        this.playerRespawnDelay = 5.0; // Respawn delay in seconds (5 seconds)
+        this.playerRespawnDelay = 3.0; // Respawn delay in seconds (3 seconds)
         this.playerDeathTime = null; // Track when player died
         this.playerDeathCount = 0; // Track total player deaths
     }
@@ -458,54 +458,26 @@ export class TeamManager {
             
         }
         
-        // Handle wave-based enemy spawning
-        // Check if all enemies in current wave are dead (array is empty means all were removed/dead)
+        // Handle enemy spawning - keep 10 enemies alive
+        // Spawn logic: deploy 10 initially, when below 5 -> redeploy back to 10
         const aliveEnemiesCount = this.enemies.filter(e => e.health > 0).length;
         
-        // NEW: Respawn enemies if count drops below 5 to bring back to 10
-        if (aliveEnemiesCount < 5 && this.enemyPool > 0) {
+        // Respawn enemies if count drops below 5 to bring back to 10
+        if (aliveEnemiesCount < 5) {
             const enemiesNeeded = 10 - aliveEnemiesCount;
-            const enemiesToSpawn = Math.min(enemiesNeeded, this.enemyPool);
             
-            if (enemiesToSpawn > 0) {
+            if (enemiesNeeded > 0) {
                 // Use player position if available, otherwise use center
                 const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
                 
                 // Spawn enemies to bring count back to 10
                 // Note: spawnEnemyWave already shows notification, so no need to show here
-                this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
+                this.spawnEnemyWave(enemiesNeeded, spawnPosition);
                 
                 // Update bullet manager references for newly spawned enemies
                 if (this.bulletManager) {
                     // Get the last spawned enemies (the ones we just added)
-                    const newlySpawned = this.enemies.slice(-enemiesToSpawn);
-                    newlySpawned.forEach(enemy => {
-                        enemy.bulletManager = this.bulletManager;
-                    });
-                }
-            }
-        }
-        
-        // If current wave is empty (all enemies died) and we have enemies left in pool, spawn next wave
-        if (this.currentWaveEnemies.length === 0 && this.enemyPool > 0 && aliveEnemiesCount === 0) {
-            // Increment wave number for next wave
-            this.waveNumber++;
-            
-            // Calculate how many enemies to spawn (10 per wave, but don't exceed pool)
-            const enemiesToSpawn = Math.min(this.enemiesPerWave, this.enemyPool);
-            
-            if (enemiesToSpawn > 0) {
-                // Use player position if available, otherwise use center
-                const spawnPosition = playerPosition || new THREE.Vector3(0, 0, 0);
-                
-                // Spawn next wave
-                // Note: spawnEnemyWave already shows notification, so no need to show here
-                this.spawnEnemyWave(enemiesToSpawn, spawnPosition);
-                
-                // Update bullet manager references for newly spawned enemies
-                if (this.bulletManager) {
-                    // Get the last spawned enemies (the ones we just added)
-                    const newlySpawned = this.enemies.slice(-enemiesToSpawn);
+                    const newlySpawned = this.enemies.slice(-enemiesNeeded);
                     newlySpawned.forEach(enemy => {
                         enemy.bulletManager = this.bulletManager;
                     });
@@ -588,6 +560,13 @@ export class TeamManager {
         if (this.playerDeathTime !== null) {
             this.playerDeathTime += deltaTime;
             
+            // Update UI progress bar
+            if (this.uiManager && typeof this.uiManager.updateRespawnProgress === 'function') {
+                const progress = Math.min(this.playerDeathTime / this.playerRespawnDelay, 1.0);
+                const remainingTime = Math.ceil(this.playerRespawnDelay - this.playerDeathTime);
+                this.uiManager.updateRespawnProgress(progress, remainingTime);
+            }
+            
             // Respawn player after delay
             if (this.playerDeathTime >= this.playerRespawnDelay) {
                 // Reset player health
@@ -600,6 +579,11 @@ export class TeamManager {
                 }
                 // Reset death time
                 this.playerDeathTime = null;
+                
+                // Hide respawn progress bar
+                if (this.uiManager && typeof this.uiManager.hideRespawnProgress === 'function') {
+                    this.uiManager.hideRespawnProgress();
+                }
             }
         }
     }

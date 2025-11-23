@@ -25,6 +25,11 @@ export class UIManager {
         
         // Info panel
         this.infoPanelVisible = false;
+        
+        // Respawn progress
+        this.respawnProgressContainer = null;
+        this.respawnProgressFill = null;
+        this.respawnProgressTime = null;
     }
 
     init() {
@@ -36,6 +41,11 @@ export class UIManager {
         
         // Get deployment notification element
         this.deploymentNotification = document.getElementById('deployment-notification');
+        
+        // Get respawn progress elements
+        this.respawnProgressContainer = document.getElementById('respawn-progress-container');
+        this.respawnProgressFill = document.getElementById('respawn-progress-fill');
+        this.respawnProgressTime = document.getElementById('respawn-progress-time');
         
         // Setup info button
         this.setupInfoButton();
@@ -685,6 +695,39 @@ export class UIManager {
         setTimeout(() => {
             this.deploymentNotification.classList.remove('show');
         }, 500);
+    }
+    
+    updateRespawnProgress(progress, remainingTime) {
+        // Show respawn progress bar
+        if (this.respawnProgressContainer) {
+            this.respawnProgressContainer.classList.add('show');
+        }
+        
+        // Update progress bar fill
+        if (this.respawnProgressFill) {
+            this.respawnProgressFill.style.width = `${progress * 100}%`;
+        }
+        
+        // Update remaining time
+        if (this.respawnProgressTime) {
+            this.respawnProgressTime.textContent = remainingTime > 0 ? remainingTime : '';
+        }
+    }
+    
+    hideRespawnProgress() {
+        // Hide respawn progress bar
+        if (this.respawnProgressContainer) {
+            this.respawnProgressContainer.classList.remove('show');
+        }
+        
+        // Reset progress bar
+        if (this.respawnProgressFill) {
+            this.respawnProgressFill.style.width = '0%';
+        }
+        
+        if (this.respawnProgressTime) {
+            this.respawnProgressTime.textContent = '3';
+        }
     }
 }
 
