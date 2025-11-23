@@ -709,11 +709,20 @@ export class MenuManager {
         
         // Import and start game
         if (!this.gameInstance) {
-            // Step 1: Import Game module
-            const { Game } = await this.loadingManager.loadWithProgress(
-                import('../core/game.js'),
-                'Loading game modules...'
-            );
+            // Step 1: Import Game module (use preloaded if available)
+            let GameModule;
+            if (window._preloadedGameModule) {
+                // Use preloaded module - instant!
+                GameModule = window._preloadedGameModule;
+                this.loadingManager.completeStep('Game modules ready');
+            } else {
+                // Fallback: load if not preloaded
+                GameModule = await this.loadingManager.loadWithProgress(
+                    import('../core/game.js'),
+                    'Loading game modules...'
+                );
+            }
+            const { Game } = GameModule;
             
             this.gameInstance = new Game(this.audioManager);
             

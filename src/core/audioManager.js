@@ -67,6 +67,35 @@ export class AudioManager {
             return this.preloadPromises.get(url);
         }
 
+        // Check if already preloaded in HTML (from window._preloadedAudio)
+        if (window._preloadedAudio && window._preloadedAudio[url]) {
+            const preloadedAudio = window._preloadedAudio[url];
+            // Wait for it to be ready if not already
+            if (preloadedAudio.readyState >= 2) {
+                this.preloadedSounds.set(url, preloadedAudio);
+                this.playingSounds.set(url, new Set());
+                return true;
+            } else {
+                // Wait for it to load
+                return new Promise((resolve, reject) => {
+                    const handleCanPlay = () => {
+                        preloadedAudio.removeEventListener('canplaythrough', handleCanPlay);
+                        preloadedAudio.removeEventListener('error', handleError);
+                        this.preloadedSounds.set(url, preloadedAudio);
+                        this.playingSounds.set(url, new Set());
+                        resolve(true);
+                    };
+                    const handleError = () => {
+                        preloadedAudio.removeEventListener('canplaythrough', handleCanPlay);
+                        preloadedAudio.removeEventListener('error', handleError);
+                        reject(new Error(`Failed to preload: ${url}`));
+                    };
+                    preloadedAudio.addEventListener('canplaythrough', handleCanPlay, { once: true });
+                    preloadedAudio.addEventListener('error', handleError, { once: true });
+                });
+            }
+        }
+
         const promise = new Promise((resolve, reject) => {
             // Load audio file ONCE - browser will cache it
             const audio = new Audio();

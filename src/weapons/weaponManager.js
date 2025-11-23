@@ -52,26 +52,8 @@ export class WeaponManager {
             }
         });
         
-        // Preload weapon sounds to avoid network requests on each shot
-        // CRITICAL: Wait for preloading to complete before continuing
-        if (this.audioManager) {
-            const soundsToPreload = [
-                this.primaryWeapon.bulletSoundUrl,
-                this.secondaryWeapon.bulletSoundUrl,
-                'sounds/bullet-shoot.mp3' // Fallback
-            ];
-            
-            // Preload all sounds in parallel and wait for completion
-            await Promise.allSettled(
-                soundsToPreload.map(url => 
-                    this.audioManager.preloadSound(url).catch(() => {
-                        // Silently fail - sound will be skipped if not found
-                    })
-                )
-            );
-            
-            console.log('Weapon sounds preloaded - ready to fire without network requests');
-        }
+        // Sounds are already preloaded in HTML - no need to reload here
+        // AudioManager will use cached files when playing sounds
         
         // Start with primary weapon
         this.switchWeapon('primary');
