@@ -184,13 +184,10 @@ export class CollisionSystem {
         const colliderTopY = colliderMax.y;
         const distanceToTop = playerFeetY - colliderTopY;
         
-        // Check if landing/standing on top: horizontal overlap AND feet are near/above top surface
-        // Use a more generous threshold to allow landing on top
-        const landingThreshold = 0.8; // How close feet need to be to top surface (increased for better detection)
-        const isNearTop = horizontalOverlap && 
-                         distanceToTop >= -landingThreshold && 
-                         distanceToTop <= landingThreshold;
-
+        // Check if player's head/body is above the top surface
+        const playerHeadY = finalPos.y + height / 2;
+        const isAboveTop = playerHeadY > colliderTopY;
+        
         // Check if player is intersecting with the object
         const isIntersecting = (
             playerMin.x < colliderMax.x &&
@@ -201,17 +198,53 @@ export class CollisionSystem {
             playerMax.z > colliderMin.z
         );
 
-        // Priority 1: If near top surface and moving downward or already close, place on top
-        if (isNearTop && (isMovingDownward || distanceToTop <= 0.2)) {
-            finalPos.y = colliderTopY + height / 2;
-            onGround = true;
+        // Priority 1: If horizontally overlapping, check if player should stand on top
+        if (horizontalOverlap) {
+            // Check if player should be placed on top:
+            // 1. Player's head/body is above the top surface (jumping/falling onto it)
+            // 2. Feet are near the top surface (within 0.6 units below to 1.2 units above)
+            // 3. Player is intersecting and falling downward (prevent falling through)
+            const shouldStandOnTop = isAboveTop || 
+                                    (distanceToTop >= -0.6 && distanceToTop <= 1.2) ||
+                                    (isIntersecting && isMovingDownward && distanceToTop < 0 && distanceToTop > -height);
+            
+            if (shouldStandOnTop) {
+                // Place player on top of the object
+                finalPos.y = colliderTopY + height / 2;
+                onGround = true;
+            }
+            // If intersecting but shouldn't stand on top, handle side collisions
+            else if (isIntersecting) {
+                // Only push horizontally if player is clearly on the side (not mostly above)
+                // Check if player's bottom is below the top surface
+                if (playerFeetY < colliderTopY - 0.1) {
+                    const overlapX = Math.min(
+                        Math.abs(playerMax.x - colliderMin.x),
+                        Math.abs(colliderMax.x - playerMin.x)
+                    );
+                    const overlapZ = Math.min(
+                        Math.abs(playerMax.z - colliderMin.z),
+                        Math.abs(colliderMax.z - playerMin.z)
+                    );
+
+                    // Push out in the direction of least overlap
+                    if (overlapX < overlapZ) {
+                        if (finalPos.x < center.x) {
+                            finalPos.x = colliderMin.x - radius;
+                        } else {
+                            finalPos.x = colliderMax.x + radius;
+                        }
+                    } else {
+                        if (finalPos.z < center.z) {
+                            finalPos.z = colliderMin.z - radius;
+                        } else {
+                            finalPos.z = colliderMax.z + radius;
+                        }
+                    }
+                }
+            }
         }
-        // Priority 2: If intersecting and feet are above the top (but not too far), snap to top
-        else if (isIntersecting && distanceToTop > -0.3 && distanceToTop < 0.5 && isMovingDownward) {
-            finalPos.y = colliderTopY + height / 2;
-            onGround = true;
-        }
-        // Priority 3: Otherwise, handle side collisions (push horizontally)
+        // Priority 2: If not horizontally overlapping but intersecting, handle side collisions
         else if (isIntersecting) {
             // Only push out horizontally, allow vertical movement
             const overlapX = Math.min(
