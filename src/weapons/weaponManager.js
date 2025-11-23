@@ -189,17 +189,34 @@ export class WeaponManager {
             }
         });
 
+        // Helper function to cycle weapons: primary -> secondary -> gadget -> primary
+        const cycleWeapon = () => {
+            if (this.weaponType === 'primary') {
+                this.switchWeapon('secondary');
+            } else if (this.weaponType === 'secondary') {
+                this.switchWeapon('gadget');
+            } else if (this.weaponType === 'gadget') {
+                this.switchWeapon('primary');
+            }
+        };
+
         // Weapon switch (click on weapon icon) - cycles through primary -> secondary -> gadget -> primary
         const weaponIcon = document.getElementById('weapon-icon');
         if (weaponIcon) {
-            weaponIcon.addEventListener('click', () => {
-                if (this.weaponType === 'primary') {
-                    this.switchWeapon('secondary');
-                } else if (this.weaponType === 'secondary') {
-                    this.switchWeapon('gadget');
-                } else {
-                    this.switchWeapon('primary');
-                }
+            weaponIcon.addEventListener('click', cycleWeapon);
+        }
+
+        // Weapon switch button (bottom-right action button) - cycles through primary -> secondary -> gadget -> primary
+        const weaponSwitchBtn = document.getElementById('btn-weapon-switch');
+        if (weaponSwitchBtn) {
+            weaponSwitchBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                cycleWeapon();
+                // Visual feedback
+                weaponSwitchBtn.classList.add('btn-active');
+                setTimeout(() => {
+                    weaponSwitchBtn.classList.remove('btn-active');
+                }, 200);
             });
         }
     }

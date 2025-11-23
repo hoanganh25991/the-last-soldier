@@ -39,6 +39,8 @@ export class PlayerController {
         this.touchJoystick = { x: 0, y: 0 };
         this.touchRotation = { x: 0, y: 0 };
         this.lastTouch = null;
+        this.joystickTouchId = null; // Track which touch is controlling the joystick
+        this.touchControlsInitialized = false; // Prevent duplicate initialization
         
         // Bind mouse move handler once so we can properly remove it
         this.boundMouseMoveHandler = this.onMouseMove.bind(this);
@@ -203,60 +205,186 @@ export class PlayerController {
     }
 
     initTouchControls() {
+        // Prevent duplicate initialization
+        if (this.touchControlsInitialized) {
+            return;
+        }
+        
+        // Retry initialization if elements don't exist yet (HUD might not be visible)
         const joystickContainer = document.getElementById('joystick-container');
         const joystick = document.getElementById('joystick');
         
-        let isJoystickActive = false;
+        // Safety check - ensure elements exist, retry after a short delay if not
+        if (!joystickContainer || !joystick) {
+            console.warn('Joystick elements not found, retrying in 100ms...');
+            setTimeout(() => this.initTouchControls(), 100);
+            return;
+        }
+        
+        console.log('Joystick elements found, initializing touch controls');
+        this.touchControlsInitialized = true;
+        
         const joystickRadius = 75;
         const joystickHandleRadius = 30;
 
-        // Joystick touch handlers
-        joystickContainer.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            isJoystickActive = true;
-            this.updateJoystick(e.touches[0], joystickContainer, joystick, joystickRadius, joystickHandleRadius);
-        });
-
-        joystickContainer.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (isJoystickActive) {
-                this.updateJoystick(e.touches[0], joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+        // Helper function to find joystick touch in touch list
+        const findJoystickTouch = (touches) => {
+            if (this.joystickTouchId === null) return null;
+            // Handle mouse (identifier -1)
+            if (this.joystickTouchId === -1) return null; // Mouse is handled separately
+            for (let i = 0; i < touches.length; i++) {
+                if (touches[i].identifier === this.joystickTouchId) {
+                    return touches[i];
+                }
             }
-        });
+            return null;
+        };
 
-        joystickContainer.addEventListener('touchend', (e) => {
+        // Joystick touch handlers - start on container
+        const handleJoystickStart = (e) => {
             e.preventDefault();
-            isJoystickActive = false;
-            this.touchJoystick = { x: 0, y: 0 };
-            joystick.style.transform = 'translate(-50%, -50%)';
-        });
+            e.stopPropagation();
+            const touch = e.touches ? e.touches[0] : null;
+            if (touch && this.joystickTouchId === null) {
+                this.joystickTouchId = touch.identifier;
+                console.log('Joystick touch started, ID:', this.joystickTouchId);
+                this.updateJoystick(touch, joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+            }
+        };
 
-        // Screen rotation for camera
+        // Mouse handlers for desktop testing
+        let isMouseDown = false;
+        const handleMouseDown = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isMouseDown = true;
+            const rect = joystickContainer.getBoundingClientRect();
+            const mockTouch = {
+                clientX: e.clientX,
+                clientY: e.clientY,
+                identifier: -1 // Use -1 for mouse
+            };
+            this.joystickTouchId = -1;
+            this.updateJoystick(mockTouch, joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+        };
+
+        const handleMouseMove = (e) => {
+            if (isMouseDown && this.joystickTouchId === -1) {
+                e.preventDefault();
+                const rect = joystickContainer.getBoundingClientRect();
+                const mockTouch = {
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                    identifier: -1
+                };
+                this.updateJoystick(mockTouch, joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+            }
+        };
+
+        const handleMouseUp = (e) => {
+            if (isMouseDown && this.joystickTouchId === -1) {
+                isMouseDown = false;
+                this.joystickTouchId = null;
+                this.touchJoystick = { x: 0, y: 0 };
+                joystick.style.transform = 'translate(-50%, -50%)';
+            }
+        };
+
+        // Add listeners to container (handle has pointer-events: none)
+        joystickContainer.addEventListener('touchstart', handleJoystickStart, { passive: false });
+        joystickContainer.addEventListener('mousedown', handleMouseDown);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // Global touch handlers to track joystick drag anywhere on screen
+        const handleGlobalTouchMove = (e) => {
+            const joystickTouch = findJoystickTouch(e.touches);
+            if (joystickTouch) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.updateJoystick(joystickTouch, joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+            }
+        };
+
+        const handleGlobalTouchEnd = (e) => {
+            // Check if joystick touch ended
+            if (this.joystickTouchId !== null) {
+                // Check if the joystick touch is in the ended touches
+                let joystickTouchEnded = false;
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === this.joystickTouchId) {
+                        joystickTouchEnded = true;
+                        break;
+                    }
+                }
+                
+                // If joystick touch ended, reset joystick
+                if (joystickTouchEnded) {
+                    // Double check it's not still in active touches (shouldn't happen, but safety check)
+                    const joystickTouch = findJoystickTouch(e.touches);
+                    if (!joystickTouch) {
+                        this.joystickTouchId = null;
+                        this.touchJoystick = { x: 0, y: 0 };
+                        joystick.style.transform = 'translate(-50%, -50%)';
+                    }
+                }
+            }
+        };
+
+        // Add global touch handlers to document to catch drags outside container
+        document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+        document.addEventListener('touchend', handleGlobalTouchEnd);
+        document.addEventListener('touchcancel', handleGlobalTouchEnd);
+
+        // Screen rotation for camera (only when joystick is not active)
         let isRotating = false;
+        let rotationTouchId = null;
+
         this.container.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1 && !isJoystickActive) {
+            // Only allow rotation if joystick is not active and this is a different touch
+            if (this.joystickTouchId === null && e.touches.length === 1) {
                 isRotating = true;
+                rotationTouchId = e.touches[0].identifier;
                 this.lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }
         });
 
         this.container.addEventListener('touchmove', (e) => {
-            if (isRotating && e.touches.length === 1) {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const deltaX = touch.clientX - this.lastTouch.x;
-                const deltaY = touch.clientY - this.lastTouch.y;
+            if (isRotating && this.joystickTouchId === null) {
+                // Find the rotation touch
+                let rotationTouch = null;
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === rotationTouchId) {
+                        rotationTouch = e.touches[i];
+                        break;
+                    }
+                }
                 
-                this.touchRotation.x += deltaX * 0.002;
-                this.touchRotation.y += deltaY * 0.002;
-                this.touchRotation.y = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.touchRotation.y));
-                
-                this.lastTouch = { x: touch.clientX, y: touch.clientY };
+                if (rotationTouch) {
+                    e.preventDefault();
+                    const deltaX = rotationTouch.clientX - this.lastTouch.x;
+                    const deltaY = rotationTouch.clientY - this.lastTouch.y;
+                    
+                    this.touchRotation.x += deltaX * 0.002;
+                    this.touchRotation.y += deltaY * 0.002;
+                    this.touchRotation.y = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.touchRotation.y));
+                    
+                    this.lastTouch = { x: rotationTouch.clientX, y: rotationTouch.clientY };
+                }
             }
         });
 
-        this.container.addEventListener('touchend', () => {
-            isRotating = false;
+        this.container.addEventListener('touchend', (e) => {
+            // Check if rotation touch ended
+            if (rotationTouchId !== null) {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === rotationTouchId) {
+                        isRotating = false;
+                        rotationTouchId = null;
+                        break;
+                    }
+                }
+            }
         });
     }
 
@@ -279,6 +407,9 @@ export class PlayerController {
             this.touchJoystick.y = Math.sin(angle);
             joystick.style.transform = `translate(calc(-50% + ${Math.cos(angle) * radius}px), calc(-50% + ${Math.sin(angle) * radius}px))`;
         }
+        
+        // Debug log (can be removed later)
+        // console.log('Joystick values:', this.touchJoystick.x.toFixed(2), this.touchJoystick.y.toFixed(2));
     }
 
     onMouseMove(event) {
@@ -306,8 +437,8 @@ export class PlayerController {
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) this.direction.x -= 1;
         if (this.keys['KeyD'] || this.keys['ArrowRight']) this.direction.x += 1;
 
-        // Mobile joystick controls
-        if (Math.abs(this.touchJoystick.x) > 0.1 || Math.abs(this.touchJoystick.y) > 0.1) {
+        // Mobile joystick controls - use lower threshold for better responsiveness
+        if (Math.abs(this.touchJoystick.x) > 0.01 || Math.abs(this.touchJoystick.y) > 0.01) {
             this.direction.x += this.touchJoystick.x;
             this.direction.z += this.touchJoystick.y;
         }
