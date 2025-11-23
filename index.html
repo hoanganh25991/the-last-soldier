@@ -13,14 +13,220 @@
     
     <title>Người Lính Cuối</title>
     
+    <!-- Critical Loading Screen CSS - Inline for immediate display -->
+    <style>
+        /* Critical loading screen styles - must load first */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        }
+        #loading-screen.hidden {
+            display: none;
+        }
+        .loading-content {
+            text-align: center;
+            max-width: 500px;
+            padding: 20px;
+        }
+        .loading-content h1 {
+            font-size: 48px;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.3);
+            color: #fff;
+        }
+        .loading-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #ff0000, #ff6666);
+            width: 0%;
+            transition: width 0.3s;
+            border-radius: 15px;
+        }
+        #loading-text {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        /* Hide body content until loaded */
+        body:not(.loaded) > *:not(#loading-screen) {
+            display: none !important;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+        }
+    </style>
+    
     <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
     <link rel="icon" type="image/x-icon" href="images/favicon.ico">
     <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
     
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Load CSS asynchronously - won't block loading screen -->
+    <link rel="preload" href="css/style.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/style.css"></noscript>
+    
     <link rel="manifest" href="manifest.json">
+    
+    <!-- Inline Loading Screen Script - Runs immediately, no dependencies -->
+    <script>
+        (function() {
+            // Simple loading progress manager - inline, no dependencies
+            let progress = 0;
+            const progressBar = document.getElementById('loading-progress');
+            const loadingText = document.getElementById('loading-text');
+            
+            // Mock progress animation
+            function updateProgress(percent, text) {
+                progress = Math.min(100, Math.max(0, percent));
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                }
+                if (loadingText && text) {
+                    loadingText.textContent = text;
+                }
+            }
+            
+            // Simulate progress while waiting for resources
+            let mockProgress = 0;
+            const progressInterval = setInterval(() => {
+                if (mockProgress < 90) {
+                    mockProgress += Math.random() * 3; // Random increment
+                    if (mockProgress > 90) mockProgress = 90;
+                    
+                    let text = 'Loading...';
+                    if (mockProgress < 20) text = 'Initializing...';
+                    else if (mockProgress < 40) text = 'Loading resources...';
+                    else if (mockProgress < 60) text = 'Preparing game...';
+                    else if (mockProgress < 80) text = 'Almost ready...';
+                    else text = 'Finalizing...';
+                    
+                    updateProgress(mockProgress, text);
+                }
+            }, 100);
+            
+            // Wait for all resources to load
+            function checkResourcesLoaded() {
+                // Check if CSS is loaded
+                let cssLoaded = false;
+                try {
+                    const sheets = document.styleSheets;
+                    cssLoaded = sheets.length > 0 || document.readyState === 'complete';
+                } catch(e) {
+                    cssLoaded = document.readyState === 'complete';
+                }
+                
+                // Check if DOM is ready
+                const domReady = document.readyState !== 'loading';
+                
+                // Check if main.js module is loaded (will be checked after it loads)
+                return cssLoaded && domReady;
+            }
+            
+            // Wait for resources and then load main.js
+            function waitForResources() {
+                if (checkResourcesLoaded()) {
+                    clearInterval(progressInterval);
+                    updateProgress(95, 'Loading game modules...');
+                    
+                    // Load main.js dynamically
+                    const script = document.createElement('script');
+                    script.type = 'module';
+                    script.src = 'src/main.js';
+                    script.onload = function() {
+                        updateProgress(100, 'Ready!');
+                        setTimeout(function() {
+                            var loadingScreen = document.getElementById('loading-screen');
+                            if (loadingScreen) {
+                                loadingScreen.classList.add('hidden');
+                                document.body.classList.add('loaded');
+                            }
+                            // Start preloading battle resources in background
+                            preloadBattleResources();
+                        }, 300);
+                    };
+                    script.onerror = function() {
+                        updateProgress(100, 'Ready!');
+                        setTimeout(function() {
+                            var loadingScreen = document.getElementById('loading-screen');
+                            if (loadingScreen) {
+                                loadingScreen.classList.add('hidden');
+                                document.body.classList.add('loaded');
+                            }
+                            // Start preloading battle resources even on error
+                            preloadBattleResources();
+                        }, 300);
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    // Check again soon
+                    setTimeout(waitForResources, 50);
+                }
+            }
+            
+            // Start checking when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', waitForResources);
+            } else {
+                waitForResources();
+            }
+            
+            // Preload battle resources in background (after page loads)
+            function preloadBattleResources() {
+                // Battle audio files
+                var audioFiles = [
+                    'sounds/battlefield-music.mp3',
+                    'sounds/rifle-shoot.mp3',
+                    'sounds/pistol-shoot.mp3',
+                    'sounds/bullet-shoot.mp3'
+                ];
+                
+                // Preload audio files using fetch (browser will cache)
+                audioFiles.forEach(function(url) {
+                    fetch(url, { method: 'HEAD', cache: 'force-cache' }).catch(function() {
+                        // Silently fail - file might not exist
+                    });
+                });
+                
+                // Prefetch JS modules needed for game
+                var modules = [
+                    'src/core/game.js',
+                    'src/core/engine.js',
+                    'src/core/audioManager.js',
+                    'src/weapons/weaponManager.js',
+                    'src/player/playerController.js',
+                    'src/enemies/teamManager.js',
+                    'src/world/battlefield.js'
+                ];
+                
+                modules.forEach(function(module) {
+                    var link = document.createElement('link');
+                    link.rel = 'modulepreload';
+                    link.href = module;
+                    document.head.appendChild(link);
+                });
+                
+                console.log('Battle resources preloading started...');
+            }
+        })();
+    </script>
 </head>
 <body>
     <div id="game-container"></div>

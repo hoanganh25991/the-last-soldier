@@ -8,13 +8,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     // Make menuManager accessible globally for game start
     window.menuManager = menuManager;
-    
-    // Hide initial loading screen after menu is ready
-    setTimeout(() => {
-        const loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) {
-            loadingScreen.classList.add('hidden');
-        }
-    }, 500);
 });
 
