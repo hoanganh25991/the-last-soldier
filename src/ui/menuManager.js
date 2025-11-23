@@ -697,9 +697,6 @@ export class MenuManager {
         // Stop menu music when entering battlefield
         this.audioManager.stopMusic('menu');
         
-        // Preload battle audio files if not already loaded
-        await this.preloadBattleAudio();
-        
         // Show loading screen
         this.loadingManager.show();
         this.loadingManager.setTotalSteps(7); // Game import, Engine init, Battlefield, TeamManager, Player, WeaponManager, UI
@@ -901,29 +898,5 @@ export class MenuManager {
         }
     }
 
-    async preloadBattleAudio() {
-        // Preload battle audio files to avoid delay when starting game
-        const audioFiles = [
-            'sounds/battlefield-music.mp3',
-            'sounds/rifle-shoot.mp3',
-            'sounds/pistol-shoot.mp3',
-            'sounds/bullet-shoot.mp3'
-        ];
-        
-        // Preload using AudioManager if available
-        if (this.audioManager) {
-            try {
-                // Preload weapon sounds (they're cached by AudioManager)
-                await Promise.allSettled([
-                    this.audioManager.preloadSound('sounds/rifle-shoot.mp3'),
-                    this.audioManager.preloadSound('sounds/pistol-shoot.mp3'),
-                    this.audioManager.preloadSound('sounds/bullet-shoot.mp3')
-                ]);
-            } catch (error) {
-                // Silently fail - sounds will load on demand
-                console.debug('Audio preload error:', error);
-            }
-        }
-    }
 }
 

@@ -188,9 +188,9 @@
                 waitForResources();
             }
             
-            // Preload battle resources in background (after page loads)
+            // Preload battle resources immediately - don't wait for deploy
             function preloadBattleResources() {
-                // Battle audio files
+                // Battle audio files - load once using Audio elements
                 var audioFiles = [
                     'sounds/battlefield-music.mp3',
                     'sounds/rifle-shoot.mp3',
@@ -198,11 +198,17 @@
                     'sounds/bullet-shoot.mp3'
                 ];
                 
-                // Preload audio files using fetch (browser will cache)
+                // Preload audio files - browser caches them
                 audioFiles.forEach(function(url) {
-                    fetch(url, { method: 'HEAD', cache: 'force-cache' }).catch(function() {
-                        // Silently fail - file might not exist
-                    });
+                    var audio = new Audio();
+                    audio.src = url;
+                    audio.preload = 'auto';
+                    audio.load();
+                    // Store globally for AudioManager to use later
+                    if (!window._preloadedAudio) {
+                        window._preloadedAudio = {};
+                    }
+                    window._preloadedAudio[url] = audio;
                 });
                 
                 // Prefetch JS modules needed for game
@@ -223,8 +229,11 @@
                     document.head.appendChild(link);
                 });
                 
-                console.log('Battle resources preloading started...');
+                console.log('Battle resources preloading started immediately...');
             }
+            
+            // Start preloading immediately when script runs
+            preloadBattleResources();
         })();
     </script>
 </head>

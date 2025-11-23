@@ -55,7 +55,7 @@ export class AudioManager {
         // Pool will be created dynamically per sound URL
     }
 
-    // Preload a sound file and create pool of audio elements
+    // Preload a sound file - load once, browser caches it
     async preloadSound(url) {
         // Check if already preloaded
         if (this.preloadedSounds.has(url)) {
@@ -68,67 +68,44 @@ export class AudioManager {
         }
 
         const promise = new Promise((resolve, reject) => {
-            // Create multiple audio elements for this sound (for concurrent playback)
-            const audioElements = [];
-            let loadedCount = 0;
-            let errorCount = 0;
-            const totalElements = this.maxConcurrentSounds;
+            // Load audio file ONCE - browser will cache it
+            const audio = new Audio();
+            audio.src = url;
+            audio.preload = 'auto';
             
-            const checkComplete = () => {
-                if (loadedCount + errorCount === totalElements) {
-                    const loadedElements = audioElements.filter(a => a.readyState >= 2);
-                    if (loadedElements.length > 0) {
-                        // Store the pool and mark as ready
-                        this.preloadedSounds.set(url, loadedElements);
-                        this.playingSounds.set(url, new Set());
-                        this.preloadPromises.delete(url);
-                        resolve(true);
-                    } else {
-                        this.preloadPromises.delete(url);
-                        reject(new Error(`Failed to preload: ${url}`));
-                    }
-                }
+            // Mark this URL
+            audio.dataset.soundUrl = url;
+            
+            const handleCanPlay = () => {
+                audio.removeEventListener('canplaythrough', handleCanPlay);
+                audio.removeEventListener('error', handleError);
+                // Store single audio element as marker that file is cached
+                // When playing, we create new Audio with same src (browser uses cache)
+                this.preloadedSounds.set(url, audio);
+                this.playingSounds.set(url, new Set());
+                this.preloadPromises.delete(url);
+                resolve(true);
             };
             
-            // Create multiple audio elements with same URL (browser will cache)
-            for (let i = 0; i < totalElements; i++) {
-                const audio = new Audio();
-                // Set src ONCE - never change it again
-                audio.src = url;
-                audio.preload = 'auto';
-                
-                // Mark this URL so we never change src
-                audio.dataset.soundUrl = url;
-                
-                const handleCanPlay = () => {
-                    audio.removeEventListener('canplaythrough', handleCanPlay);
-                    audio.removeEventListener('error', handleError);
-                    loadedCount++;
-                    checkComplete();
-                };
-                
-                const handleError = (e) => {
-                    audio.removeEventListener('canplaythrough', handleCanPlay);
-                    audio.removeEventListener('error', handleError);
-                    errorCount++;
-                    checkComplete();
-                };
-                
-                audio.addEventListener('canplaythrough', handleCanPlay, { once: true });
-                audio.addEventListener('error', handleError, { once: true });
-                
-                // Load the audio
-                audio.load();
-                audioElements.push(audio);
-            }
+            const handleError = (e) => {
+                audio.removeEventListener('canplaythrough', handleCanPlay);
+                audio.removeEventListener('error', handleError);
+                this.preloadPromises.delete(url);
+                reject(new Error(`Failed to preload: ${url}`));
+            };
+            
+            audio.addEventListener('canplaythrough', handleCanPlay, { once: true });
+            audio.addEventListener('error', handleError, { once: true });
+            
+            // Load the audio
+            audio.load();
             
             // Timeout after 10 seconds
             setTimeout(() => {
-                if (!this.preloadedSounds.has(url)) {
+                if (!this.preloadedSounds.has(url) && this.preloadPromises.has(url)) {
                     this.preloadPromises.delete(url);
-                    const loadedElements = audioElements.filter(a => a.readyState >= 2);
-                    if (loadedElements.length > 0) {
-                        this.preloadedSounds.set(url, loadedElements);
+                    if (audio.readyState >= 2) {
+                        this.preloadedSounds.set(url, audio);
                         this.playingSounds.set(url, new Set());
                         resolve(true);
                     } else {
@@ -137,7 +114,7 @@ export class AudioManager {
                 }
             }, 10000);
         });
-
+        
         this.preloadPromises.set(url, promise);
         return promise;
     }
@@ -389,6 +366,7 @@ export class AudioManager {
 
     // Play sound effect with pooling and rate limiting
     playSound(url, volume = 1.0, rateLimit = false) {
+        // Clone audio element for concurrent playback instead of using multiple preloaded ones
         if (!this.initialized) {
             this.init();
         }
@@ -402,52 +380,34 @@ export class AudioManager {
             this.lastBulletSoundTime = now;
         }
 
-        // Get preloaded audio elements for this URL
-        const audioPool = this.preloadedSounds.get(url);
-        if (!audioPool || audioPool.length === 0) {
+        // Get preloaded audio element for this URL (single element, not array)
+        const preloadedAudio = this.preloadedSounds.get(url);
+        if (!preloadedAudio) {
             // Not preloaded yet - start preloading in background and skip this play
             this.preloadSound(url).catch(() => {});
             return;
         }
 
-        // Get playing set for this URL
-        const playingSet = this.playingSounds.get(url) || new Set();
-
-        // Find an available audio element from the pool (not currently playing)
-        let audio = null;
-        for (const a of audioPool) {
-            if (!playingSet.has(a)) {
-                audio = a;
-                break;
-            }
-        }
-
-        // If all are playing, use the first one (overlap is okay for bullet sounds)
-        if (!audio) {
-            audio = audioPool[0];
-        }
+        // Create new Audio element with same src - browser uses cached file (no download)
+        const audio = new Audio();
+        audio.src = url; // Browser uses cache, no network request
+        audio.volume = volume * this.sfxVolume;
 
         // CRITICAL: Never change src! Audio is already loaded with this URL
         // Just reset and play - this avoids ALL network requests
         
-        // Stop current playback if any
-        audio.pause();
+        // Reset and play - browser uses cached file, no network request
         audio.currentTime = 0;
-        audio.volume = volume * this.sfxVolume;
         
-        // Mark as playing
-        playingSet.add(audio);
-        
-        // Handle end of playback
+        // Handle end of playback - cleanup cloned element
         const handleEnded = () => {
-            playingSet.delete(audio);
             audio.removeEventListener('ended', handleEnded);
+            // Cloned element will be garbage collected
         };
         audio.addEventListener('ended', handleEnded, { once: true });
         
-        // Play sound - NO network request since audio src was set during preload
+        // Play sound - NO network request, uses cached file
         audio.play().catch(error => {
-            playingSet.delete(audio);
             // Silently fail - might be autoplay restriction
         });
     }
