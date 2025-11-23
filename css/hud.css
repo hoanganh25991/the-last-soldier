@@ -862,3 +862,27 @@
     text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
 }
 
+.info-threshold {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-left: 4px;
+}
+
+.info-threshold-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: rgba(0, 150, 255, 0.1);
+    border-radius: 6px;
+    border: 2px solid rgba(0, 150, 255, 0.3);
+    margin: 8px 0;
+}
+
+.info-threshold-value {
+    color: #0af;
+    font-size: 20px;
+    text-shadow: 0 0 10px rgba(0, 150, 255, 0.8);
+    font-weight: bold;
+}
+

@@ -94,6 +94,8 @@ export class UIManager {
         const statusEl = document.getElementById('info-status');
         const playerDeathsEl = document.getElementById('info-player-deaths');
         
+        const threshold = 100; // Winning threshold
+        
         if (redKilledEl) {
             redKilledEl.textContent = this.teamManager.redScore;
         }
@@ -103,11 +105,11 @@ export class UIManager {
         }
         
         if (statusEl) {
-            // Check win/lose status
-            if (this.teamManager.redScore >= 100) {
+            // Check win/lose status based on threshold
+            if (this.teamManager.redScore >= threshold) {
                 statusEl.textContent = 'BLUE TEAM WINS!';
                 statusEl.className = 'info-value win';
-            } else if (this.teamManager.blueScore >= 100) {
+            } else if (this.teamManager.blueScore >= threshold) {
                 statusEl.textContent = 'RED TEAM WINS!';
                 statusEl.className = 'info-value lose';
             } else {
