@@ -29,7 +29,7 @@
     align-items: flex-start;
 }
 
-.btn-exit, .btn-chat {
+.btn-exit, .btn-chat, .btn-info {
     width: 45px;
     height: 45px;
     border-radius: 50%;
@@ -45,9 +45,14 @@
     flex-shrink: 0;
 }
 
-.btn-exit:hover, .btn-chat:hover {
+.btn-exit:hover, .btn-chat:hover, .btn-info:hover {
     background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-info.active {
+    background: rgba(0, 150, 255, 0.6);
+    border-color: rgba(0, 150, 255, 0.8);
 }
 
 .minimap {
@@ -688,5 +693,93 @@
     border-color: rgba(255, 255, 255, 0.8);
     transform: scale(1.05);
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+/* Info Panel */
+.info-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 25px;
+    min-width: 300px;
+    max-width: 400px;
+    z-index: 1001;
+    pointer-events: auto;
+    display: none;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.info-panel.show {
+    display: block;
+    animation: infoPanelFadeIn 0.3s ease;
+}
+
+@keyframes infoPanelFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.info-panel-content {
+    color: #fff;
+}
+
+.info-title {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin: 0 0 20px 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #0af;
+    text-shadow: 0 0 10px rgba(0, 150, 255, 0.5);
+}
+
+.info-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.info-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-label {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+.info-value.win {
+    color: #0f0;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.info-value.lose {
+    color: #f00;
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
 }
 

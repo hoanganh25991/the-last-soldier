@@ -22,6 +22,9 @@ export class UIManager {
         
         // Deployment notification
         this.deploymentNotification = null;
+        
+        // Info panel
+        this.infoPanelVisible = false;
     }
 
     init() {
@@ -33,6 +36,79 @@ export class UIManager {
         
         // Get deployment notification element
         this.deploymentNotification = document.getElementById('deployment-notification');
+        
+        // Setup info button
+        this.setupInfoButton();
+    }
+    
+    setupInfoButton() {
+        const infoBtn = document.getElementById('btn-info');
+        const infoPanel = document.getElementById('info-panel');
+        
+        if (infoBtn && infoPanel) {
+            infoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleInfoPanel();
+            });
+        }
+    }
+    
+    toggleInfoPanel() {
+        this.infoPanelVisible = !this.infoPanelVisible;
+        const infoPanel = document.getElementById('info-panel');
+        const infoBtn = document.getElementById('btn-info');
+        
+        if (infoPanel) {
+            if (this.infoPanelVisible) {
+                infoPanel.classList.add('show');
+                this.updateInfoPanel();
+            } else {
+                infoPanel.classList.remove('show');
+            }
+        }
+        
+        if (infoBtn) {
+            if (this.infoPanelVisible) {
+                infoBtn.classList.add('active');
+            } else {
+                infoBtn.classList.remove('active');
+            }
+        }
+    }
+    
+    updateInfoPanel() {
+        if (!this.teamManager) return;
+        
+        const redKilledEl = document.getElementById('info-red-killed');
+        const blueKilledEl = document.getElementById('info-blue-killed');
+        const statusEl = document.getElementById('info-status');
+        const playerDeathsEl = document.getElementById('info-player-deaths');
+        
+        if (redKilledEl) {
+            redKilledEl.textContent = this.teamManager.redScore;
+        }
+        
+        if (blueKilledEl) {
+            blueKilledEl.textContent = this.teamManager.blueScore;
+        }
+        
+        if (statusEl) {
+            // Check win/lose status
+            if (this.teamManager.redScore >= 100) {
+                statusEl.textContent = 'BLUE TEAM WINS!';
+                statusEl.className = 'info-value win';
+            } else if (this.teamManager.blueScore >= 100) {
+                statusEl.textContent = 'RED TEAM WINS!';
+                statusEl.className = 'info-value lose';
+            } else {
+                statusEl.textContent = 'In Progress';
+                statusEl.className = 'info-value';
+            }
+        }
+        
+        if (playerDeathsEl) {
+            playerDeathsEl.textContent = this.teamManager.getPlayerDeathCount();
+        }
     }
 
     initMinimap() {
@@ -214,6 +290,11 @@ export class UIManager {
             }
             if (blueScoreElement) {
                 blueScoreElement.textContent = this.teamManager.blueScore;
+            }
+            
+            // Update info panel if visible
+            if (this.infoPanelVisible) {
+                this.updateInfoPanel();
             }
         }
 

@@ -41,6 +41,7 @@ export class TeamManager {
         // Player respawn system
         this.playerRespawnDelay = 5.0; // Respawn delay in seconds (5 seconds)
         this.playerDeathTime = null; // Track when player died
+        this.playerDeathCount = 0; // Track total player deaths
     }
 
     init() {
@@ -572,8 +573,14 @@ export class TeamManager {
     handlePlayerDeath() {
         // Increment blue score when player dies (counts as 1 killed ally)
         this.blueScore = Math.min(100, this.blueScore + 1);
+        // Increment player death count
+        this.playerDeathCount++;
         // Track death time for respawn
         this.playerDeathTime = 0;
+    }
+    
+    getPlayerDeathCount() {
+        return this.playerDeathCount;
     }
     
     updatePlayerRespawn(deltaTime, player) {

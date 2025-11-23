@@ -219,11 +219,41 @@
         <!-- Top Left -->
         <div class="hud-top-left">
             <button class="btn-exit" id="btn-exit">✕</button>
+            <button class="btn-info" id="btn-info">ℹ️</button>
             <div class="minimap" id="minimap">
                 <canvas id="minimap-canvas"></canvas>
                 <div class="minimap-player" id="minimap-player"></div>
             </div>
             <button class="btn-chat" id="btn-chat">💬</button>
+        </div>
+        
+        <!-- Info Panel -->
+        <div class="info-panel" id="info-panel">
+            <div class="info-panel-content">
+                <h3 class="info-title">BATTLE STATS</h3>
+                <div class="info-stats">
+                    <div class="info-stat-row">
+                        <span class="info-label">Red Team Killed:</span>
+                        <span class="info-value" id="info-red-killed">0</span>
+                    </div>
+                    <div class="info-stat-row">
+                        <span class="info-label">Blue Team Killed:</span>
+                        <span class="info-value" id="info-blue-killed">0</span>
+                    </div>
+                    <div class="info-stat-row">
+                        <span class="info-label">Threshold:</span>
+                        <span class="info-value">100</span>
+                    </div>
+                    <div class="info-stat-row">
+                        <span class="info-label">Status:</span>
+                        <span class="info-value" id="info-status">In Progress</span>
+                    </div>
+                    <div class="info-stat-row">
+                        <span class="info-label">Your Deaths:</span>
+                        <span class="info-value" id="info-player-deaths">0</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Top Center -->
