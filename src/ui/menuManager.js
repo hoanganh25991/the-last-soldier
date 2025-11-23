@@ -697,6 +697,12 @@ export class MenuManager {
         // Stop menu music when entering battlefield
         this.audioManager.stopMusic('menu');
         
+        // Dispose existing game instance if it exists (clean state)
+        if (this.gameInstance) {
+            this.gameInstance.dispose();
+            this.gameInstance = null;
+        }
+        
         // Show loading screen
         this.loadingManager.show();
         this.loadingManager.setTotalSteps(7); // Game import, Engine init, Battlefield, TeamManager, Player, WeaponManager, UI
@@ -707,41 +713,26 @@ export class MenuManager {
         
         this.showScreen('game');
         
-        // Import and start game
-        if (!this.gameInstance) {
-            // Step 1: Import Game module (use preloaded if available)
-            let GameModule;
-            if (window._preloadedGameModule) {
-                // Use preloaded module - instant!
-                GameModule = window._preloadedGameModule;
-                this.loadingManager.completeStep('Game modules ready');
-            } else {
-                // Fallback: load if not preloaded
-                GameModule = await this.loadingManager.loadWithProgress(
-                    import('../core/game.js'),
-                    'Loading game modules...'
-                );
-            }
-            const { Game } = GameModule;
-            
-            this.gameInstance = new Game(this.audioManager);
-            
-            // Step 2-6: Initialize game with progress tracking
-            await this.gameInstance.init(this.selectedWeapons, this.settings, this.loadingManager);
+        // Step 1: Import Game module (use preloaded if available)
+        let GameModule;
+        if (window._preloadedGameModule) {
+            // Use preloaded module - instant!
+            GameModule = window._preloadedGameModule;
+            this.loadingManager.completeStep('Game modules ready');
         } else {
-            // Resume game if it already exists
-            this.gameInstance.start();
-            // Update selected weapons in case they changed
-            if (this.gameInstance.weaponManager) {
-                if (this.selectedWeapons.gadget) {
-                    this.gameInstance.weaponManager.setSelectedGadget(this.selectedWeapons.gadget);
-                }
-            }
-            // Apply FPS visibility setting
-            if (this.gameInstance.engine) {
-                this.gameInstance.engine.setFPSVisibility(this.settings.showFPS);
-            }
+            // Fallback: load if not preloaded
+            GameModule = await this.loadingManager.loadWithProgress(
+                import('../core/game.js'),
+                'Loading game modules...'
+            );
         }
+        const { Game } = GameModule;
+        
+        // Always create a new game instance for clean state
+        this.gameInstance = new Game(this.audioManager);
+        
+        // Step 2-6: Initialize game with progress tracking
+        await this.gameInstance.init(this.selectedWeapons, this.settings, this.loadingManager);
         
         // Hide loading screen
         this.loadingManager.updateProgress(100, 'Ready!');

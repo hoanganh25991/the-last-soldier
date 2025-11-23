@@ -60,6 +60,11 @@ class SpatialGrid {
     clear() {
         this.grid.clear();
     }
+    
+    dispose() {
+        this.colliders = [];
+        this.spatialGrid.clear();
+    }
 }
 
 export class CollisionSystem {

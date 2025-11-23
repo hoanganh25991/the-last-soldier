@@ -208,13 +208,13 @@ export class UIManager {
         if (this.teamManager) {
             const redScoreElement = document.getElementById('team-red-score');
             const blueScoreElement = document.getElementById('team-blue-score');
-            // Display actual count of alive enemies on the ground (not the pool remaining)
+            // Display total killed enemies/allies (0-100)
             if (redScoreElement) {
-                const aliveEnemiesCount = this.teamManager.enemies ? 
-                    this.teamManager.enemies.filter(e => e.health > 0).length : 0;
-                redScoreElement.textContent = aliveEnemiesCount;
+                redScoreElement.textContent = this.teamManager.redScore;
             }
-            if (blueScoreElement) blueScoreElement.textContent = this.teamManager.blueScore;
+            if (blueScoreElement) {
+                blueScoreElement.textContent = this.teamManager.blueScore;
+            }
         }
 
         // Update weapon ammo

@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { Engine } from './engine.js';
 import { PlayerController } from '../player/playerController.js';
 import { WeaponManager } from '../weapons/weaponManager.js';
@@ -170,18 +171,30 @@ export class Game {
             if (!this.player) return; // Safety check
             
             // Check if player is dead
-            if (this.player.isDead && this.player.isDead()) {
-                this.handlePlayerDeath();
-                return;
+            const isPlayerDead = this.player.isDead && this.player.isDead();
+            
+            if (isPlayerDead) {
+                // Handle player death (increment score and start respawn timer)
+                if (this.teamManager && this.teamManager.playerDeathTime === null) {
+                    this.teamManager.handlePlayerDeath();
+                }
+                // Update player respawn timer
+                if (this.teamManager) {
+                    this.teamManager.updatePlayerRespawn(deltaTime, this.player);
+                }
+                // Don't update player when dead - wait for respawn
+                // But still update other systems so game continues
+            } else {
+                // Player is alive - update normally
+                this.player.update(deltaTime);
             }
             
-            this.player.update(deltaTime);
-            
-            // Pass player velocity to weapon manager for weapon sway
-            const playerVelocity = this.player.velocity;
+            // Pass player velocity to weapon manager for weapon sway (only if alive)
+            const playerVelocity = isPlayerDead ? new THREE.Vector3(0, 0, 0) : this.player.velocity;
             this.weaponManager.update(deltaTime, playerVelocity);
             
             // Pass player position and collider mesh to team manager so enemies can hunt and shoot at player
+            // Use last known position if player is dead (for respawn location)
             const playerPosition = this.player.getPosition();
             const playerColliderMesh = (this.player && typeof this.player.getColliderMesh === 'function') 
                 ? this.player.getColliderMesh() 
@@ -201,7 +214,8 @@ export class Game {
                 }
                 // Show game end message with custom dialog
                 const winnerText = gameEndResult.winner === 'blue' ? 'Blue Team Wins!' : 'Red Team Wins!';
-                const message = `${winnerText}\n\nBlue Score: ${this.teamManager.blueScore}\nRed Score: ${this.teamManager.redScore}`;
+                // Scores should be equal at game end (both teams killed 100)
+                const message = `${winnerText}\n\nBlue Score (Killed Allies): ${this.teamManager.blueScore}\nRed Score (Killed Enemies): ${this.teamManager.redScore}`;
                 showAlert(message, 'Game Over').then(() => {
                     // Return to main menu after dialog is closed
                     if (window.menuManager) {
@@ -230,21 +244,9 @@ export class Game {
     }
 
     handlePlayerDeath() {
-        // Stop enemy spawning
-        if (this.teamManager) {
-            this.teamManager.setGameEnded(true);
-        }
-        
-        // Stop the game loop
-        this.stop();
-        
-        // Release pointer lock so player can interact with popup buttons
-        if (document.pointerLockElement) {
-            document.exitPointerLock();
-        }
-        
-        // Show game over popup
-        this.showGameOverPopup();
+        // Player death is now handled in the game loop with respawn
+        // This method is kept for compatibility but no longer stops the game
+        // The game continues and player respawns automatically
     }
 
     showGameOverPopup() {
@@ -264,19 +266,13 @@ export class Game {
                         <p>Red Team Score: <span id="final-red-score">0</span></p>
                     </div>
                     <div class="game-over-buttons">
-                        <button id="btn-replay" class="btn-replay">REPLAY</button>
                         <button id="btn-main-menu" class="btn-main-menu">MAIN MENU</button>
                     </div>
                 </div>
             `;
             document.body.appendChild(popup);
             
-            // Add event listeners
-            document.getElementById('btn-replay').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.restartGame();
-            });
-            
+            // Add event listener for main menu button
             document.getElementById('btn-main-menu').addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.returnToMainMenu();
@@ -307,225 +303,8 @@ export class Game {
         const popup = document.getElementById('game-over-popup');
         if (popup) {
             popup.style.display = 'none';
-        }
-    }
-
-    async restartGame() {
-        // Hide popup
-        this.hideGameOverPopup();
-        
-        // Ensure pointer lock is released before restarting
-        if (document.pointerLockElement) {
-            document.exitPointerLock();
-        }
-        
-        // Small delay to ensure pointer lock is fully released
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Clear existing enemies and allies
-        if (this.teamManager) {
-            // Remove all existing enemies and allies from scene
-            this.teamManager.enemies.forEach(enemy => {
-                if (enemy.mesh) {
-                    this.engine.scene.remove(enemy.mesh);
-                    enemy.dispose();
-                }
-            });
-            this.teamManager.allies.forEach(ally => {
-                if (ally.mesh) {
-                    this.engine.scene.remove(ally.mesh);
-                    ally.dispose();
-                }
-            });
-            
-            // Clear arrays
-            this.teamManager.enemies = [];
-            this.teamManager.allies = [];
-            this.teamManager.enemyGroups = [];
-            this.teamManager.bloodEffects = [];
-            
-            // Reset respawn system
-            this.teamManager.deadAllies = [];
-            this.teamManager.allAlliesDeadTime = null;
-            
-            // Reset game ended flag
-            this.teamManager.setGameEnded(false);
-            this.teamManager.waveNumber = 0; // Reset wave number
-            this.teamManager.currentWaveEnemies = []; // Reset current wave tracking
-            
-            // Reset scores
-            this.teamManager.redScore = 100; // Reset enemy pool to 100
-            this.teamManager.blueScore = 10;
-            
-            // Respawn enemies and allies
-            this.teamManager.init();
-            
-            // Update bullet manager references
-            if (this.weaponManager && this.weaponManager.bulletManager) {
-                this.teamManager.bulletManager = this.weaponManager.bulletManager;
-                this.teamManager.enemies.forEach(enemy => {
-                    enemy.bulletManager = this.weaponManager.bulletManager;
-                });
-                this.teamManager.allies.forEach(ally => {
-                    ally.bulletManager = this.weaponManager.bulletManager;
-                });
-            }
-        }
-        
-        // Reset player state completely
-        if (this.player) {
-            // Reset health
-            this.player.health = this.player.maxHealth;
-            
-            // Reset position
-            this.player.yawObject.position.set(0, 1.6, 0);
-            
-            // Reset velocity
-            this.player.velocity.set(0, 0, 0);
-            
-            // Reset rotation (camera rotation)
-            this.player.yawObject.quaternion.set(0, 0, 0, 1);
-            this.player.pitchObject.quaternion.set(0, 0, 0, 1);
-            this.player.euler.set(0, 0, 0, 'YXZ');
-            
-            // Reset player states
-            this.player.isAiming = false;
-            this.player.isCrouching = false;
-            this.player.isSprinting = false;
-            this.player.canJump = false;
-            this.player.currentSpeed = this.player.moveSpeed;
-            
-            // Reset camera position (for crouching)
-            this.player.pitchObject.position.y = 0;
-            
-            // Reset FOV
-            this.player.currentFOV = this.player.defaultFOV;
-            if (this.player.camera && this.player.camera.fov !== undefined) {
-                this.player.camera.fov = this.player.defaultFOV;
-                this.player.camera.updateProjectionMatrix();
-            }
-            
-            // Reset collider mesh scale
-            if (this.player.colliderMesh) {
-                this.player.colliderMesh.scale.y = 1.0;
-            }
-        }
-        
-        // Reset weapon manager state
-        if (this.weaponManager) {
-            // Reset primary weapon
-            if (this.weaponManager.primaryWeapon) {
-                this.weaponManager.primaryWeapon.currentAmmo = this.weaponManager.primaryWeapon.maxAmmo;
-                this.weaponManager.primaryWeapon.reserveAmmo = 288; // Reset to initial reserve
-                this.weaponManager.primaryWeapon.isFiring = false;
-                this.weaponManager.primaryWeapon.isReloading = false;
-                if (this.weaponManager.primaryWeapon.currentRecoil) {
-                    this.weaponManager.primaryWeapon.currentRecoil.set(0, 0, 0);
-                }
-                if (this.weaponManager.primaryWeapon.currentSway) {
-                    this.weaponManager.primaryWeapon.currentSway.set(0, 0, 0);
-                }
-            }
-            
-            // Reset secondary weapon
-            if (this.weaponManager.secondaryWeapon) {
-                this.weaponManager.secondaryWeapon.currentAmmo = this.weaponManager.secondaryWeapon.maxAmmo;
-                this.weaponManager.secondaryWeapon.reserveAmmo = 60; // Reset to initial reserve
-                this.weaponManager.secondaryWeapon.isFiring = false;
-                this.weaponManager.secondaryWeapon.isReloading = false;
-                if (this.weaponManager.secondaryWeapon.currentRecoil) {
-                    this.weaponManager.secondaryWeapon.currentRecoil.set(0, 0, 0);
-                }
-                if (this.weaponManager.secondaryWeapon.currentSway) {
-                    this.weaponManager.secondaryWeapon.currentSway.set(0, 0, 0);
-                }
-            }
-            
-            // Reset gadget weapons
-            Object.values(this.weaponManager.gadgetWeapons).forEach(weapon => {
-                if (weapon) {
-                    if (weapon.currentAmmo !== undefined && weapon.maxAmmo !== undefined) {
-                        weapon.currentAmmo = weapon.maxAmmo;
-                    }
-                    if (weapon.reserveAmmo !== undefined) {
-                        // Reset to initial reserve (grenade has 0 reserve, knife has no ammo system)
-                        weapon.reserveAmmo = weapon.name === 'Grenade' ? 0 : (weapon.reserveAmmo || 0);
-                    }
-                    weapon.isFiring = false;
-                    weapon.isReloading = false;
-                    // Reset grenade charging state and clear active grenades
-                    if (weapon.name === 'Grenade') {
-                        if (weapon.isCharging !== undefined) {
-                            weapon.isCharging = false;
-                            weapon.chargeStartTime = 0;
-                        }
-                        // Clear all active grenades from scene
-                        if (weapon.grenades && Array.isArray(weapon.grenades)) {
-                            weapon.grenades.forEach(grenadeData => {
-                                if (grenadeData.mesh && grenadeData.mesh.parent) {
-                                    grenadeData.mesh.parent.remove(grenadeData.mesh);
-                                    if (grenadeData.mesh.geometry) grenadeData.mesh.geometry.dispose();
-                                    if (grenadeData.mesh.material) grenadeData.mesh.material.dispose();
-                                }
-                            });
-                            weapon.grenades = [];
-                        }
-                    }
-                    if (weapon.currentRecoil) {
-                        weapon.currentRecoil.set(0, 0, 0);
-                    }
-                    if (weapon.currentSway) {
-                        weapon.currentSway.set(0, 0, 0);
-                    }
-                }
-            });
-            
-            // Switch back to primary weapon
-            this.weaponManager.switchWeapon('primary');
-            
-            // Update UI
-            this.weaponManager.updateUI();
-        }
-        
-        // Reset UI manager state
-        if (this.uiManager) {
-            // Reset timer
-            this.uiManager.startTime = Date.now();
-            
-            // Reset crosshair state
-            this.uiManager.currentCrosshairSpread = 0;
-            this.uiManager.crosshairOffsetX = 0;
-            this.uiManager.crosshairOffsetY = 0;
-            this.uiManager.crosshairRotation = 0;
-            this.uiManager.jitterTime = 0;
-            
-            // Reset crosshair element if it exists
-            if (this.uiManager.crosshairElement) {
-                this.uiManager.crosshairElement.style.width = `${this.uiManager.baseCrosshairSize}px`;
-                this.uiManager.crosshairElement.style.height = `${this.uiManager.baseCrosshairSize}px`;
-                this.uiManager.crosshairElement.style.transform = 'translate(-50%, -50%) rotate(0deg)';
-            }
-        }
-        
-        // Clear bullets
-        if (this.weaponManager && this.weaponManager.bulletManager) {
-            this.weaponManager.bulletManager.clear();
-        }
-        
-        // Restart game loop
-        this.start();
-        
-        // Re-capture mouse (pointer lock) after restart
-        const gameContainer = document.getElementById('game-container');
-        if (gameContainer) {
-            // Small delay to ensure game container is ready and pointer lock was released
-            setTimeout(() => {
-                if (!document.pointerLockElement) {
-                    gameContainer.requestPointerLock().catch((err) => {
-                        console.debug('Pointer lock not available:', err.message);
-                    });
-                }
-            }, 200);
+            // Remove popup from DOM to ensure clean state
+            popup.remove();
         }
     }
 
@@ -536,10 +315,120 @@ export class Game {
         // Stop game
         this.stop();
         
-        // Return to main menu
+        // Stop battlefield music and restart menu music via menu manager
         if (window.menuManager) {
+            window.menuManager.stopGame();
+        }
+        
+        // Dispose all game resources
+        this.dispose();
+        
+        // Clear game instance in menu manager
+        if (window.menuManager) {
+            window.menuManager.gameInstance = null;
             window.menuManager.showScreen('main-menu');
         }
+    }
+    
+    dispose() {
+        // Stop game loop
+        this.stop();
+        
+        // Release pointer lock
+        if (document.pointerLockElement) {
+            document.exitPointerLock();
+        }
+        
+        // Clear bullets
+        if (this.weaponManager && this.weaponManager.bulletManager) {
+            this.weaponManager.bulletManager.clear();
+        }
+        
+        // Dispose team manager (enemies, allies, blood effects)
+        if (this.teamManager) {
+            // Remove all enemies
+            this.teamManager.enemies.forEach(enemy => {
+                if (enemy.mesh && this.engine && this.engine.scene) {
+                    this.engine.scene.remove(enemy.mesh);
+                }
+                if (enemy.dispose) {
+                    enemy.dispose();
+                }
+            });
+            
+            // Remove all allies
+            this.teamManager.allies.forEach(ally => {
+                if (ally.mesh && this.engine && this.engine.scene) {
+                    this.engine.scene.remove(ally.mesh);
+                }
+                if (ally.dispose) {
+                    ally.dispose();
+                }
+            });
+            
+            // Clear arrays
+            this.teamManager.enemies = [];
+            this.teamManager.allies = [];
+            this.teamManager.enemyGroups = [];
+            this.teamManager.bloodEffects = [];
+            
+            // Clear references
+            this.teamManager.uiManager = null;
+            this.teamManager.bulletManager = null;
+        }
+        
+        // Dispose weapon manager
+        if (this.weaponManager) {
+            // Clear bullets
+            if (this.weaponManager.bulletManager) {
+                this.weaponManager.bulletManager.clear();
+            }
+            // Clear weapon references
+            this.weaponManager.player = null;
+        }
+        
+        // Dispose battlefield
+        if (this.battlefield && this.battlefield.dispose) {
+            this.battlefield.dispose();
+        }
+        
+        // Dispose collision system
+        if (this.collisionSystem && this.collisionSystem.dispose) {
+            this.collisionSystem.dispose();
+        }
+        
+        // Dispose player
+        if (this.player) {
+            // Remove player collider mesh from scene
+            if (this.player.colliderMesh && this.engine && this.engine.scene) {
+                this.engine.scene.remove(this.player.colliderMesh);
+            }
+            // Remove player camera hierarchy from scene
+            if (this.player.yawObject && this.engine && this.engine.scene) {
+                this.engine.scene.remove(this.player.yawObject);
+            }
+        }
+        
+        // Dispose UI manager (clean up any UI elements if needed)
+        if (this.uiManager) {
+            // UI elements are in DOM, they'll be cleaned up when screen changes
+            this.uiManager = null;
+        }
+        
+        // Dispose engine (scene, renderer, camera, stats)
+        if (this.engine && this.engine.dispose) {
+            this.engine.dispose();
+        }
+        
+        // Clear all references
+        this.engine = null;
+        this.player = null;
+        this.weaponManager = null;
+        this.battlefield = null;
+        this.collisionSystem = null;
+        this.teamManager = null;
+        this.uiManager = null;
+        this.audioManager = null;
     }
 }
 

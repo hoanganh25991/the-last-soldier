@@ -107,5 +107,48 @@ export class Engine {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
+    
+    dispose() {
+        // Remove resize listener
+        window.removeEventListener('resize', () => this.onWindowResize());
+        
+        // Remove stats from DOM
+        if (this.stats && this.stats.dom && this.stats.dom.parentNode) {
+            this.stats.dom.parentNode.removeChild(this.stats.dom);
+        }
+        
+        // Dispose scene and all objects
+        if (this.scene) {
+            this.scene.traverse((object) => {
+                if (object.geometry) {
+                    object.geometry.dispose();
+                }
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => material.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
+                }
+            });
+            this.scene.clear();
+        }
+        
+        // Dispose renderer
+        if (this.renderer) {
+            this.renderer.dispose();
+            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+            }
+        }
+        
+        // Clear references
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.clock = null;
+        this.container = null;
+        this.stats = null;
+    }
 }
 

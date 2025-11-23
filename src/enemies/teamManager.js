@@ -12,8 +12,11 @@ export class TeamManager {
         this.playerTeam = 'blue'; // Player is on blue team (allies)
         this.enemyTeam = 'red';   // Enemies are red
         
-        this.redScore = 100; // Total enemy pool (100 enemies available, decreases when enemies die)
-        this.blueScore = 10; // 1 player + 9 teammates = 10 total
+        this.redScore = 0; // Total killed enemies (starts at 0, increases to 100)
+        this.blueScore = 0; // Total killed allies (starts at 0, increases to 100)
+        
+        // Track remaining enemy pool for spawning
+        this.enemyPool = 100; // Total enemies available (pool decreases when enemies die)
         
         this.enemies = [];
         this.allies = [];
@@ -34,6 +37,10 @@ export class TeamManager {
         this.enemiesPerWave = 10; // 10 enemies per wave
         this.totalEnemyPool = 100; // Total enemies available (pool decreases when enemies die)
         this.currentWaveEnemies = []; // Track enemies in current wave
+        
+        // Player respawn system
+        this.playerRespawnDelay = 5.0; // Respawn delay in seconds (5 seconds)
+        this.playerDeathTime = null; // Track when player died
     }
 
     init() {
@@ -152,8 +159,9 @@ export class TeamManager {
             this.uiManager.showDeploymentNotification('enemies');
         }
         
-        // Note: Pool (redScore) is NOT reduced when enemies spawn
-        // Pool is only reduced when enemies die (in damageEnemy method)
+        // Note: enemyPool is NOT reduced when enemies spawn
+        // enemyPool is only reduced when enemies die (in damageEnemy method)
+        // redScore tracks total killed enemies (increments when enemies die)
     }
 
     spawnAllies(playerPosition = null) {
@@ -208,11 +216,8 @@ export class TeamManager {
             this.allies.push(ally);
         }
         
-        // Update blue score when teammates are deployed
-        // Count only alive teammates (not including player, so max is 9)
-        const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
-        // blueScore should be 1 (player) + aliveAlliesCount
-        this.blueScore = 1 + aliveAlliesCount;
+        // blueScore tracks total killed allies, not alive count
+        // No need to update here as it's only updated when allies die
         
         // Show deployment notification
         if (this.uiManager && typeof this.uiManager.showDeploymentNotification === 'function') {
@@ -306,8 +311,10 @@ export class TeamManager {
             
             if (enemy.health <= 0) {
                 this.removeEnemy(enemy);
-                // Reduce enemy pool when enemy dies (redScore tracks remaining pool)
-                this.redScore = Math.max(0, this.redScore - 1);
+                // Increment red score (total killed enemies)
+                this.redScore = Math.min(100, this.redScore + 1);
+                // Reduce enemy pool when enemy dies
+                this.enemyPool = Math.max(0, this.enemyPool - 1);
             }
         }
     }
@@ -350,9 +357,8 @@ export class TeamManager {
             if (ally.health <= 0) {
                 // Remove dead ally (no individual respawn - only respawn all when all die)
                 this.removeAlly(ally);
-                // Update blue score: 1 (player) + alive teammates count
-                const aliveAlliesCount = this.allies.filter(a => a.health > 0).length;
-                this.blueScore = 1 + aliveAlliesCount;
+                // Increment blue score (total killed allies)
+                this.blueScore = Math.min(100, this.blueScore + 1);
             }
         }
     }
@@ -449,10 +455,6 @@ export class TeamManager {
                 this.allAlliesDeadTime = null;
             }
             
-            // Update blue score based on alive teammates count
-            // blueScore = 1 (player) + aliveAlliesCount (max 9)
-            const currentAliveAllies = this.allies.filter(a => a.health > 0).length;
-            this.blueScore = 1 + Math.min(currentAliveAllies, this.maxAllies);
         }
         
         // Handle wave-based enemy spawning
@@ -460,9 +462,9 @@ export class TeamManager {
         const aliveEnemiesCount = this.enemies.filter(e => e.health > 0).length;
         
         // NEW: Respawn enemies if count drops below 5 to bring back to 10
-        if (aliveEnemiesCount < 5 && this.redScore > 0) {
+        if (aliveEnemiesCount < 5 && this.enemyPool > 0) {
             const enemiesNeeded = 10 - aliveEnemiesCount;
-            const enemiesToSpawn = Math.min(enemiesNeeded, this.redScore);
+            const enemiesToSpawn = Math.min(enemiesNeeded, this.enemyPool);
             
             if (enemiesToSpawn > 0) {
                 // Use player position if available, otherwise use center
@@ -484,12 +486,12 @@ export class TeamManager {
         }
         
         // If current wave is empty (all enemies died) and we have enemies left in pool, spawn next wave
-        if (this.currentWaveEnemies.length === 0 && this.redScore > 0 && aliveEnemiesCount === 0) {
+        if (this.currentWaveEnemies.length === 0 && this.enemyPool > 0 && aliveEnemiesCount === 0) {
             // Increment wave number for next wave
             this.waveNumber++;
             
             // Calculate how many enemies to spawn (10 per wave, but don't exceed pool)
-            const enemiesToSpawn = Math.min(this.enemiesPerWave, this.redScore);
+            const enemiesToSpawn = Math.min(this.enemiesPerWave, this.enemyPool);
             
             if (enemiesToSpawn > 0) {
                 // Use player position if available, otherwise use center
@@ -552,23 +554,47 @@ export class TeamManager {
 
     checkGameEnd() {
         // Check if game should end
-        const aliveAllies = this.allies.filter(a => a.health > 0).length;
-        
-        // Blue team wins when all 100 enemies in pool have been deployed and killed
-        // redScore tracks remaining enemies in pool (starts at 100, decreases when enemies die)
-        if (this.redScore <= 0) {
+        // Blue team wins when 100 enemies have been killed
+        if (this.redScore >= 100) {
             this.gameEnded = true; // Stop enemy spawning
             return { ended: true, winner: 'blue' };
         }
         
-        // Red team wins when all allies are dead (including player)
-        // Check: no alive allies AND we've killed all allies (blueScore reached 0 from initial 10)
-        if (aliveAllies === 0 && this.blueScore === 0) {
+        // Red team wins when 100 allies have been killed (including player deaths)
+        if (this.blueScore >= 100) {
             this.gameEnded = true; // Stop enemy spawning
             return { ended: true, winner: 'red' };
         }
         
         return { ended: false, winner: null };
+    }
+    
+    handlePlayerDeath() {
+        // Increment blue score when player dies (counts as 1 killed ally)
+        this.blueScore = Math.min(100, this.blueScore + 1);
+        // Track death time for respawn
+        this.playerDeathTime = 0;
+    }
+    
+    updatePlayerRespawn(deltaTime, player) {
+        // Handle player respawn
+        if (this.playerDeathTime !== null) {
+            this.playerDeathTime += deltaTime;
+            
+            // Respawn player after delay
+            if (this.playerDeathTime >= this.playerRespawnDelay) {
+                // Reset player health
+                if (player) {
+                    player.health = player.maxHealth;
+                    // Reset position to spawn point (center)
+                    player.yawObject.position.set(0, 1.6, 0);
+                    // Reset velocity
+                    player.velocity.set(0, 0, 0);
+                }
+                // Reset death time
+                this.playerDeathTime = null;
+            }
+        }
     }
     
     getEnemiesOnScreen() {
@@ -577,8 +603,8 @@ export class TeamManager {
     }
     
     getEnemyPool() {
-        // Return remaining enemies in pool (redScore)
-        return this.redScore;
+        // Return remaining enemies in pool
+        return this.enemyPool;
     }
     
     getTotalEnemyPool() {

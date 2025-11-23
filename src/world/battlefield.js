@@ -27,6 +27,42 @@ export class Battlefield {
         this.createBarrelsAndCrates();
         this.createWallsAndFences();
     }
+    
+    dispose() {
+        // Remove terrain from scene
+        if (this.terrain && this.terrain.mesh && this.scene) {
+            this.scene.remove(this.terrain.mesh);
+            if (this.terrain.dispose) {
+                this.terrain.dispose();
+            }
+        }
+        
+        // Remove all objects from scene and dispose them
+        if (this.objects && this.scene) {
+            this.objects.forEach(obj => {
+                if (obj && this.scene) {
+                    this.scene.remove(obj);
+                    // Dispose geometry and materials
+                    obj.traverse((child) => {
+                        if (child.geometry) {
+                            child.geometry.dispose();
+                        }
+                        if (child.material) {
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(material => material.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
+                    });
+                }
+            });
+        }
+        
+        // Clear arrays
+        this.objects = [];
+        this.terrain = null;
+    }
 
     createGround() {
         // Create a large ground plane with bright green grass color (100x bigger: 50000x50000)
