@@ -2,6 +2,8 @@
 
 A 3D browser-based first-person shooter game built with Three.js. Experience intense battlefield combat with realistic weapon mechanics, team-based gameplay, and immersive 3D environments.
 
+![](./images/the-last-soldier-feature.png)
+
 ## Features
 
 - **3D First-Person Shooter**: Immersive 3D gameplay powered by Three.js
@@ -20,6 +22,10 @@ A 3D browser-based first-person shooter game built with Three.js. Experience int
 - **Vanilla JavaScript** (ES6 Modules) - Game logic and architecture
 - **HTML5/CSS3** - UI and styling
 - **Web Audio API** - Sound management
+
+## Google Play
+
+https://play.google.com/store/apps/details?id=io.github.hoanganh25991.thelastsoldier
 
 ## Getting Started
 
