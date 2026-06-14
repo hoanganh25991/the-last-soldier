@@ -196,6 +196,8 @@ export class Battlefield {
     createHouses() {
         const houseCount = this.spawnCounts.houses;
         const allowFar = this.spawnCounts.farStructures;
+        const castShadow = this.profile.castShadows;
+        const receiveShadow = this.profile.receiveShadows;
         // House materials
         const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xd3d3d3 }); // Light gray
         const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown
@@ -229,27 +231,31 @@ export class Battlefield {
             const wallGeometry = new THREE.BoxGeometry(width, height, 0.3);
             const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
             frontWall.position.set(0, height / 2, depth / 2);
-            frontWall.castShadow = true;
-            frontWall.receiveShadow = true;
+            frontWall.castShadow = castShadow;
+            frontWall.receiveShadow = receiveShadow;
+            frontWall.userData.shadowCasterType = 'large';
             house.add(frontWall);
             
             const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
             backWall.position.set(0, height / 2, -depth / 2);
-            backWall.castShadow = true;
-            backWall.receiveShadow = true;
+            backWall.castShadow = castShadow;
+            backWall.receiveShadow = receiveShadow;
+            backWall.userData.shadowCasterType = 'large';
             house.add(backWall);
             
             const sideWallGeometry = new THREE.BoxGeometry(0.3, height, depth);
             const leftWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
             leftWall.position.set(-width / 2, height / 2, 0);
-            leftWall.castShadow = true;
-            leftWall.receiveShadow = true;
+            leftWall.castShadow = castShadow;
+            leftWall.receiveShadow = receiveShadow;
+            leftWall.userData.shadowCasterType = 'large';
             house.add(leftWall);
             
             const rightWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
             rightWall.position.set(width / 2, height / 2, 0);
-            rightWall.castShadow = true;
-            rightWall.receiveShadow = true;
+            rightWall.castShadow = castShadow;
+            rightWall.receiveShadow = receiveShadow;
+            rightWall.userData.shadowCasterType = 'large';
             house.add(rightWall);
             
             // Create roof (pitched roof)
@@ -258,8 +264,9 @@ export class Battlefield {
             const roof = new THREE.Mesh(roofGeometry, roofMaterial);
             roof.position.set(0, height + roofHeight / 2, 0);
             roof.rotation.z = Math.random() * 0.1 - 0.05; // Slight tilt
-            roof.castShadow = true;
-            roof.receiveShadow = true;
+            roof.castShadow = castShadow;
+            roof.receiveShadow = receiveShadow;
+            roof.userData.shadowCasterType = 'large';
             house.add(roof);
             
             // Add windows (simple dark rectangles)
@@ -273,6 +280,8 @@ export class Battlefield {
                     const windowHeight = height * (0.3 + Math.random() * 0.4);
                     const windowX = (Math.random() - 0.5) * width * 0.6;
                     window.position.set(windowX, windowHeight, depth / 2 + 0.1);
+                    window.castShadow = false;
+                    window.userData.shadowCasterType = 'small';
                     house.add(window);
                 }
             }
@@ -292,9 +301,9 @@ export class Battlefield {
                 Math.sin(angle) * distance
             );
             house.rotation.y = Math.random() * Math.PI * 2;
+            house.userData.shadowCasterRoot = true;
+            house.userData.shadowCasterType = 'large';
             
-            house.castShadow = true;
-            house.receiveShadow = true;
             this.scene.add(house);
             this.objects.push(house);
         }
@@ -303,6 +312,8 @@ export class Battlefield {
     createVehicles() {
         const vehicleCount = this.spawnCounts.vehicles;
         const allowFar = this.spawnCounts.farStructures;
+        const castShadow = this.profile.castShadows;
+        const receiveShadow = this.profile.receiveShadows;
         const vehicleBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x2c3e50 }); // Dark blue-gray
         const vehicleWindowMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a2e }); // Dark
         const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a }); // Black
@@ -326,14 +337,17 @@ export class Battlefield {
             const bodyGeometry = new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyDepth);
             const body = new THREE.Mesh(bodyGeometry, vehicleBodyMaterial);
             body.position.y = bodyHeight / 2;
-            body.castShadow = true;
-            body.receiveShadow = true;
+            body.castShadow = castShadow;
+            body.receiveShadow = receiveShadow;
+            body.userData.shadowCasterType = 'medium';
             vehicle.add(body);
             
             // Windows
             const windowGeometry = new THREE.BoxGeometry(bodyWidth * 0.8, bodyHeight * 0.4, bodyDepth * 0.3);
             const windshield = new THREE.Mesh(windowGeometry, vehicleWindowMaterial);
             windshield.position.set(0, bodyHeight * 0.7, bodyDepth * 0.35);
+            windshield.castShadow = false;
+            windshield.userData.shadowCasterType = 'small';
             vehicle.add(windshield);
             
             // Wheels
@@ -349,7 +363,8 @@ export class Battlefield {
                 const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
                 wheel.rotation.z = Math.PI / 2;
                 wheel.position.set(pos.x, 0.4, pos.z);
-                wheel.castShadow = true;
+                wheel.castShadow = false;
+                wheel.userData.shadowCasterType = 'small';
                 vehicle.add(wheel);
             });
             
@@ -368,9 +383,9 @@ export class Battlefield {
                 Math.sin(angle) * distance
             );
             vehicle.rotation.y = Math.random() * Math.PI * 2;
+            vehicle.userData.shadowCasterRoot = true;
+            vehicle.userData.shadowCasterType = 'medium';
             
-            vehicle.castShadow = true;
-            vehicle.receiveShadow = true;
             this.scene.add(vehicle);
             this.objects.push(vehicle);
         }

@@ -40,6 +40,20 @@ export const BULLET_PROFILE = {
     minimal: { showTrail: false, segments: 4 }
 };
 
+export const SHADOW_CASTER_DISTANCE = {
+    high:    { large: 450, medium: 300, small: 180 },
+    medium:  { large: 320, medium: 200, small: 120 },
+    low:     { large: 0, medium: 0, small: 0 },
+    minimal: { large: 0, medium: 0, small: 0 }
+};
+
+export const CAMERA_FAR = {
+    high: 1000,
+    medium: 800,
+    low: 600,
+    minimal: 450
+};
+
 let cachedProfiles = {};
 
 export function getPerformanceProfile(qualityLevel) {
@@ -54,6 +68,8 @@ export function getPerformanceProfile(qualityLevel) {
         collision: COLLISION_PROFILE[qualityLevel] || COLLISION_PROFILE.medium,
         bullets: BULLET_PROFILE[qualityLevel] || BULLET_PROFILE.medium,
         spawnCounts: SPAWN_COUNTS[qualityLevel] || SPAWN_COUNTS.medium,
+        shadowCasterDistance: SHADOW_CASTER_DISTANCE[qualityLevel] || SHADOW_CASTER_DISTANCE.medium,
+        cameraFar: CAMERA_FAR[qualityLevel] || CAMERA_FAR.medium,
         castShadows: qualityLevel === 'high' || qualityLevel === 'medium',
         receiveShadows: qualityLevel === 'high' || qualityLevel === 'medium'
     };
