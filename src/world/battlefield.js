@@ -3,6 +3,7 @@ import { LODTerrain } from './lodTerrain.js';
 import { graphicsSliderToLevel } from '../config/renderConfig.js';
 import { getPerformanceProfile } from '../config/performanceProfile.js';
 import { InstancedPropGroup, PROP_BOUNDS } from './instancedProps.js';
+import { mergePartsByMaterial, disposeGeometries } from './geometryMerge.js';
 
 const TREE_CLUSTERS = [
     { centerX: 0, centerZ: 0, radius: 200, count: 100 },
@@ -205,6 +206,7 @@ export class Battlefield {
         
         for (let i = 0; i < houseCount; i++) {
             const house = new THREE.Group();
+            const disposableGeometries = [];
             
             // Random house size (small, medium, large)
             const sizeType = Math.random();
@@ -227,64 +229,82 @@ export class Battlefield {
                 height = 6 + Math.random() * 6;
             }
             
-            // Create walls
+            // Build mergeable parts (walls + roof + windows → 1–3 draw calls per house)
             const wallGeometry = new THREE.BoxGeometry(width, height, 0.3);
-            const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
-            frontWall.position.set(0, height / 2, depth / 2);
-            frontWall.castShadow = castShadow;
-            frontWall.receiveShadow = receiveShadow;
-            frontWall.userData.shadowCasterType = 'large';
-            house.add(frontWall);
-            
-            const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
-            backWall.position.set(0, height / 2, -depth / 2);
-            backWall.castShadow = castShadow;
-            backWall.receiveShadow = receiveShadow;
-            backWall.userData.shadowCasterType = 'large';
-            house.add(backWall);
-            
             const sideWallGeometry = new THREE.BoxGeometry(0.3, height, depth);
-            const leftWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
-            leftWall.position.set(-width / 2, height / 2, 0);
-            leftWall.castShadow = castShadow;
-            leftWall.receiveShadow = receiveShadow;
-            leftWall.userData.shadowCasterType = 'large';
-            house.add(leftWall);
-            
-            const rightWall = new THREE.Mesh(sideWallGeometry, wallMaterial);
-            rightWall.position.set(width / 2, height / 2, 0);
-            rightWall.castShadow = castShadow;
-            rightWall.receiveShadow = receiveShadow;
-            rightWall.userData.shadowCasterType = 'large';
-            house.add(rightWall);
-            
-            // Create roof (pitched roof)
             const roofHeight = height * 0.3;
             const roofGeometry = new THREE.BoxGeometry(width * 1.1, roofHeight, depth * 1.1);
-            const roof = new THREE.Mesh(roofGeometry, roofMaterial);
-            roof.position.set(0, height + roofHeight / 2, 0);
-            roof.rotation.z = Math.random() * 0.1 - 0.05; // Slight tilt
-            roof.castShadow = castShadow;
-            roof.receiveShadow = receiveShadow;
-            roof.userData.shadowCasterType = 'large';
-            house.add(roof);
-            
-            // Add windows (simple dark rectangles)
-            if (Math.random() > 0.3) { // 70% chance to have windows
+            disposableGeometries.push(wallGeometry, sideWallGeometry, roofGeometry);
+
+            const parts = [
+                {
+                    geometry: wallGeometry,
+                    material: wallMaterial,
+                    position: new THREE.Vector3(0, height / 2, depth / 2),
+                    casterType: 'large',
+                    castShadow,
+                    receiveShadow
+                },
+                {
+                    geometry: wallGeometry,
+                    material: wallMaterial,
+                    position: new THREE.Vector3(0, height / 2, -depth / 2),
+                    casterType: 'large',
+                    castShadow,
+                    receiveShadow
+                },
+                {
+                    geometry: sideWallGeometry,
+                    material: wallMaterial,
+                    position: new THREE.Vector3(-width / 2, height / 2, 0),
+                    casterType: 'large',
+                    castShadow,
+                    receiveShadow
+                },
+                {
+                    geometry: sideWallGeometry,
+                    material: wallMaterial,
+                    position: new THREE.Vector3(width / 2, height / 2, 0),
+                    casterType: 'large',
+                    castShadow,
+                    receiveShadow
+                },
+                {
+                    geometry: roofGeometry,
+                    material: roofMaterial,
+                    position: new THREE.Vector3(0, height + roofHeight / 2, 0),
+                    rotation: new THREE.Euler(0, 0, Math.random() * 0.1 - 0.05),
+                    casterType: 'large',
+                    castShadow,
+                    receiveShadow
+                }
+            ];
+
+            if (Math.random() > 0.3) {
                 const windowSize = Math.min(width, depth) * 0.15;
                 const windowGeometry = new THREE.BoxGeometry(windowSize, windowSize, 0.1);
+                disposableGeometries.push(windowGeometry);
                 const windowCount = Math.floor(Math.random() * 3) + 1;
-                
+
                 for (let w = 0; w < windowCount; w++) {
-                    const window = new THREE.Mesh(windowGeometry, windowMaterial);
                     const windowHeight = height * (0.3 + Math.random() * 0.4);
                     const windowX = (Math.random() - 0.5) * width * 0.6;
-                    window.position.set(windowX, windowHeight, depth / 2 + 0.1);
-                    window.castShadow = false;
-                    window.userData.shadowCasterType = 'small';
-                    house.add(window);
+                    parts.push({
+                        geometry: windowGeometry,
+                        material: windowMaterial,
+                        position: new THREE.Vector3(windowX, windowHeight, depth / 2 + 0.1),
+                        casterType: 'small',
+                        castShadow: false,
+                        receiveShadow
+                    });
                 }
             }
+
+            const mergedMeshes = mergePartsByMaterial(parts);
+            for (const mesh of mergedMeshes) {
+                house.add(mesh);
+            }
+            disposeGeometries(disposableGeometries);
             
             // Random position across the map (more dense near center)
             let distance, angle;
@@ -320,6 +340,7 @@ export class Battlefield {
         
         for (let i = 0; i < vehicleCount; i++) {
             const vehicle = new THREE.Group();
+            const disposableGeometries = [];
             const isTruck = Math.random() > 0.6; // 40% trucks, 60% cars
             
             let bodyWidth, bodyDepth, bodyHeight;
@@ -333,40 +354,54 @@ export class Battlefield {
                 bodyHeight = 1.5;
             }
             
-            // Vehicle body
             const bodyGeometry = new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyDepth);
-            const body = new THREE.Mesh(bodyGeometry, vehicleBodyMaterial);
-            body.position.y = bodyHeight / 2;
-            body.castShadow = castShadow;
-            body.receiveShadow = receiveShadow;
-            body.userData.shadowCasterType = 'medium';
-            vehicle.add(body);
-            
-            // Windows
             const windowGeometry = new THREE.BoxGeometry(bodyWidth * 0.8, bodyHeight * 0.4, bodyDepth * 0.3);
-            const windshield = new THREE.Mesh(windowGeometry, vehicleWindowMaterial);
-            windshield.position.set(0, bodyHeight * 0.7, bodyDepth * 0.35);
-            windshield.castShadow = false;
-            windshield.userData.shadowCasterType = 'small';
-            vehicle.add(windshield);
-            
-            // Wheels
-            const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+            const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 8);
+            disposableGeometries.push(bodyGeometry, windowGeometry, wheelGeometry);
+
+            const parts = [
+                {
+                    geometry: bodyGeometry,
+                    material: vehicleBodyMaterial,
+                    position: new THREE.Vector3(0, bodyHeight / 2, 0),
+                    casterType: 'medium',
+                    castShadow,
+                    receiveShadow
+                },
+                {
+                    geometry: windowGeometry,
+                    material: vehicleWindowMaterial,
+                    position: new THREE.Vector3(0, bodyHeight * 0.7, bodyDepth * 0.35),
+                    casterType: 'small',
+                    castShadow: false,
+                    receiveShadow
+                }
+            ];
+
             const wheelPositions = [
                 { x: bodyWidth * 0.6, z: bodyDepth * 0.3 },
                 { x: -bodyWidth * 0.6, z: bodyDepth * 0.3 },
                 { x: bodyWidth * 0.6, z: -bodyDepth * 0.3 },
                 { x: -bodyWidth * 0.6, z: -bodyDepth * 0.3 }
             ];
-            
-            wheelPositions.forEach(pos => {
-                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-                wheel.rotation.z = Math.PI / 2;
-                wheel.position.set(pos.x, 0.4, pos.z);
-                wheel.castShadow = false;
-                wheel.userData.shadowCasterType = 'small';
-                vehicle.add(wheel);
-            });
+
+            for (const pos of wheelPositions) {
+                parts.push({
+                    geometry: wheelGeometry,
+                    material: wheelMaterial,
+                    position: new THREE.Vector3(pos.x, 0.4, pos.z),
+                    rotation: new THREE.Euler(0, 0, Math.PI / 2),
+                    casterType: 'small',
+                    castShadow: false,
+                    receiveShadow
+                });
+            }
+
+            const mergedMeshes = mergePartsByMaterial(parts);
+            for (const mesh of mergedMeshes) {
+                vehicle.add(mesh);
+            }
+            disposeGeometries(disposableGeometries);
             
             // Random position
             let distance, angle;
