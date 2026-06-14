@@ -413,11 +413,11 @@ export class MenuManager {
                 name: 'Grenade',
                 icon: WEAPON_ICONS.grenade,
                 stats: {
-                    'Damage': '100',
-                    'Blast Radius': '5m',
+                    'Damage': '200',
+                    'Blast Radius': '6m',
                     'Fuse Time': '4s',
                     'Throw Range': '30m',
-                    'Cooldown': '30s',
+                    'Ammo': '10',
                     'Type': 'Explosive'
                 }
             },
@@ -847,7 +847,7 @@ export class MenuManager {
         const defaults = {
             primary: 'MP40',
             secondary: 'Pistol',
-            gadget: 'Knife'
+            gadget: 'Grenade'
         };
 
         try {

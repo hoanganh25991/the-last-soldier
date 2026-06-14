@@ -8,9 +8,9 @@ export class GrenadeWeapon extends WeaponBase {
         
         this.name = 'Grenade';
         this.icon = WEAPON_ICONS.grenade;
-        this.damage = 100;
+        this.damage = 200;
         this.fireRate = 30; // throws per minute (slow)
-        this.maxAmmo = 10; // Limited grenades
+        this.maxAmmo = 10;
         this.reserveAmmo = 0; // No reserve ammo
         this.reloadTime = 0; // No reload
         this.range = 30; // Throw range
@@ -18,7 +18,7 @@ export class GrenadeWeapon extends WeaponBase {
         this.bulletSpeed = 15; // Throw speed
         
         // Grenade properties
-        this.blastRadius = 5.0;
+        this.blastRadius = 6.0;
         this.fuseTime = 4.0; // seconds before explosion
         this.grenades = []; // Active grenades in the world
         

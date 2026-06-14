@@ -20,7 +20,7 @@ export class WeaponManager {
         this.gadgetWeapons = {}; // Map of gadget names to weapon instances
         this.currentWeapon = null;
         this.weaponType = 'primary'; // 'primary', 'secondary', or 'gadget'
-        this.selectedGadget = 'Knife'; // Default gadget
+        this.selectedGadget = 'Grenade'; // Default gadget
         
         this.initControls();
     }
@@ -386,6 +386,8 @@ export class WeaponManager {
             if (ammoReserve) {
                 if (this.weaponType === 'gadget' && this.selectedGadget === 'Knife') {
                     ammoReserve.textContent = '∞'; // Infinite for knife
+                } else if (this.weaponType === 'gadget' && this.selectedGadget === 'Grenade') {
+                    ammoReserve.textContent = this.currentWeapon.maxAmmo;
                 } else {
                     // Show "OUT" when reserve ammo is 0 (out of bullets)
                     if (this.currentWeapon.reserveAmmo <= 0) {
