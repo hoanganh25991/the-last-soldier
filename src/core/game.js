@@ -411,33 +411,27 @@ export class Game {
         
         // Dispose team manager (enemies, allies, blood effects)
         if (this.teamManager) {
-            // Remove all enemies
             this.teamManager.enemies.forEach(enemy => {
                 if (enemy.mesh && this.worldGroup) {
                     this.worldGroup.remove(enemy.mesh);
                 }
-                if (enemy.dispose) {
-                    enemy.dispose();
-                }
             });
-            
-            // Remove all allies
+
             this.teamManager.allies.forEach(ally => {
                 if (ally.mesh && this.worldGroup) {
                     this.worldGroup.remove(ally.mesh);
                 }
-                if (ally.dispose) {
-                    ally.dispose();
-                }
             });
-            
-            // Clear arrays
+
+            if (this.teamManager.disposeAll) {
+                this.teamManager.disposeAll();
+            }
+
             this.teamManager.enemies = [];
             this.teamManager.allies = [];
             this.teamManager.enemyGroups = [];
-            this.teamManager.bloodEffects = [];
+            this.teamManager.pendingRemovals = [];
             
-            // Clear references
             this.teamManager.uiManager = null;
             this.teamManager.bulletManager = null;
         }

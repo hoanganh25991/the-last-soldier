@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Enemy } from './enemy.js';
 import { BloodEffect } from '../effects/bloodEffect.js';
+import { DisposalQueue } from '../core/disposalQueue.js';
 
 export class TeamManager {
     constructor(worldGroup, collisionSystem, bulletManager = null) {
@@ -43,6 +44,84 @@ export class TeamManager {
         this.playerRespawnDelay = 3.0; // Respawn delay in seconds (3 seconds)
         this.playerDeathTime = null; // Track when player died
         this.playerDeathCount = 0; // Track total player deaths
+
+        this.pendingRemovals = [];
+        this.disposalQueue = new DisposalQueue(3);
+    }
+
+    createBloodEffect(position) {
+        const bloodPos = position.clone();
+        bloodPos.y += 1.0;
+        const effect = new BloodEffect(bloodPos, this.scene, (bloodEffect) => {
+            this.disposalQueue.enqueue(() => bloodEffect.disposeResources());
+        });
+        this.bloodEffects.push(effect);
+        return effect;
+    }
+
+    scheduleEnemyRemoval(enemy) {
+        if (enemy._pendingRemoval) return;
+        enemy._pendingRemoval = true;
+
+        if (enemy.mesh) {
+            enemy.mesh.visible = false;
+            this.scene.remove(enemy.mesh);
+        }
+
+        this.pendingRemovals.push({ type: 'enemy', entity: enemy });
+    }
+
+    scheduleAllyRemoval(ally) {
+        if (ally._pendingRemoval) return;
+        ally._pendingRemoval = true;
+
+        if (ally.mesh) {
+            ally.mesh.visible = false;
+            this.scene.remove(ally.mesh);
+        }
+
+        this.pendingRemovals.push({ type: 'ally', entity: ally });
+    }
+
+    flushPendingRemovals() {
+        if (this.pendingRemovals.length === 0) return;
+
+        const enemiesToRemove = [];
+        const alliesToRemove = [];
+
+        for (const item of this.pendingRemovals) {
+            if (item.type === 'enemy') {
+                enemiesToRemove.push(item.entity);
+            } else if (item.type === 'ally') {
+                alliesToRemove.push(item.entity);
+            }
+        }
+        this.pendingRemovals = [];
+
+        if (enemiesToRemove.length > 0) {
+            const removeSet = new Set(enemiesToRemove);
+            this.enemies = this.enemies.filter(e => !removeSet.has(e));
+            this.currentWaveEnemies = this.currentWaveEnemies.filter(e => !removeSet.has(e));
+
+            for (const enemy of enemiesToRemove) {
+                if (enemy.isInGroup && enemy.group) {
+                    const groupIndex = enemy.group.enemies.indexOf(enemy);
+                    if (groupIndex > -1) {
+                        enemy.group.enemies.splice(groupIndex, 1);
+                    }
+                }
+                this.disposalQueue.enqueue(() => enemy.dispose());
+            }
+        }
+
+        if (alliesToRemove.length > 0) {
+            const removeSet = new Set(alliesToRemove);
+            this.allies = this.allies.filter(a => !removeSet.has(a));
+
+            for (const ally of alliesToRemove) {
+                this.disposalQueue.enqueue(() => ally.dispose());
+            }
+        }
     }
 
     init() {
@@ -177,7 +256,7 @@ export class TeamManager {
         this.allies.forEach(ally => {
             if (ally.mesh) {
                 this.scene.remove(ally.mesh);
-                ally.dispose();
+                this.disposalQueue.enqueue(() => ally.dispose());
             }
         });
         this.allies = [];
@@ -308,14 +387,11 @@ export class TeamManager {
         if (enemy) {
             enemy.takeDamage(damage);
             
-            // Create blood effect at hit position or enemy position
             const bloodPos = hitPosition || enemy.mesh.position.clone();
-            bloodPos.y += 1.0; // Slightly above center
-            const bloodEffect = new BloodEffect(bloodPos, this.scene);
-            this.bloodEffects.push(bloodEffect);
+            this.createBloodEffect(bloodPos);
             
             if (enemy.health <= 0) {
-                this.removeEnemy(enemy);
+                this.scheduleEnemyRemoval(enemy);
                 // Increment red score (total killed enemies)
                 this.redScore = Math.min(100, this.redScore + 1);
                 // Reduce enemy pool when enemy dies
@@ -353,15 +429,11 @@ export class TeamManager {
         if (ally) {
             ally.takeDamage(damage);
             
-            // Create blood effect at hit position or ally position
             const bloodPos = hitPosition || ally.mesh.position.clone();
-            bloodPos.y += 1.0; // Slightly above center
-            const bloodEffect = new BloodEffect(bloodPos, this.scene);
-            this.bloodEffects.push(bloodEffect);
+            this.createBloodEffect(bloodPos);
             
             if (ally.health <= 0) {
-                // Remove dead ally (no individual respawn - only respawn all when all die)
-                this.removeAlly(ally);
+                this.scheduleAllyRemoval(ally);
                 // Increment blue score (total killed allies)
                 this.blueScore = Math.min(100, this.blueScore + 1);
             }
@@ -369,39 +441,31 @@ export class TeamManager {
     }
 
     removeEnemy(enemy) {
-        const index = this.enemies.indexOf(enemy);
-        if (index > -1) {
-            this.enemies.splice(index, 1);
-            
-            // Remove from current wave tracking
-            const waveIndex = this.currentWaveEnemies.indexOf(enemy);
-            if (waveIndex > -1) {
-                this.currentWaveEnemies.splice(waveIndex, 1);
-            }
-            
-            // Remove from group if in a group
-            if (enemy.isInGroup && enemy.group) {
-                const groupIndex = enemy.group.enemies.indexOf(enemy);
-                if (groupIndex > -1) {
-                    enemy.group.enemies.splice(groupIndex, 1);
-                }
-            }
-            
-            this.scene.remove(enemy.mesh);
-            enemy.dispose();
-        }
+        this.scheduleEnemyRemoval(enemy);
+        this.flushPendingRemovals();
     }
 
     removeAlly(ally) {
-        const index = this.allies.indexOf(ally);
-        if (index > -1) {
-            this.allies.splice(index, 1);
-            this.scene.remove(ally.mesh);
-            ally.dispose();
+        this.scheduleAllyRemoval(ally);
+        this.flushPendingRemovals();
+    }
+
+    disposeAll() {
+        this.flushPendingRemovals();
+        this.disposalQueue.flush();
+
+        for (const effect of this.bloodEffects) {
+            if (effect.isActive) {
+                effect.isActive = false;
+            }
+            effect.disposeResources();
         }
+        this.bloodEffects = [];
     }
 
     update(deltaTime, playerPosition = null, playerMesh = null) {
+        this.flushPendingRemovals();
+
         if (this.collisionSystem && this.collisionSystem.tickLineOfSightFrame) {
             this.collisionSystem.tickLineOfSightFrame();
         }
@@ -522,15 +586,14 @@ export class TeamManager {
             ally.update(deltaTime);
         }
         
-        // Update blood effects
-        for (let i = this.bloodEffects.length - 1; i >= 0; i--) {
-            const effect = this.bloodEffects[i];
+        for (const effect of this.bloodEffects) {
             if (effect.isActive) {
                 effect.update(deltaTime);
-            } else {
-                this.bloodEffects.splice(i, 1);
             }
         }
+        this.bloodEffects = this.bloodEffects.filter(effect => effect.isActive);
+
+        this.disposalQueue.process();
     }
 
     checkGameEnd() {
