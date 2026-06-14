@@ -12,6 +12,8 @@ export class Engine {
         this.stats = null;
         this.settings = settings || {};
         this.qualityLevel = graphicsSliderToLevel(this.settings.graphics ?? 50);
+        this.directionalLight = null;
+        this.renderInfoEl = null;
     }
 
     async init() {
@@ -56,6 +58,7 @@ export class Engine {
         directionalLight.shadow.camera.right = 100;
         directionalLight.shadow.camera.top = 100;
         directionalLight.shadow.camera.bottom = -100;
+        this.directionalLight = directionalLight;
         this.scene.add(directionalLight);
 
         // Clock for delta time
@@ -73,9 +76,27 @@ export class Engine {
         
         // Set initial visibility based on settings (default: hidden)
         this.setFPSVisibility(false);
+        this._initRenderInfo();
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
+    }
+
+    _initRenderInfo() {
+        this.renderInfoEl = document.getElementById('render-info');
+        if (!this.renderInfoEl) {
+            this.renderInfoEl = document.createElement('div');
+            this.renderInfoEl.id = 'render-info';
+            document.body.appendChild(this.renderInfoEl);
+        }
+    }
+
+    getDirectionalLight() {
+        return this.directionalLight;
+    }
+
+    getRenderConfig() {
+        return RENDER_CONFIG[this.qualityLevel] || RENDER_CONFIG.medium;
     }
 
     update() {
@@ -88,10 +109,23 @@ export class Engine {
 
     render() {
         this.renderer.render(this.scene, this.camera);
-        // End stats update
+        this._updateRenderInfo();
         if (this.stats) {
             this.stats.end();
         }
+    }
+
+    _updateRenderInfo() {
+        if (!this.renderInfoEl) return;
+
+        const show = this.settings.showFPS === true;
+        this.renderInfoEl.classList.toggle('visible', show);
+        if (!show || !this.renderer?.info) return;
+
+        const render = this.renderer.info.render;
+        const memory = this.renderer.info.memory;
+        this.renderInfoEl.textContent =
+            `DC:${render.calls}  Tri:${render.triangles}\nGeo:${memory.geometries}  Tex:${memory.textures}`;
     }
 
     getFPS() {
@@ -105,15 +139,29 @@ export class Engine {
         if (this.stats && this.stats.dom) {
             this.stats.dom.style.display = visible ? 'block' : 'none';
         }
+        if (this.renderInfoEl) {
+            this.renderInfoEl.classList.toggle('visible', visible && this.settings.showFPS === true);
+        }
     }
 
     applySettings(settings) {
         this.settings = { ...this.settings, ...settings };
         this.qualityLevel = graphicsSliderToLevel(this.settings.graphics ?? 50);
-        const renderConfig = RENDER_CONFIG[this.qualityLevel] || RENDER_CONFIG.medium;
+        const renderConfig = this.getRenderConfig();
+        const useBaked = this.settings.bakeShadows === true;
+        const shadowsEnabled = !useBaked
+            && this.settings.realTimeShadows !== false
+            && renderConfig.settings.shadowMapEnabled;
+
         this.renderer.setPixelRatio(getEffectivePixelRatio(this.qualityLevel, this.settings.resolution ?? 100));
-        this.renderer.shadowMap.enabled = this.settings.realTimeShadows !== false && renderConfig.settings.shadowMapEnabled;
+        this.renderer.shadowMap.enabled = shadowsEnabled;
         this.renderer.shadowMap.type = renderConfig.settings.shadowMapType;
+
+        if (this.directionalLight) {
+            this.directionalLight.castShadow = shadowsEnabled;
+        }
+
+        this.setFPSVisibility(this.settings.showFPS === true);
     }
 
     onWindowResize() {

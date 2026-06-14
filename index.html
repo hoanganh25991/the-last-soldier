@@ -2,6 +2,13 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <script>
+        // Chrome DevTools / embedded browser injects metrics scripts (VM###) that
+        // expect this binding. Provide a no-op so the console stays clean.
+        if (typeof window.__chromium_devtools_metrics_reporter !== 'function') {
+            window.__chromium_devtools_metrics_reporter = function () {};
+        }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#1a1a1a">
     <meta name="description" content="A 3D browser-based first-person shooter game built with Three.js">
@@ -586,7 +593,7 @@
                     </div>
                     <div class="settings-item">
                         <label>FILM GRAIN</label>
-                        <input type="checkbox" class="settings-checkbox" data-setting="filmGrain" checked>
+                        <input type="checkbox" class="settings-checkbox" data-setting="filmGrain">
                     </div>
                 </div>
                 <div class="settings-row">

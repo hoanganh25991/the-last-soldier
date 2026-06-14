@@ -34,8 +34,8 @@ export class TeamManager {
         // Wave-based enemy spawning system
         this.gameEnded = false; // Track if game has ended
         this.waveNumber = 0; // Track current wave number
-        this.baseEnemyDamage = 20; // Base damage per wave
-        this.damagePerWave = 5; // Damage increase per wave
+        this.baseEnemyDamage = 15;
+        this.damagePerWave = 3;
         this.enemiesPerWave = 10; // 10 enemies per wave
         this.totalEnemyPool = 100; // Total enemies available (pool decreases when enemies die)
         this.currentWaveEnemies = []; // Track enemies in current wave
@@ -226,6 +226,7 @@ export class TeamManager {
             // Track which wave this enemy belongs to
             enemy.waveNumber = this.waveNumber;
             enemy.entityId = this.enemies.length + this.allies.length;
+            enemy.lastShotTime = -((enemy.entityId % 6) * 0.4);
             if (enemy.mesh) {
                 this.scene.add(enemy.mesh);
             }

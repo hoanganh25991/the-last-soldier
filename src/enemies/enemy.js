@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createSoldierModel, updateWalkAnimation } from './soldierModel.js';
 
 export class Enemy {
-    constructor(position, team, collisionSystem = null, bulletManager = null, scene = null, waveNumber = 0, baseDamage = 20, damagePerWave = 5) {
+    constructor(position, team, collisionSystem = null, bulletManager = null, scene = null, waveNumber = 0, baseDamage = 15, damagePerWave = 3) {
         this.position = position.clone();
         this.team = team;
         
@@ -85,7 +85,11 @@ export class Enemy {
         this.currentTarget = null; // Current target to shoot at
         this.targets = []; // List of potential targets (enemies for allies, player/allies for enemies)
         this.entityId = 0;
-        this._lastLineOfSight = true;
+        this.timeOnCurrentTarget = 0;
+        this.reactionDelay = 0.7 + Math.random() * 0.9;
+        this._trackedTargetMesh = null;
+        this._strafeDirection = Math.random() < 0.5 ? 1 : -1;
+        this._strafeTimer = 0;
     }
 
     init() {
@@ -478,18 +482,15 @@ export class Enemy {
             
             const distance = this.position.distanceTo(targetWorldPos);
             if (distance < nearestDistance && distance > 0) {
-                if (this.collisionSystem && this.collisionSystem.checkLineOfSight) {
-                    let hasLineOfSight = this._lastLineOfSight;
-                    if (this.collisionSystem.shouldCheckLineOfSight(this.entityId)) {
-                        hasLineOfSight = this.collisionSystem.checkLineOfSight(
-                            this.position,
-                            targetWorldPos,
-                            1.0
-                        );
-                        this._lastLineOfSight = hasLineOfSight;
-                    }
-                    
-                    if (!hasLineOfSight) {
+                if (this.collisionSystem?.checkLineOfSight) {
+                    const mustCheck = distance < 50
+                        || !this.collisionSystem.shouldCheckLineOfSight
+                        || this.collisionSystem.shouldCheckLineOfSight(this.entityId);
+                    if (mustCheck && !this.collisionSystem.checkLineOfSight(
+                        this.position,
+                        targetWorldPos,
+                        1.0
+                    )) {
                         continue;
                     }
                 }
@@ -505,32 +506,32 @@ export class Enemy {
         return nearestTarget;
     }
 
-    shoot(targetPosition) {
+    _getSpreadForDistance(distance) {
+        if (distance < 6) return 0.14 + (6 - distance) * 0.03;
+        if (distance < 20) return 0.09;
+        if (distance < 60) return 0.06;
+        return 0.1;
+    }
+
+    shoot(targetPosition, distanceToTarget = 50) {
         if (!this.bulletManager || !this.mesh || this.health <= 0) return;
         
-        // ALWAYS aim at body center height (Y=0.9) regardless of target position
-        // This ensures bullets hit the player collider which is at body center
         const adjustedTarget = new THREE.Vector3(
             targetPosition.x,
-            0.9, // Always aim at body center height where player collider is
+            0.9,
             targetPosition.z
         );
         
-        // Bullet start position (from soldier's rifle position)
         const bulletStart = this.position.clone();
-        bulletStart.y += 1.0; // Height of rifle
+        bulletStart.y += 1.0;
         
-        // Calculate direction FROM rifle position TO adjusted target
-        // This is critical - direction must be calculated from where bullet starts, not from ground level
         const direction = new THREE.Vector3()
             .subVectors(adjustedTarget, bulletStart)
             .normalize();
         
-        // Add some spread for realism (soldiers aren't perfect shots)
-        // Reduce vertical spread significantly to ensure bullets hit
-        const spread = 0.05; // 5% horizontal spread
+        const spread = this._getSpreadForDistance(distanceToTarget);
         direction.x += (Math.random() - 0.5) * spread;
-        direction.y += (Math.random() - 0.5) * spread * 0.2; // Very little vertical spread (20% of horizontal)
+        direction.y += (Math.random() - 0.5) * spread * 0.25;
         direction.z += (Math.random() - 0.5) * spread;
         direction.normalize();
         
@@ -556,11 +557,35 @@ export class Enemy {
         const target = this.findShootingTarget();
         
         if (target) {
-            // ALWAYS aim at body center height (Y=0.9) regardless of target position
-            // This ensures bullets hit the player collider which is at body center
+            if (this._trackedTargetMesh !== target.mesh) {
+                this._trackedTargetMesh = target.mesh;
+                this.timeOnCurrentTarget = 0;
+            } else {
+                this.timeOnCurrentTarget += deltaTime;
+            }
+
+            const distanceToTarget = this.position.distanceTo(target.position);
+
+            if (this.collisionSystem?.checkLineOfSight) {
+                const canSee = this.collisionSystem.checkLineOfSight(
+                    this.position,
+                    target.position,
+                    1.0
+                );
+                if (!canSee) {
+                    this.currentTarget = null;
+                    this._trackedTargetMesh = null;
+                    this.timeOnCurrentTarget = 0;
+                    if (this.soldierData?.rifle) {
+                        this.soldierData.rifle.rotation.set(0, 0, -0.1);
+                    }
+                    return;
+                }
+            }
+
             const adjustedTargetPos = new THREE.Vector3(
                 target.position.x,
-                0.9, // Always aim at body center height where player collider is
+                0.9,
                 target.position.z
             );
             
@@ -607,14 +632,20 @@ export class Enemy {
             }
             
             // Shoot if ready (use adjusted target position)
-            if (this.lastShotTime >= this.fireInterval) {
-                this.shoot(adjustedTargetPos);
+            const shotInterval = distanceToTarget < 10
+                ? this.fireInterval * 1.35
+                : this.fireInterval;
+
+            if (this.lastShotTime >= shotInterval && this.timeOnCurrentTarget >= this.reactionDelay) {
+                this.shoot(adjustedTargetPos, distanceToTarget);
                 this.lastShotTime = 0;
                 this.currentTarget = target;
             } else {
                 this.currentTarget = target;
             }
         } else {
+            this._trackedTargetMesh = null;
+            this.timeOnCurrentTarget = 0;
             // No target, reset rifle to default position
             if (this.soldierData && this.soldierData.rifle) {
                 this.soldierData.rifle.rotation.set(0, 0, -0.1);
@@ -695,16 +726,29 @@ export class Enemy {
             groupCenter.z + this.formationOffset.z
         );
         
-        // When close to player, allow individual enemies to engage
+        // When close to player, strafe and keep distance instead of standing still
         if (distanceToPlayer < engagementRange) {
-            // Close to player - move toward player individually but stay near group
-            const directionToPlayer = new THREE.Vector3()
-                .subVectors(this.playerPosition, this.position)
-                .normalize();
-            
-            // Blend between formation position and player position
-            const blendFactor = 0.3; // 30% toward player, 70% maintain formation
-            desiredPosition.lerp(this.playerPosition, blendFactor);
+            this._strafeTimer += deltaTime;
+            if (this._strafeTimer > 2.5) {
+                this._strafeDirection *= -1;
+                this._strafeTimer = 0;
+            }
+
+            const toPlayer = new THREE.Vector3()
+                .subVectors(this.playerPosition, this.position);
+            toPlayer.y = 0;
+            toPlayer.normalize();
+
+            const strafe = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x)
+                .multiplyScalar(this._strafeDirection);
+            const spacing = distanceToPlayer < 12
+                ? toPlayer.clone().multiplyScalar(-4)
+                : toPlayer.clone().multiplyScalar(0.15);
+
+            desiredPosition.copy(this.position)
+                .add(strafe.multiplyScalar(5))
+                .add(spacing);
+            desiredPosition.y = 0;
         }
         
         // Move toward desired position
@@ -849,10 +893,36 @@ export class Enemy {
         let targetPos = this.targetPosition;
         
         if (this.huntMode && this.playerPosition) {
-            // Move towards player position with look-around behavior
             const distanceToPlayer = this.position.distanceTo(this.playerPosition);
             
-            if (distanceToPlayer > 2) {
+            if (distanceToPlayer <= 20 && distanceToPlayer > 3) {
+                this._strafeTimer += deltaTime;
+                if (this._strafeTimer > 2.5) {
+                    this._strafeDirection *= -1;
+                    this._strafeTimer = 0;
+                }
+
+                const toPlayer = new THREE.Vector3()
+                    .subVectors(this.playerPosition, this.position);
+                toPlayer.y = 0;
+                toPlayer.normalize();
+
+                const strafe = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x)
+                    .multiplyScalar(this._strafeDirection);
+                const advance = toPlayer.clone().multiplyScalar(0.25);
+
+                targetPos = this.position.clone()
+                    .add(strafe.multiplyScalar(6))
+                    .add(advance.multiplyScalar(4));
+                targetPos.y = 0;
+            } else if (distanceToPlayer <= 3) {
+                const awayFromPlayer = new THREE.Vector3()
+                    .subVectors(this.position, this.playerPosition);
+                awayFromPlayer.y = 0;
+                awayFromPlayer.normalize();
+                targetPos = this.position.clone().add(awayFromPlayer.multiplyScalar(6));
+                targetPos.y = 0;
+            } else if (distanceToPlayer > 2) {
                 // Initialize direction vectors if needed
                 if (this.currentDirection.length() === 0 || this.desiredDirection.length() === 0) {
                     const initialDir = new THREE.Vector3()
@@ -889,10 +959,6 @@ export class Enemy {
                 // Use current direction for movement (gradual approach, not straight line)
                 targetPos = this.position.clone().add(this.currentDirection.clone().multiplyScalar(10));
                 targetPos.y = 0;
-            } else {
-                // Close to player, set random nearby target for flanking
-                this.setRandomTarget();
-                targetPos = this.targetPosition;
             }
         } else if (!targetPos) {
             // No target, set random one

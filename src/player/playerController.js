@@ -50,11 +50,13 @@ export class PlayerController {
         this.aimTouchId = null; // Track which touch is controlling the aim/camera
         this.touchControlsInitialized = false; // Prevent duplicate initialization
         this.settings = {};
+        this.fisheyeMultiplier = 1;
         this.joystickDeadZone = 0.15;
         this.gyroRotation = { x: 0, y: 0 };
         this._lastGyro = null;
         this.gyroPermissionGranted = false;
         this._deviceOrientationHandler = null;
+        this.fisheyeMultiplier = 1;
         this._wasAiming = false;
         this.boundMouseMoveHandler = this.onMouseMove.bind(this);
         
@@ -101,6 +103,7 @@ export class PlayerController {
     applySettings(settings = {}) {
         this.settings = { ...this.settings, ...settings };
         this._lastGyro = null;
+        this.fisheyeMultiplier = this.settings.fisheyeLens ? 1.18 : 1;
     }
 
     getLookSensitivityMultiplier() {
@@ -652,7 +655,7 @@ export class PlayerController {
         }
 
         // Update aim/zoom FOV smoothly
-        const targetFOV = this.isAiming ? this.aimFOV : this.defaultFOV;
+        const targetFOV = (this.isAiming ? this.aimFOV : this.defaultFOV) * this.fisheyeMultiplier;
         this.currentFOV += (targetFOV - this.currentFOV) * this.aimTransitionSpeed * deltaTime;
         if (this.camera && this.camera.fov !== undefined) {
             this.camera.fov = this.currentFOV;

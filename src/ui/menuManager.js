@@ -26,7 +26,7 @@ export class MenuManager {
             bloom: false,
             motionBlur: false,
             fisheyeLens: false,
-            filmGrain: true,
+            filmGrain: false,
             gyroLook: 0,
             gyroADS: 0,
             lookSensitivity: 50,
@@ -535,7 +535,8 @@ export class MenuManager {
                 } else if (setting === 'showChat') {
                     this.applyChatVisibility();
                 } else if (setting === 'realTimeShadows') {
-                    this.saveSettingsToStorage();
+                    this.applyPerformanceSettings();
+                } else if (['bakeShadows', 'bloom', 'motionBlur', 'fisheyeLens', 'filmGrain'].includes(setting)) {
                     this.applyPerformanceSettings();
                 }
             });

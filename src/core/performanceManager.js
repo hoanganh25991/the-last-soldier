@@ -31,7 +31,8 @@ export class PerformanceManager {
     }
 
     findDirectionalLight() {
-        if (!this.engine?.scene) return;
+        this.directionalLight = this.engine?.directionalLight || null;
+        if (this.directionalLight || !this.engine?.scene) return;
         this.engine.scene.traverse((obj) => {
             if (obj.isDirectionalLight && !this.directionalLight) {
                 this.directionalLight = obj;
@@ -74,13 +75,16 @@ export class PerformanceManager {
         if (!renderer) return;
 
         const config = RENDER_CONFIG[this.qualityLevel] || RENDER_CONFIG.medium;
-        const shadowsEnabled = this.settings.realTimeShadows !== false && config.settings.shadowMapEnabled;
+        const shadowsEnabled = this._realTimeShadowsEnabled(config);
 
         renderer.setPixelRatio(getEffectivePixelRatio(this.qualityLevel, this.settings.resolution ?? 100));
         renderer.shadowMap.enabled = shadowsEnabled;
         renderer.shadowMap.type = config.settings.shadowMapType;
         renderer.outputColorSpace = config.settings.outputColorSpace;
 
+        if (!this.directionalLight) {
+            this.directionalLight = this.engine?.directionalLight || null;
+        }
         if (this.directionalLight) {
             this.directionalLight.castShadow = shadowsEnabled;
             if (shadowsEnabled) {
@@ -88,6 +92,12 @@ export class PerformanceManager {
                 this.directionalLight.shadow.mapSize.set(size, size);
             }
         }
+    }
+
+    _realTimeShadowsEnabled(config = RENDER_CONFIG[this.qualityLevel] || RENDER_CONFIG.medium) {
+        return !this.settings.bakeShadows
+            && this.settings.realTimeShadows !== false
+            && config.settings.shadowMapEnabled;
     }
 
     applyFog() {
@@ -157,8 +167,8 @@ export class PerformanceManager {
         const scene = this.engine?.scene;
         if (!scene) return;
 
-        const castShadows = this.profile.castShadows && this.settings.realTimeShadows !== false;
-        const receiveShadows = this.profile.receiveShadows && this.settings.realTimeShadows !== false;
+        const castShadows = this._realTimeShadowsEnabled() && this.profile.castShadows;
+        const receiveShadows = this._realTimeShadowsEnabled() && this.profile.receiveShadows;
         this.shadowCasterRoots = [];
 
         scene.traverse((object) => {
@@ -203,7 +213,7 @@ export class PerformanceManager {
     }
 
     updateShadowCasters(referencePosition) {
-        const castShadows = this.profile.castShadows && this.settings.realTimeShadows !== false;
+        const castShadows = this._realTimeShadowsEnabled() && this.profile.castShadows;
         if (!castShadows || !referencePosition || this.shadowCasterRoots.length === 0) {
             return;
         }
@@ -281,8 +291,7 @@ export class PerformanceManager {
     }
 
     updateEnemyLod(referencePosition) {
-        const { highDetail, hide } = this.profile.enemyLod;
-        const highSq = highDetail * highDetail;
+        const { hide } = this.profile.enemyLod;
         const hideSq = hide * hide;
 
         for (const mesh of this.enemyMeshes) {
@@ -298,10 +307,10 @@ export class PerformanceManager {
             }
 
             mesh.visible = true;
-            const useLowDetail = distSq > highSq;
             mesh.traverse((child) => {
-                if (!child.isMesh) return;
-                child.visible = !useLowDetail || child.userData.isCoreBody === true;
+                if (child.isMesh) {
+                    child.visible = true;
+                }
             });
         }
     }

@@ -9,6 +9,7 @@ import { TeamManager } from '../enemies/teamManager.js';
 import { UIManager } from '../ui/uiManager.js';
 import { showAlert } from '../ui/dialogManager.js';
 import { OrientationLock } from '../ui/orientationLock.js';
+import { PostProcessingManager } from '../effects/postProcessing.js';
 
 export class Game {
     constructor(audioManager = null) {
@@ -29,6 +30,9 @@ export class Game {
         this._zeroVelocity = new THREE.Vector3();
         this.worldGroup = null;
         this.orientationLock = null;
+        this.postProcessing = null;
+        this.frameTimerId = null;
+        this.useIntervalLoop = false;
     }
 
     async init(selectedWeapons = null, settings = null, loadingManager = null) {
@@ -186,6 +190,9 @@ export class Game {
         this.orientationLock = new OrientationLock();
         this.orientationLock.init();
 
+        this.postProcessing = new PostProcessingManager(this.engine, this.player);
+        this.postProcessing.applySettings(this.settings);
+
         // Start game loop
         this.start();
     }
@@ -208,106 +215,120 @@ export class Game {
         if (this.player?.applySettings) {
             this.player.applySettings(this.settings);
         }
+        if (this.postProcessing) {
+            this.postProcessing.applySettings(this.settings);
+        }
+        if (this.isRunning) {
+            this.restartGameLoop();
+        }
+    }
+
+    restartGameLoop() {
+        const wasRunning = this.isRunning;
+        this.stop();
+        if (wasRunning) {
+            this.start();
+        }
     }
 
     start() {
         if (this.isRunning) return;
-        
+
         this.isRunning = true;
+        this.frameInterval = 1000 / (this.settings.frameRate || 60);
+        this.useIntervalLoop = this.settings.frameRate === 30;
+
+        if (this.useIntervalLoop) {
+            this.frameTimerId = setInterval(() => {
+                this.gameTick(performance.now());
+            }, 1000 / 30);
+            return;
+        }
+
         const animate = (timestamp = 0) => {
             if (!this.isRunning) return;
-            
             this.animationFrameId = requestAnimationFrame(animate);
-
-            if (this.settings.frameRate && this.settings.frameRate < 120) {
-                const elapsed = timestamp - this.lastFrameTime;
-                if (elapsed < this.frameInterval) {
-                    return;
-                }
-                this.lastFrameTime = timestamp - (elapsed % this.frameInterval);
-            }
-
-            const deltaTime = Math.min(this.engine.update(), 0.05);
-
-            // Update systems
-            if (!this.player) return; // Safety check
-            
-            // Check if player is dead
-            const isPlayerDead = this.player.isDead && this.player.isDead();
-            
-            if (isPlayerDead) {
-                // Handle player death (increment score and start respawn timer)
-                if (this.teamManager && this.teamManager.playerDeathTime === null) {
-                    this.teamManager.handlePlayerDeath();
-                }
-                // Update player respawn timer
-                if (this.teamManager) {
-                    this.teamManager.updatePlayerRespawn(deltaTime, this.player);
-                }
-                // Don't update player when dead - wait for respawn
-                // But still update other systems so game continues
-            } else {
-                this.player.update(deltaTime);
-            }
-
-            if (this.worldGroup && this.player) {
-                const pos = this.player.getPosition();
-                this.worldGroup.position.set(-pos.x, 0, -pos.z);
-            }
-
-            const playerPosition = this.player.getPosition();
-            
-            // Pass player velocity to weapon manager for weapon sway (only if alive)
-            const playerVelocity = isPlayerDead ? this._zeroVelocity : this.player.velocity;
-            this.weaponManager.update(deltaTime, playerVelocity);
-            
-            // Pass player position and collider mesh to team manager so enemies can hunt and shoot at player
-            // Use last known position if player is dead (for respawn location)
-            const playerColliderMesh = (this.player && typeof this.player.getColliderMesh === 'function') 
-                ? this.player.getColliderMesh() 
-                : null;
-            this.teamManager.update(deltaTime, playerPosition, playerColliderMesh);
-            
-            // Check for game end condition (team elimination)
-            const gameEndResult = this.teamManager.checkGameEnd();
-            if (gameEndResult.ended) {
-                // Stop enemy spawning
-                this.teamManager.setGameEnded(true);
-                
-                this.stop();
-                // Release pointer lock so player can interact with dialog
-                if (document.pointerLockElement) {
-                    document.exitPointerLock();
-                }
-                // Show game end message with custom dialog
-                const winnerText = gameEndResult.winner === 'blue' ? 'Blue Team Wins!' : 'Red Team Wins!';
-                // Scores should be equal at game end (both teams killed 100)
-                const message = `${winnerText}\n\nBlue Score (Killed Allies): ${this.teamManager.blueScore}\nRed Score (Killed Enemies): ${this.teamManager.redScore}`;
-                showAlert(message, 'Game Over').then(() => {
-                    // Return to main menu after dialog is closed
-                    if (window.menuManager) {
-                        window.menuManager.showScreen('main-menu');
-                    }
-                });
-                return;
-            }
-            
-            this.uiManager.update(deltaTime);
-            this.battlefield.update(this.engine.camera, playerPosition);
-
-            if (this.performanceManager) {
-                const enemyMeshes = [
-                    ...this.teamManager.enemies.map(e => e.mesh),
-                    ...this.teamManager.allies.map(a => a.mesh)
-                ];
-                this.performanceManager.update(this.engine.camera, enemyMeshes, playerPosition);
-            }
-
-            // Render
-            this.engine.render();
+            this.gameTick(timestamp);
         };
 
         animate();
+    }
+
+    gameTick(timestamp = 0) {
+        if (!this.isRunning) return;
+
+        if (!this.useIntervalLoop && this.settings.frameRate && this.settings.frameRate < 120) {
+            const elapsed = timestamp - this.lastFrameTime;
+            if (elapsed < this.frameInterval) {
+                return;
+            }
+            this.lastFrameTime = timestamp - (elapsed % this.frameInterval);
+        }
+
+        const deltaTime = Math.min(this.engine.update(), 0.05);
+
+        if (!this.player) return;
+
+        const isPlayerDead = this.player.isDead && this.player.isDead();
+
+        if (isPlayerDead) {
+            if (this.teamManager && this.teamManager.playerDeathTime === null) {
+                this.teamManager.handlePlayerDeath();
+            }
+            if (this.teamManager) {
+                this.teamManager.updatePlayerRespawn(deltaTime, this.player);
+            }
+        } else {
+            this.player.update(deltaTime);
+        }
+
+        if (this.worldGroup && this.player) {
+            const pos = this.player.getPosition();
+            this.worldGroup.position.set(-pos.x, 0, -pos.z);
+        }
+
+        const playerPosition = this.player.getPosition();
+        const playerVelocity = isPlayerDead ? this._zeroVelocity : this.player.velocity;
+        this.weaponManager.update(deltaTime, playerVelocity);
+
+        const playerColliderMesh = (this.player && typeof this.player.getColliderMesh === 'function')
+            ? this.player.getColliderMesh()
+            : null;
+        this.teamManager.update(deltaTime, playerPosition, playerColliderMesh);
+
+        const gameEndResult = this.teamManager.checkGameEnd();
+        if (gameEndResult.ended) {
+            this.teamManager.setGameEnded(true);
+            this.stop();
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+            const winnerText = gameEndResult.winner === 'blue' ? 'Blue Team Wins!' : 'Red Team Wins!';
+            const message = `${winnerText}\n\nBlue Score (Killed Allies): ${this.teamManager.blueScore}\nRed Score (Killed Enemies): ${this.teamManager.redScore}`;
+            showAlert(message, 'Game Over').then(() => {
+                if (window.menuManager) {
+                    window.menuManager.showScreen('main-menu');
+                }
+            });
+            return;
+        }
+
+        this.uiManager.update(deltaTime);
+        this.battlefield.update(this.engine.camera, playerPosition);
+
+        if (this.performanceManager) {
+            const enemyMeshes = [
+                ...this.teamManager.enemies.map(e => e.mesh),
+                ...this.teamManager.allies.map(a => a.mesh)
+            ];
+            this.performanceManager.update(this.engine.camera, enemyMeshes, playerPosition);
+        }
+
+        if (this.postProcessing) {
+            this.postProcessing.update();
+        }
+
+        this.engine.render();
     }
 
     stop() {
@@ -315,6 +336,10 @@ export class Game {
         if (this.animationFrameId !== null) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
+        }
+        if (this.frameTimerId !== null) {
+            clearInterval(this.frameTimerId);
+            this.frameTimerId = null;
         }
     }
 
@@ -474,6 +499,11 @@ export class Game {
         if (this.orientationLock) {
             this.orientationLock.dispose();
             this.orientationLock = null;
+        }
+
+        if (this.postProcessing) {
+            this.postProcessing.dispose();
+            this.postProcessing = null;
         }
 
         if (this.player?.disposeGyro) {
