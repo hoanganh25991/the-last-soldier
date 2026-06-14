@@ -84,6 +84,8 @@ export class Enemy {
         this.bulletSpeed = 100; // Same as primary weapon
         this.currentTarget = null; // Current target to shoot at
         this.targets = []; // List of potential targets (enemies for allies, player/allies for enemies)
+        this.entityId = 0;
+        this._lastLineOfSight = true;
     }
 
     init() {
@@ -181,17 +183,19 @@ export class Enemy {
             
             const distance = this.position.distanceTo(enemyWorldPos);
             if (distance < nearestDistance) {
-                // Check line-of-sight before considering this enemy
                 if (this.collisionSystem && this.collisionSystem.checkLineOfSight) {
-                    const hasLineOfSight = this.collisionSystem.checkLineOfSight(
-                        this.position,
-                        enemyWorldPos,
-                        1.0 // Eye height (soldier's eye level)
-                    );
+                    let hasLineOfSight = this._lastLineOfSight;
+                    if (this.collisionSystem.shouldCheckLineOfSight(this.entityId)) {
+                        hasLineOfSight = this.collisionSystem.checkLineOfSight(
+                            this.position,
+                            enemyWorldPos,
+                            1.0
+                        );
+                        this._lastLineOfSight = hasLineOfSight;
+                    }
                     
-                    // Only consider enemies with clear line-of-sight
                     if (!hasLineOfSight) {
-                        continue; // Vision blocked, skip this enemy
+                        continue;
                     }
                 }
                 
@@ -474,17 +478,19 @@ export class Enemy {
             
             const distance = this.position.distanceTo(targetWorldPos);
             if (distance < nearestDistance && distance > 0) {
-                // Check line-of-sight before considering this target
                 if (this.collisionSystem && this.collisionSystem.checkLineOfSight) {
-                    const hasLineOfSight = this.collisionSystem.checkLineOfSight(
-                        this.position,
-                        targetWorldPos,
-                        1.0 // Eye height (soldier's eye level)
-                    );
+                    let hasLineOfSight = this._lastLineOfSight;
+                    if (this.collisionSystem.shouldCheckLineOfSight(this.entityId)) {
+                        hasLineOfSight = this.collisionSystem.checkLineOfSight(
+                            this.position,
+                            targetWorldPos,
+                            1.0
+                        );
+                        this._lastLineOfSight = hasLineOfSight;
+                    }
                     
-                    // Only consider targets with clear line-of-sight
                     if (!hasLineOfSight) {
-                        continue; // Vision blocked, skip this target
+                        continue;
                     }
                 }
                 

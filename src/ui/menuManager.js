@@ -514,6 +514,9 @@ export class MenuManager {
                     this.audioManager.setMusicVolume(value / 100);
                 } else if (setting === 'game') {
                     this.audioManager.setSfxVolume(value / 100);
+                } else if (['graphics', 'resolution', 'frameRate'].includes(setting)) {
+                    this.saveSettingsToStorage();
+                    this.applyPerformanceSettings();
                 }
             });
         });
@@ -531,6 +534,9 @@ export class MenuManager {
                     this.applyFPSVisibility();
                 } else if (setting === 'showChat') {
                     this.applyChatVisibility();
+                } else if (setting === 'realTimeShadows') {
+                    this.saveSettingsToStorage();
+                    this.applyPerformanceSettings();
                 }
             });
         });
@@ -873,6 +879,13 @@ export class MenuManager {
         } catch (error) {
             console.warn('Failed to load settings from localStorage:', error);
         }
+
+        if (!localStorage.getItem('gameSettings') && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+            this.settings.graphics = 25;
+            this.settings.resolution = 60;
+            this.settings.frameRate = 60;
+            this.settings.realTimeShadows = false;
+        }
     }
 
     applyFPSVisibility() {
@@ -886,15 +899,19 @@ export class MenuManager {
     }
 
     applyChatVisibility() {
-        // Apply chat icon visibility in HUD
         const chatButton = document.getElementById('btn-chat');
         if (chatButton) {
             chatButton.style.display = this.settings.showChat ? 'block' : 'none';
         }
-        // Also apply to battlefield deploy screen chat button
         const chatMenuButton = document.querySelector('.btn-chat-menu');
         if (chatMenuButton) {
             chatMenuButton.style.display = this.settings.showChat ? 'block' : 'none';
+        }
+    }
+
+    applyPerformanceSettings() {
+        if (this.gameInstance && typeof this.gameInstance.applySettings === 'function') {
+            this.gameInstance.applySettings(this.settings);
         }
     }
 

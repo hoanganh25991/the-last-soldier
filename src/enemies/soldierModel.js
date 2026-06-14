@@ -17,6 +17,7 @@ export function createSoldierModel(teamColor = 0x654321) {
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 1.0;
     body.castShadow = true;
+    body.userData.isCoreBody = true;
     soldierGroup.add(body);
 
     // Head

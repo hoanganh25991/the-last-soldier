@@ -1,14 +1,17 @@
 import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
+import { RENDER_CONFIG, graphicsSliderToLevel, getEffectivePixelRatio } from '../config/renderConfig.js';
 
 export class Engine {
-    constructor() {
+    constructor(settings = null) {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
         this.clock = null;
         this.container = null;
         this.stats = null;
+        this.settings = settings || {};
+        this.qualityLevel = graphicsSliderToLevel(this.settings.graphics ?? 50);
     }
 
     async init() {
@@ -17,7 +20,7 @@ export class Engine {
         // Create scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
-        this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200); // Keep original fog distance
+        this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
 
         // Create camera (keep original zoom/view distance)
         this.camera = new THREE.PerspectiveCamera(
@@ -28,12 +31,13 @@ export class Engine {
         );
         this.camera.position.set(0, 1.6, 0);
 
-        // Create renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderConfig = RENDER_CONFIG[this.qualityLevel] || RENDER_CONFIG.medium;
+        this.renderer = new THREE.WebGLRenderer(renderConfig.init);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.setPixelRatio(getEffectivePixelRatio(this.qualityLevel, this.settings.resolution ?? 100));
+        this.renderer.shadowMap.enabled = this.settings.realTimeShadows !== false && renderConfig.settings.shadowMapEnabled;
+        this.renderer.shadowMap.type = renderConfig.settings.shadowMapType;
+        this.renderer.outputColorSpace = renderConfig.settings.outputColorSpace;
         this.container.appendChild(this.renderer.domElement);
 
         // Lighting
@@ -41,10 +45,11 @@ export class Engine {
         this.scene.add(ambientLight);
 
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(50, 100, 50); // Keep original position
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.position.set(50, 100, 50);
+        const shadowSize = renderConfig.settings.shadowMapSize;
+        directionalLight.shadow.mapSize.width = shadowSize;
+        directionalLight.shadow.mapSize.height = shadowSize;
+        directionalLight.castShadow = this.renderer.shadowMap.enabled;
         directionalLight.shadow.camera.near = 0.5;
         directionalLight.shadow.camera.far = 500; // Keep original shadow distance
         directionalLight.shadow.camera.left = -100;
@@ -102,10 +107,20 @@ export class Engine {
         }
     }
 
+    applySettings(settings) {
+        this.settings = { ...this.settings, ...settings };
+        this.qualityLevel = graphicsSliderToLevel(this.settings.graphics ?? 50);
+        const renderConfig = RENDER_CONFIG[this.qualityLevel] || RENDER_CONFIG.medium;
+        this.renderer.setPixelRatio(getEffectivePixelRatio(this.qualityLevel, this.settings.resolution ?? 100));
+        this.renderer.shadowMap.enabled = this.settings.realTimeShadows !== false && renderConfig.settings.shadowMapEnabled;
+        this.renderer.shadowMap.type = renderConfig.settings.shadowMapType;
+    }
+
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(getEffectivePixelRatio(this.qualityLevel, this.settings.resolution ?? 100));
     }
     
     dispose() {

@@ -28,45 +28,15 @@ export class Bullet {
     }
 
     createMesh() {
-        // Create bullet group
         const bulletGroup = new THREE.Group();
         
-        // Main bullet body - bright, emissive material (larger for visibility)
-        const geometry = new THREE.SphereGeometry(0.2, 12, 12);
-        const material = new THREE.MeshStandardMaterial({ 
-            color: 0xffff00, // Bright yellow
-            transparent: false,
-            opacity: 1.0,
-            emissive: 0xffff00,
-            emissiveIntensity: 2.0
+        const geometry = new THREE.SphereGeometry(0.15, 6, 6);
+        const material = new THREE.MeshBasicMaterial({ 
+            color: 0xffff00
         });
         
         this.mesh = new THREE.Mesh(geometry, material);
         bulletGroup.add(this.mesh);
-        
-        // Add bright core glow
-        const coreGeometry = new THREE.SphereGeometry(0.12, 8, 8);
-        const coreMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xffffff,
-            transparent: true,
-            opacity: 1.0,
-            emissive: 0xffffff,
-            emissiveIntensity: 3.0
-        });
-        const core = new THREE.Mesh(coreGeometry, coreMaterial);
-        bulletGroup.add(core);
-        
-        // Outer glow effect
-        const glowGeometry = new THREE.SphereGeometry(0.3, 12, 12);
-        const glowMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xffaa00,
-            transparent: true,
-            opacity: 0.7,
-            emissive: 0xffaa00,
-            emissiveIntensity: 1.5
-        });
-        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        bulletGroup.add(glow);
         
         bulletGroup.position.copy(this.startPosition);
         this.mesh = bulletGroup;

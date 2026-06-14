@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Engine } from './engine.js';
+import { PerformanceManager } from './performanceManager.js';
 import { PlayerController } from '../player/playerController.js';
 import { WeaponManager } from '../weapons/weaponManager.js';
 import { Battlefield } from '../world/battlefield.js';
@@ -11,6 +12,7 @@ import { showAlert } from '../ui/dialogManager.js';
 export class Game {
     constructor(audioManager = null) {
         this.engine = null;
+        this.performanceManager = null;
         this.player = null;
         this.weaponManager = null;
         this.battlefield = null;
@@ -20,11 +22,18 @@ export class Game {
         this.audioManager = audioManager;
         this.animationFrameId = null;
         this.isRunning = false;
+        this.settings = settings || {};
+        this.frameInterval = 1000 / (this.settings.frameRate || 60);
+        this.lastFrameTime = 0;
+        this._zeroVelocity = new THREE.Vector3();
     }
 
     async init(selectedWeapons = null, settings = null, loadingManager = null) {
+        this.settings = settings || {};
+        this.frameInterval = 1000 / (this.settings.frameRate || 60);
+
         // Initialize core engine
-        this.engine = new Engine();
+        this.engine = new Engine(this.settings);
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 this.engine.init(),
@@ -46,7 +55,7 @@ export class Game {
         this.collisionSystem = new CollisionSystem();
 
         // Initialize battlefield
-        this.battlefield = new Battlefield(this.engine.scene);
+        this.battlefield = new Battlefield(this.engine.scene, this.settings);
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 this.battlefield.init(),
@@ -88,6 +97,13 @@ export class Game {
             for (const obj of this.battlefield.objects) {
                 this.collisionSystem.addCollider(obj);
             }
+        }
+
+        this.performanceManager = new PerformanceManager(this.engine, this.settings);
+        this.performanceManager.init();
+        this.performanceManager.registerWorldObjects(this.battlefield.objects);
+        if (this.collisionSystem) {
+            this.collisionSystem.setLineOfSightInterval(this.performanceManager.profile.collision.lineOfSightInterval);
         }
 
         // Initialize weapon manager (use player's camera hierarchy)
@@ -156,14 +172,36 @@ export class Game {
         this.start();
     }
 
+    applySettings(settings) {
+        this.settings = { ...this.settings, ...settings };
+        this.frameInterval = 1000 / (this.settings.frameRate || 60);
+        if (this.engine) {
+            this.engine.applySettings(this.settings);
+        }
+        if (this.performanceManager) {
+            this.performanceManager.updateSettings(this.settings);
+            if (this.collisionSystem) {
+                this.collisionSystem.setLineOfSightInterval(this.performanceManager.profile.collision.lineOfSightInterval);
+            }
+        }
+    }
+
     start() {
         if (this.isRunning) return;
         
         this.isRunning = true;
-        const animate = () => {
+        const animate = (timestamp = 0) => {
             if (!this.isRunning) return;
             
             this.animationFrameId = requestAnimationFrame(animate);
+
+            if (this.settings.frameRate && this.settings.frameRate < 120) {
+                const elapsed = timestamp - this.lastFrameTime;
+                if (elapsed < this.frameInterval) {
+                    return;
+                }
+                this.lastFrameTime = timestamp - (elapsed % this.frameInterval);
+            }
 
             const deltaTime = this.engine.update();
 
@@ -190,7 +228,7 @@ export class Game {
             }
             
             // Pass player velocity to weapon manager for weapon sway (only if alive)
-            const playerVelocity = isPlayerDead ? new THREE.Vector3(0, 0, 0) : this.player.velocity;
+            const playerVelocity = isPlayerDead ? this._zeroVelocity : this.player.velocity;
             this.weaponManager.update(deltaTime, playerVelocity);
             
             // Pass player position and collider mesh to team manager so enemies can hunt and shoot at player
@@ -227,6 +265,14 @@ export class Game {
             
             this.uiManager.update(deltaTime);
             this.battlefield.update(this.engine.camera);
+
+            if (this.performanceManager) {
+                const enemyMeshes = [
+                    ...this.teamManager.enemies.map(e => e.mesh),
+                    ...this.teamManager.allies.map(a => a.mesh)
+                ];
+                this.performanceManager.update(this.engine.camera, enemyMeshes);
+            }
 
             // Render
             this.engine.render();
@@ -395,6 +441,11 @@ export class Game {
         // Dispose collision system
         if (this.collisionSystem && this.collisionSystem.dispose) {
             this.collisionSystem.dispose();
+        }
+
+        if (this.performanceManager) {
+            this.performanceManager.dispose();
+            this.performanceManager = null;
         }
         
         // Dispose player

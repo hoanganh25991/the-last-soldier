@@ -145,6 +145,7 @@ export class TeamManager {
             enemy.isInGroup = true;
             // Track which wave this enemy belongs to
             enemy.waveNumber = this.waveNumber;
+            enemy.entityId = this.enemies.length + this.allies.length;
             if (enemy.mesh) {
                 this.scene.add(enemy.mesh);
             }
@@ -211,6 +212,7 @@ export class TeamManager {
             // Mark as ally for special behavior
             ally.isAlly = true;
             ally.maxDistanceFromPlayer = maxDistance;
+            ally.entityId = this.enemies.length + this.allies.length;
             if (ally.mesh) {
                 this.scene.add(ally.mesh);
             }
@@ -256,6 +258,7 @@ export class TeamManager {
         // Mark as ally for special behavior
         ally.isAlly = true;
         ally.maxDistanceFromPlayer = maxDistance;
+        ally.entityId = this.enemies.length + this.allies.length;
         if (ally.mesh) {
             this.scene.add(ally.mesh);
         }
@@ -398,6 +401,10 @@ export class TeamManager {
     }
 
     update(deltaTime, playerPosition = null, playerMesh = null) {
+        if (this.collisionSystem && this.collisionSystem.tickLineOfSightFrame) {
+            this.collisionSystem.tickLineOfSightFrame();
+        }
+
         // Don't spawn enemies if game has ended
         if (this.gameEnded) {
             return;

@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import { LODTerrain } from './lodTerrain.js';
+import { graphicsSliderToLevel } from '../config/renderConfig.js';
 
 export class Battlefield {
-    constructor(scene) {
+    constructor(scene, settings = null) {
         this.scene = scene;
+        this.settings = settings || {};
+        this.qualityLevel = graphicsSliderToLevel(this.settings.graphics ?? 50);
         this.terrain = null;
         this.objects = [];
     }
@@ -13,7 +16,7 @@ export class Battlefield {
         this.createGround();
 
         // Create terrain with LOD
-        this.terrain = new LODTerrain();
+        this.terrain = new LODTerrain(this.qualityLevel);
         await this.terrain.init();
         this.scene.add(this.terrain.mesh);
 

@@ -205,6 +205,11 @@ export class PlayerController {
         this.initTouchControls();
     }
 
+    getTouchSensitivity() {
+        const setting = window.menuManager?.settings?.lookSensitivity ?? 50;
+        return 0.001 + (setting / 100) * 0.003;
+    }
+
     initTouchControls() {
         // Prevent duplicate initialization
         if (this.touchControlsInitialized) {
@@ -405,10 +410,10 @@ export class PlayerController {
                     
                     const deltaX = aimTouch.clientX - this.lastTouch.x;
                     const deltaY = aimTouch.clientY - this.lastTouch.y;
+                    const sensitivity = this.getTouchSensitivity();
                     
-                    // Apply camera rotation
-                    this.touchRotation.x += deltaX * 0.002;
-                    this.touchRotation.y += deltaY * 0.002;
+                    this.touchRotation.x += deltaX * sensitivity;
+                    this.touchRotation.y += deltaY * sensitivity;
                     this.touchRotation.y = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.touchRotation.y));
                     
                     this.lastTouch = { x: aimTouch.clientX, y: aimTouch.clientY };

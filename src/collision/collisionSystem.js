@@ -1,5 +1,81 @@
 import * as THREE from 'three';
 
+const _box = new THREE.Box3();
+const _center = new THREE.Vector3();
+const _size = new THREE.Vector3();
+const _playerMin = new THREE.Vector3();
+const _playerMax = new THREE.Vector3();
+const _colliderMin = new THREE.Vector3();
+const _colliderMax = new THREE.Vector3();
+const _finalPos = new THREE.Vector3();
+const _direction = new THREE.Vector3();
+const _eyePosition = new THREE.Vector3();
+const _targetEyePosition = new THREE.Vector3();
+const _eyeDirection = new THREE.Vector3();
+const _endPoint = new THREE.Vector3();
+const _rayDir = new THREE.Vector3();
+const _invDir = new THREE.Vector3();
+
+function cacheColliderBounds(object) {
+    _box.setFromObject(object);
+    if (_box.isEmpty()) {
+        object.userData.collisionBounds = null;
+        return;
+    }
+
+    const center = _box.getCenter(new THREE.Vector3());
+    const size = _box.getSize(new THREE.Vector3());
+    object.userData.collisionBounds = {
+        minX: _box.min.x,
+        minY: _box.min.y,
+        minZ: _box.min.z,
+        maxX: _box.max.x,
+        maxY: _box.max.y,
+        maxZ: _box.max.z,
+        centerX: center.x,
+        centerY: center.y,
+        centerZ: center.z,
+        sizeX: size.x,
+        sizeY: size.y,
+        sizeZ: size.z
+    };
+}
+
+function intersectAABB(origin, direction, bounds, maxDistance) {
+    _invDir.set(
+        direction.x === 0 ? Number.MAX_VALUE : 1 / direction.x,
+        direction.y === 0 ? Number.MAX_VALUE : 1 / direction.y,
+        direction.z === 0 ? Number.MAX_VALUE : 1 / direction.z
+    );
+
+    let tmin = ((direction.x >= 0 ? bounds.minX : bounds.maxX) - origin.x) * _invDir.x;
+    let tmax = ((direction.x >= 0 ? bounds.maxX : bounds.minX) - origin.x) * _invDir.x;
+    let tymin = ((direction.y >= 0 ? bounds.minY : bounds.maxY) - origin.y) * _invDir.y;
+    let tymax = ((direction.y >= 0 ? bounds.maxY : bounds.minY) - origin.y) * _invDir.y;
+
+    if (tmin > tymax || tymin > tmax) return null;
+    if (tymin > tmin) tmin = tymin;
+    if (tymax < tmax) tmax = tymax;
+
+    let tzmin = ((direction.z >= 0 ? bounds.minZ : bounds.maxZ) - origin.z) * _invDir.z;
+    let tzmax = ((direction.z >= 0 ? bounds.maxZ : bounds.minZ) - origin.z) * _invDir.z;
+
+    if (tmin > tzmax || tzmin > tmax) return null;
+    if (tzmin > tmin) tmin = tzmin;
+    if (tzmax < tmax) tmax = tzmax;
+
+    if (tmax < 0 || tmin > maxDistance) return null;
+    const distance = tmin >= 0 ? tmin : tmax;
+    if (distance < 0 || distance > maxDistance) return null;
+
+    _endPoint.copy(direction).multiplyScalar(distance).add(origin);
+    return {
+        distance,
+        point: _endPoint.clone(),
+        object: null
+    };
+}
+
 /**
  * Spatial Grid for efficient collision queries
  */
@@ -71,12 +147,26 @@ export class CollisionSystem {
     constructor() {
         this.colliders = [];
         this.groundHeight = 0;
-        this.spatialGrid = new SpatialGrid(200); // 200 unit cells for spatial partitioning
+        this.spatialGrid = new SpatialGrid(200);
+        this.lineOfSightInterval = 1;
+        this._lineOfSightFrame = 0;
+    }
+
+    setLineOfSightInterval(interval = 1) {
+        this.lineOfSightInterval = Math.max(1, interval);
+    }
+
+    shouldCheckLineOfSight(entityId = 0) {
+        return (this._lineOfSightFrame + entityId) % this.lineOfSightInterval === 0;
+    }
+
+    tickLineOfSightFrame() {
+        this._lineOfSightFrame++;
     }
 
     addCollider(object) {
+        cacheColliderBounds(object);
         this.colliders.push(object);
-        // Add to spatial grid for efficient queries
         this.spatialGrid.addObject(object);
     }
 
@@ -95,191 +185,154 @@ export class CollisionSystem {
     }
 
     checkCollision(currentPos, newPos, radius, height) {
-        let finalPos = newPos.clone();
+        _finalPos.copy(newPos);
         let onGround = false;
 
-        // Ground collision
-        if (finalPos.y - height / 2 < this.groundHeight) {
-            finalPos.y = this.groundHeight + height / 2;
+        if (_finalPos.y - height / 2 < this.groundHeight) {
+            _finalPos.y = this.groundHeight + height / 2;
             onGround = true;
         }
 
-        // Use spatial grid to get nearby colliders
-        const searchRadius = radius + 10; // Add some padding
+        const searchRadius = radius + 10;
         const nearbyColliders = this.spatialGrid.getObjectsInArea(
-            finalPos.x - searchRadius,
-            finalPos.x + searchRadius,
-            finalPos.z - searchRadius,
-            finalPos.z + searchRadius
+            _finalPos.x - searchRadius,
+            _finalPos.x + searchRadius,
+            _finalPos.z - searchRadius,
+            _finalPos.z + searchRadius
         );
 
-        // Calculate vertical velocity to detect if falling/landing
         const verticalVelocity = newPos.y - currentPos.y;
         const isMovingDownward = verticalVelocity < 0;
 
-        // Check against nearby colliders only
         for (const collider of nearbyColliders) {
-            const result = this.checkSphereCollider(finalPos, radius, height, collider, currentPos, isMovingDownward);
-            finalPos = result.position;
+            const result = this.checkSphereCollider(_finalPos, radius, height, collider, isMovingDownward);
+            _finalPos.copy(result.position);
             if (result.onGround) {
                 onGround = true;
             }
         }
 
         return {
-            position: finalPos,
-            onGround: onGround
+            position: _finalPos.clone(),
+            onGround
         };
     }
 
-    checkSphereCollider(position, radius, height, collider, previousPos = null, isMovingDownward = false) {
-        let finalPos = position.clone();
+    checkSphereCollider(position, radius, height, collider, isMovingDownward = false) {
+        _finalPos.copy(position);
         let onGround = false;
 
-        // Skip ground plane collision (handled separately)
         if (collider.userData && collider.userData.isGround) {
-            return { position: finalPos, onGround: false };
+            return { position: _finalPos.clone(), onGround: false };
         }
 
-        // Use Box3.setFromObject which works for groups, meshes, etc.
-        // This traverses the object hierarchy and gets the bounding box
-        const box = new THREE.Box3().setFromObject(collider);
-        
-        // Skip if bounding box is invalid (empty object)
-        if (box.isEmpty()) {
-            return { position: finalPos, onGround: false };
+        const bounds = collider.userData.collisionBounds;
+        if (!bounds) {
+            return { position: _finalPos.clone(), onGround: false };
         }
 
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
+        _colliderMin.set(bounds.minX, bounds.minY, bounds.minZ);
+        _colliderMax.set(bounds.maxX, bounds.maxY, bounds.maxZ);
+        _center.set(bounds.centerX, bounds.centerY, bounds.centerZ);
 
-        // Simple AABB collision
-        const playerMin = new THREE.Vector3(
-            finalPos.x - radius,
-            finalPos.y - height / 2,
-            finalPos.z - radius
+        _playerMin.set(
+            _finalPos.x - radius,
+            _finalPos.y - height / 2,
+            _finalPos.z - radius
         );
-        const playerMax = new THREE.Vector3(
-            finalPos.x + radius,
-            finalPos.y + height / 2,
-            finalPos.z + radius
-        );
-
-        const colliderMin = new THREE.Vector3(
-            center.x - size.x / 2,
-            center.y - size.y / 2,
-            center.z - size.z / 2
-        );
-        const colliderMax = new THREE.Vector3(
-            center.x + size.x / 2,
-            center.y + size.y / 2,
-            center.z + size.z / 2
+        _playerMax.set(
+            _finalPos.x + radius,
+            _finalPos.y + height / 2,
+            _finalPos.z + radius
         );
 
-        // Check horizontal overlap (X and Z)
         const horizontalOverlap = (
-            playerMin.x < colliderMax.x &&
-            playerMax.x > colliderMin.x &&
-            playerMin.z < colliderMax.z &&
-            playerMax.z > colliderMin.z
+            _playerMin.x < _colliderMax.x &&
+            _playerMax.x > _colliderMin.x &&
+            _playerMin.z < _colliderMax.z &&
+            _playerMax.z > _colliderMin.z
         );
 
-        // Check if player's feet are near or above the top of the collider
-        const playerFeetY = finalPos.y - height / 2;
-        const colliderTopY = colliderMax.y;
+        const playerFeetY = _finalPos.y - height / 2;
+        const colliderTopY = _colliderMax.y;
         const distanceToTop = playerFeetY - colliderTopY;
         
-        // Check if player's head/body is above the top surface
-        const playerHeadY = finalPos.y + height / 2;
+        const playerHeadY = _finalPos.y + height / 2;
         const isAboveTop = playerHeadY > colliderTopY;
         
-        // Check if player is intersecting with the object
         const isIntersecting = (
-            playerMin.x < colliderMax.x &&
-            playerMax.x > colliderMin.x &&
-            playerMin.y < colliderMax.y &&
-            playerMax.y > colliderMin.y &&
-            playerMin.z < colliderMax.z &&
-            playerMax.z > colliderMin.z
+            _playerMin.x < _colliderMax.x &&
+            _playerMax.x > _colliderMin.x &&
+            _playerMin.y < _colliderMax.y &&
+            _playerMax.y > _colliderMin.y &&
+            _playerMin.z < _colliderMax.z &&
+            _playerMax.z > _colliderMin.z
         );
 
-        // Priority 1: If horizontally overlapping, check if player should stand on top
         if (horizontalOverlap) {
-            // Check if player should be placed on top:
-            // 1. Player's head/body is above the top surface (jumping/falling onto it)
-            // 2. Feet are near the top surface (within 0.6 units below to 1.2 units above)
-            // 3. Player is intersecting and falling downward (prevent falling through)
             const shouldStandOnTop = isAboveTop || 
                                     (distanceToTop >= -0.6 && distanceToTop <= 1.2) ||
                                     (isIntersecting && isMovingDownward && distanceToTop < 0 && distanceToTop > -height);
             
             if (shouldStandOnTop) {
-                // Place player on top of the object
-                finalPos.y = colliderTopY + height / 2;
+                _finalPos.y = colliderTopY + height / 2;
                 onGround = true;
             }
-            // If intersecting but shouldn't stand on top, handle side collisions
             else if (isIntersecting) {
-                // Only push horizontally if player is clearly on the side (not mostly above)
-                // Check if player's bottom is below the top surface
                 if (playerFeetY < colliderTopY - 0.1) {
                     const overlapX = Math.min(
-                        Math.abs(playerMax.x - colliderMin.x),
-                        Math.abs(colliderMax.x - playerMin.x)
+                        Math.abs(_playerMax.x - _colliderMin.x),
+                        Math.abs(_colliderMax.x - _playerMin.x)
                     );
                     const overlapZ = Math.min(
-                        Math.abs(playerMax.z - colliderMin.z),
-                        Math.abs(colliderMax.z - playerMin.z)
+                        Math.abs(_playerMax.z - _colliderMin.z),
+                        Math.abs(_colliderMax.z - _playerMin.z)
                     );
 
-                    // Push out in the direction of least overlap
                     if (overlapX < overlapZ) {
-                        if (finalPos.x < center.x) {
-                            finalPos.x = colliderMin.x - radius;
+                        if (_finalPos.x < _center.x) {
+                            _finalPos.x = _colliderMin.x - radius;
                         } else {
-                            finalPos.x = colliderMax.x + radius;
+                            _finalPos.x = _colliderMax.x + radius;
                         }
                     } else {
-                        if (finalPos.z < center.z) {
-                            finalPos.z = colliderMin.z - radius;
+                        if (_finalPos.z < _center.z) {
+                            _finalPos.z = _colliderMin.z - radius;
                         } else {
-                            finalPos.z = colliderMax.z + radius;
+                            _finalPos.z = _colliderMax.z + radius;
                         }
                     }
                 }
             }
         }
-        // Priority 2: If not horizontally overlapping but intersecting, handle side collisions
         else if (isIntersecting) {
-            // Only push out horizontally, allow vertical movement
             const overlapX = Math.min(
-                Math.abs(playerMax.x - colliderMin.x),
-                Math.abs(colliderMax.x - playerMin.x)
+                Math.abs(_playerMax.x - _colliderMin.x),
+                Math.abs(_colliderMax.x - _playerMin.x)
             );
             const overlapZ = Math.min(
-                Math.abs(playerMax.z - colliderMin.z),
-                Math.abs(colliderMax.z - playerMin.z)
+                Math.abs(_playerMax.z - _colliderMin.z),
+                Math.abs(_colliderMax.z - _playerMin.z)
             );
 
-            // Push out in the direction of least overlap
             if (overlapX < overlapZ) {
-                if (finalPos.x < center.x) {
-                    finalPos.x = colliderMin.x - radius;
+                if (_finalPos.x < _center.x) {
+                    _finalPos.x = _colliderMin.x - radius;
                 } else {
-                    finalPos.x = colliderMax.x + radius;
+                    _finalPos.x = _colliderMax.x + radius;
                 }
             } else {
-                if (finalPos.z < center.z) {
-                    finalPos.z = colliderMin.z - radius;
+                if (_finalPos.z < _center.z) {
+                    _finalPos.z = _colliderMin.z - radius;
                 } else {
-                    finalPos.z = colliderMax.z + radius;
+                    _finalPos.z = _colliderMax.z + radius;
                 }
             }
         }
 
         return {
-            position: finalPos,
-            onGround: onGround
+            position: _finalPos.clone(),
+            onGround
         };
     }
 
@@ -287,7 +340,7 @@ export class CollisionSystem {
      * Check if a position is clear of colliders (for spawn validation)
      */
     isPositionClear(position, radius, height) {
-        const searchRadius = radius + 5; // Add padding
+        const searchRadius = radius + 5;
         const nearbyColliders = this.spatialGrid.getObjectsInArea(
             position.x - searchRadius,
             position.x + searchRadius,
@@ -295,55 +348,38 @@ export class CollisionSystem {
             position.z + searchRadius
         );
 
+        _playerMin.set(
+            position.x - radius,
+            position.y - height / 2,
+            position.z - radius
+        );
+        _playerMax.set(
+            position.x + radius,
+            position.y + height / 2,
+            position.z + radius
+        );
+
         for (const collider of nearbyColliders) {
             if (collider.userData && collider.userData.isGround) {
                 continue;
             }
 
-            const box = new THREE.Box3().setFromObject(collider);
-            if (box.isEmpty()) {
-                continue;
-            }
+            const bounds = collider.userData.collisionBounds;
+            if (!bounds) continue;
 
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-
-            const playerMin = new THREE.Vector3(
-                position.x - radius,
-                position.y - height / 2,
-                position.z - radius
-            );
-            const playerMax = new THREE.Vector3(
-                position.x + radius,
-                position.y + height / 2,
-                position.z + radius
-            );
-
-            const colliderMin = new THREE.Vector3(
-                center.x - size.x / 2,
-                center.y - size.y / 2,
-                center.z - size.z / 2
-            );
-            const colliderMax = new THREE.Vector3(
-                center.x + size.x / 2,
-                center.y + size.y / 2,
-                center.z + size.z / 2
-            );
-
-            // Check if there's any overlap
             if (
-                playerMin.x < colliderMax.x &&
-                playerMax.x > colliderMin.x &&
-                playerMin.y < colliderMax.y &&
-                playerMax.y > colliderMin.y &&
-                playerMin.z < colliderMax.z &&
-                playerMax.z > colliderMin.z
+                _playerMin.x < bounds.maxX &&
+                _playerMax.x > bounds.minX &&
+                _playerMin.y < bounds.maxY &&
+                _playerMax.y > bounds.minY &&
+                _playerMin.z < bounds.maxZ &&
+                _playerMax.z > bounds.minZ
             ) {
-                return false; // Position is not clear
+                return false;
             }
         }
 
-        return true; // Position is clear
+        return true;
     }
 
     /**
@@ -391,83 +427,58 @@ export class CollisionSystem {
     }
 
     raycast(origin, direction, maxDistance = 1000) {
-        const raycaster = new THREE.Raycaster(origin, direction, 0, maxDistance);
-        const intersects = [];
+        _direction.copy(direction).normalize();
+        _endPoint.copy(_direction).multiplyScalar(maxDistance).add(origin);
 
-        // Use spatial grid to get objects along ray path
-        const endPoint = origin.clone().add(direction.clone().multiplyScalar(maxDistance));
-        const minX = Math.min(origin.x, endPoint.x);
-        const maxX = Math.max(origin.x, endPoint.x);
-        const minZ = Math.min(origin.z, endPoint.z);
-        const maxZ = Math.max(origin.z, endPoint.z);
+        const minX = Math.min(origin.x, _endPoint.x);
+        const maxX = Math.max(origin.x, _endPoint.x);
+        const minZ = Math.min(origin.z, _endPoint.z);
+        const maxZ = Math.max(origin.z, _endPoint.z);
 
-        // Add padding to ensure we catch all objects along the path
-        const padding = 10; // Add padding to account for object sizes
+        const padding = 10;
         const nearbyColliders = this.spatialGrid.getObjectsInArea(
-            minX - padding, 
-            maxX + padding, 
-            minZ - padding, 
+            minX - padding,
+            maxX + padding,
+            minZ - padding,
             maxZ + padding
         );
 
+        let closestHit = null;
+
         for (const collider of nearbyColliders) {
-            // Skip ground plane
             if (collider.userData && collider.userData.isGround) {
                 continue;
             }
-            
-            const intersect = raycaster.intersectObject(collider, true);
-            if (intersect.length > 0) {
-                // Only include intersections within maxDistance
-                for (const hit of intersect) {
-                    if (hit.distance <= maxDistance) {
-                        intersects.push(hit);
-                    }
-                }
+
+            const bounds = collider.userData.collisionBounds;
+            if (!bounds) continue;
+
+            const hit = intersectAABB(origin, _direction, bounds, maxDistance);
+            if (!hit) continue;
+
+            hit.object = collider;
+            if (!closestHit || hit.distance < closestHit.distance) {
+                closestHit = hit;
             }
         }
 
-        if (intersects.length > 0) {
-            intersects.sort((a, b) => a.distance - b.distance);
-            return intersects[0];
-        }
-
-        return null;
+        return closestHit;
     }
 
     /**
      * Check bullet collision with world objects
      */
     checkBulletCollision(bulletPosition, bulletDirection, maxDistance = 100.0) {
-        // Use raycast to check if bullet hits any world object
-        // Use a longer distance to catch fast-moving bullets
         const hit = this.raycast(bulletPosition, bulletDirection, maxDistance);
         if (hit && hit.distance <= maxDistance) {
-            // Check if it's a world object (not enemy/ally)
-            // Traverse up the parent chain to find the root object
-            let object = hit.object;
-            let rootObject = object;
+            const rootObject = hit.object;
             
-            // Find the root object by traversing up the parent chain
-            while (object.parent && object.parent !== this.scene) {
-                object = object.parent;
-                // If this object has enemy/ally userData, it's the root we're looking for
-                if (object.userData && (object.userData.isEnemy !== undefined || object.userData.team)) {
-                    rootObject = object;
-                    break;
-                }
-                // Otherwise, keep this as potential root (could be a tree group, house group, etc.)
-                rootObject = object;
-            }
-            
-            // Skip if it's an enemy or ally (they have userData.isEnemy or userData.team)
             if (rootObject.userData) {
                 if (rootObject.userData.isEnemy || rootObject.userData.team === 'blue' || rootObject.userData.team === 'red') {
-                    return { hit: false, distance: hit.distance }; // This is an enemy/ally, not a world object
+                    return { hit: false, distance: hit.distance };
                 }
             }
             
-            // It's a world object (house, tree, wall, etc.) - no userData or userData doesn't indicate enemy/ally
             return {
                 hit: true,
                 point: hit.point,
@@ -485,119 +496,34 @@ export class CollisionSystem {
      * Note: Enemies and allies don't block vision - only world objects (trees, buildings, walls, etc.)
      */
     checkLineOfSight(fromPosition, toPosition, eyeHeight = 1.0) {
-        // Calculate direction from origin to target
-        const direction = new THREE.Vector3()
-            .subVectors(toPosition, fromPosition);
-        const distance = direction.length();
+        _direction.subVectors(toPosition, fromPosition);
+        const distance = _direction.length();
         
         if (distance < 0.1) {
-            // Very close, consider it visible
             return true;
         }
         
-        // Start raycast from eye level (soldier's eye height)
-        const eyePosition = fromPosition.clone();
-        eyePosition.y += eyeHeight;
+        _eyePosition.copy(fromPosition);
+        _eyePosition.y += eyeHeight;
         
-        // Target at body center height (where targets are)
-        const targetEyePosition = toPosition.clone();
-        targetEyePosition.y += 0.9; // Body center height
+        _targetEyePosition.copy(toPosition);
+        _targetEyePosition.y += 0.9;
         
-        // Calculate direction from eye to target eye
-        const eyeDirection = new THREE.Vector3()
-            .subVectors(targetEyePosition, eyePosition)
-            .normalize();
-        
-        // Cast ray and check all hits along the path
-        // We need to check if any world object blocks before reaching the target
-        const raycaster = new THREE.Raycaster(eyePosition, eyeDirection, 0, distance * 0.98); // 98% to account for target size
-        const intersects = [];
-        
-        // Use spatial grid to get objects along ray path
-        const endPoint = eyePosition.clone().add(eyeDirection.clone().multiplyScalar(distance * 0.98));
-        const minX = Math.min(eyePosition.x, endPoint.x);
-        const maxX = Math.max(eyePosition.x, endPoint.x);
-        const minZ = Math.min(eyePosition.z, endPoint.z);
-        const maxZ = Math.max(eyePosition.z, endPoint.z);
-        
-        const padding = 10;
-        const nearbyColliders = this.spatialGrid.getObjectsInArea(
-            minX - padding, 
-            maxX + padding, 
-            minZ - padding, 
-            maxZ + padding
-        );
-        
-        // Check all objects along the path
-        for (const collider of nearbyColliders) {
-            // Skip ground plane
-            if (collider.userData && collider.userData.isGround) {
-                continue;
-            }
-            
-            const intersect = raycaster.intersectObject(collider, true);
-            if (intersect.length > 0) {
-                for (const hit of intersect) {
-                    if (hit.distance <= distance * 0.98) {
-                        intersects.push(hit);
-                    }
-                }
-            }
-        }
-        
-        if (intersects.length === 0) {
-            // No hits means clear line-of-sight
+        _eyeDirection.subVectors(_targetEyePosition, _eyePosition).normalize();
+        const maxDistance = distance * 0.98;
+
+        const hit = this.raycast(_eyePosition, _eyeDirection, maxDistance);
+        if (!hit) {
             return true;
         }
-        
-        // Sort by distance to find the closest hit
-        intersects.sort((a, b) => a.distance - b.distance);
-        const closestHit = intersects[0];
-        
-        // Check if the closest hit is a world object (blocks vision) or enemy/ally (doesn't block)
-        let object = closestHit.object;
-        let rootObject = object;
-        
-        // Find the root object by traversing up the parent chain
-        while (object.parent && object.parent !== this.scene) {
-            object = object.parent;
-            if (object.userData && (object.userData.isEnemy !== undefined || object.userData.team)) {
-                rootObject = object;
-                break;
-            }
-            rootObject = object;
-        }
-        
-        // Check if it's an enemy or ally (they don't block vision)
+
+        const rootObject = hit.object;
         if (rootObject.userData) {
             if (rootObject.userData.isEnemy || rootObject.userData.team === 'blue' || rootObject.userData.team === 'red') {
-                // This is an enemy/ally - they don't block vision
-                // Check if there are any world objects before this hit
-                for (let i = 1; i < intersects.length; i++) {
-                    const hit = intersects[i];
-                    let hitObject = hit.object;
-                    let hitRoot = hitObject;
-                    
-                    while (hitObject.parent && hitObject.parent !== this.scene) {
-                        hitObject = hitObject.parent;
-                        if (hitObject.userData && (hitObject.userData.isEnemy !== undefined || hitObject.userData.team)) {
-                            hitRoot = hitObject;
-                            break;
-                        }
-                        hitRoot = hitObject;
-                    }
-                    
-                    // If this hit is a world object (not enemy/ally), it's blocking vision
-                    if (!hitRoot.userData || (!hitRoot.userData.isEnemy && hitRoot.userData.team !== 'blue' && hitRoot.userData.team !== 'red')) {
-                        return false; // World object is blocking
-                    }
-                }
-                // Only enemies/allies in the way, can see through them
                 return true;
             }
         }
-        
-        // It's a world object (house, tree, wall, etc.) - blocks vision
+
         return false;
     }
 }
