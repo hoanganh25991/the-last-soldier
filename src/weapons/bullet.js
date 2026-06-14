@@ -25,8 +25,28 @@ export class Bullet {
         this._visualsReady = false;
     }
 
+    setRenderParent(parent) {
+        if (!parent || typeof parent.add !== 'function') {
+            return;
+        }
+
+        if (this.scene !== parent && this.mesh && this.mesh.parent) {
+            this.mesh.parent.remove(this.mesh);
+        }
+        if (this.scene !== parent && this.trail && this.trail.parent) {
+            this.trail.parent.remove(this.trail);
+        }
+
+        this.scene = parent;
+    }
+
     ensureVisuals() {
         if (this._visualsReady) return;
+
+        if (!this.scene || typeof this.scene.add !== 'function') {
+            console.error('Bullet: invalid render parent');
+            return;
+        }
 
         const bulletGroup = new THREE.Group();
         const geometry = new THREE.SphereGeometry(0.2, 8, 8);
@@ -43,7 +63,7 @@ export class Bullet {
     }
 
     ensureTrail() {
-        if (this.trail) return;
+        if (this.trail || !this.scene || typeof this.scene.add !== 'function') return;
 
         const trailGeometry = new THREE.BufferGeometry();
         const trailMaterial = new THREE.LineBasicMaterial({
@@ -151,7 +171,7 @@ export class Bullet {
     }
 
     dispose() {
-        if (this.mesh) {
+        if (this.mesh && this.scene && typeof this.scene.remove === 'function') {
             this.scene.remove(this.mesh);
             this.mesh.traverse((child) => {
                 if (child.geometry) child.geometry.dispose();
@@ -159,7 +179,7 @@ export class Bullet {
             });
             this.mesh = null;
         }
-        if (this.trail) {
+        if (this.trail && this.scene && typeof this.scene.remove === 'function') {
             this.scene.remove(this.trail);
             if (this.trail.geometry) this.trail.geometry.dispose();
             if (this.trail.material) this.trail.material.dispose();

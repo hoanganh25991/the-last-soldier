@@ -739,6 +739,11 @@ export class MenuManager {
         
         // Step 2-6: Initialize game with progress tracking
         await this.gameInstance.init(this.selectedWeapons, this.settings, this.loadingManager);
+
+        const gyroSetting = this.settings.gyroLook > 0 || this.settings.gyroADS > 0;
+        if (gyroSetting && this.gameInstance.player?.requestGyroPermission) {
+            await this.gameInstance.player.requestGyroPermission();
+        }
         
         // Hide loading screen
         this.loadingManager.updateProgress(100, 'Ready!');

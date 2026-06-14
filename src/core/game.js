@@ -8,6 +8,7 @@ import { CollisionSystem } from '../collision/collisionSystem.js';
 import { TeamManager } from '../enemies/teamManager.js';
 import { UIManager } from '../ui/uiManager.js';
 import { showAlert } from '../ui/dialogManager.js';
+import { OrientationLock } from '../ui/orientationLock.js';
 
 export class Game {
     constructor(audioManager = null) {
@@ -27,6 +28,7 @@ export class Game {
         this.lastFrameTime = 0;
         this._zeroVelocity = new THREE.Vector3();
         this.worldGroup = null;
+        this.orientationLock = null;
     }
 
     async init(selectedWeapons = null, settings = null, loadingManager = null) {
@@ -96,6 +98,8 @@ export class Game {
         } else {
             this.player.init();
         }
+
+        this.player.applySettings(this.settings);
 
         // Register battlefield objects for collision
         if (this.battlefield.objects) {
@@ -179,6 +183,9 @@ export class Game {
         // Pass UI manager reference to team manager for deployment notifications
         this.teamManager.uiManager = this.uiManager;
 
+        this.orientationLock = new OrientationLock();
+        this.orientationLock.init();
+
         // Start game loop
         this.start();
     }
@@ -197,6 +204,9 @@ export class Game {
             if (this.weaponManager?.bulletManager) {
                 this.weaponManager.bulletManager.setBulletProfile(this.performanceManager.profile.bullets);
             }
+        }
+        if (this.player?.applySettings) {
+            this.player.applySettings(this.settings);
         }
     }
 
@@ -459,6 +469,15 @@ export class Game {
         if (this.performanceManager) {
             this.performanceManager.dispose();
             this.performanceManager = null;
+        }
+
+        if (this.orientationLock) {
+            this.orientationLock.dispose();
+            this.orientationLock = null;
+        }
+
+        if (this.player?.disposeGyro) {
+            this.player.disposeGyro();
         }
         
         if (this.worldGroup && this.engine && this.engine.scene) {

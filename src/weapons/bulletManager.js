@@ -4,29 +4,41 @@ import { ObjectPool } from '../core/objectPool.js';
 
 const _pathDirection = new THREE.Vector3();
 const _worldPrev = new THREE.Vector3();
+const _sceneStart = new THREE.Vector3();
+
+function isSceneParent(object) {
+    return object && typeof object.add === 'function' && typeof object.remove === 'function';
+}
 
 export class BulletManager {
     constructor(scene, worldScene, collisionSystem = null) {
+        let resolvedCollision = collisionSystem;
+        let resolvedWorld = worldScene;
+
+        // Legacy / misordered args: BulletManager(scene, collisionSystem)
+        if (!isSceneParent(resolvedWorld) && isSceneParent(scene)) {
+            if (resolvedWorld && !resolvedCollision) {
+                resolvedCollision = resolvedWorld;
+            }
+            resolvedWorld = null;
+        }
+
+        if (!isSceneParent(scene)) {
+            throw new Error('BulletManager requires a valid THREE.Scene or Group as scene');
+        }
+
         this.scene = scene;
-        this.worldScene = worldScene || scene;
-        this.collisionSystem = collisionSystem;
+        this.worldScene = isSceneParent(resolvedWorld) ? resolvedWorld : scene;
+        this.collisionSystem = resolvedCollision;
         this.bullets = [];
         this.bulletProfile = { showTrail: true, segments: 6 };
         this.pendingRelease = [];
         this.maxDisposalsPerFrame = 5;
 
-        this.playerPool = new ObjectPool(
-            () => new Bullet(scene, 'scene'),
+        this.pool = new ObjectPool(
+            () => new Bullet(this.scene, 'scene'),
             (bullet) => {
-                bullet.deactivate();
-                return bullet;
-            },
-            50
-        );
-
-        this.worldPool = new ObjectPool(
-            () => new Bullet(this.worldScene, 'world'),
-            (bullet) => {
+                bullet.setRenderParent(this.scene);
                 bullet.deactivate();
                 return bullet;
             },
@@ -42,9 +54,16 @@ export class BulletManager {
 
     createBullet(startPosition, direction, speed, range, damage, showTrail = null, useWorldCoords = false) {
         const useTrail = showTrail !== null ? showTrail : this.bulletProfile.showTrail;
-        const pool = useWorldCoords ? this.worldPool : this.playerPool;
-        const bullet = pool.acquire();
-        bullet.reset(startPosition, direction, speed, range, damage, useTrail);
+        const bullet = this.pool.acquire();
+        bullet.setRenderParent(this.scene);
+
+        let spawnPosition = startPosition;
+        if (useWorldCoords && this.player?.worldPointToScene) {
+            this.player.worldPointToScene(startPosition, _sceneStart);
+            spawnPosition = _sceneStart;
+        }
+
+        bullet.reset(spawnPosition, direction, speed, range, damage, useTrail);
         this.bullets.push(bullet);
         return bullet;
     }
@@ -62,11 +81,7 @@ export class BulletManager {
             if (index > -1) {
                 this.bullets.splice(index, 1);
             }
-            if (bullet.coordinateSpace === 'world') {
-                this.worldPool.release(bullet);
-            } else {
-                this.playerPool.release(bullet);
-            }
+            this.pool.release(bullet);
         }
     }
 
@@ -125,9 +140,7 @@ export class BulletManager {
 
             if (this.collisionSystem) {
                 const checkDistance = pathDistance + 2.0;
-                if (bullet.coordinateSpace === 'world') {
-                    _worldPrev.copy(previousPos);
-                } else if (this.player?.scenePointToWorld) {
+                if (this.player?.scenePointToWorld) {
                     this.player.scenePointToWorld(previousPos, _worldPrev);
                 } else {
                     _worldPrev.copy(previousPos);
@@ -170,20 +183,11 @@ export class BulletManager {
 
     clear() {
         while (this.pendingRelease.length > 0) {
-            const bullet = this.pendingRelease.pop();
-            if (bullet.coordinateSpace === 'world') {
-                this.worldPool.release(bullet);
-            } else {
-                this.playerPool.release(bullet);
-            }
+            this.pool.release(this.pendingRelease.pop());
         }
         for (const bullet of this.bullets) {
             bullet.deactivate();
-            if (bullet.coordinateSpace === 'world') {
-                this.worldPool.release(bullet);
-            } else {
-                this.playerPool.release(bullet);
-            }
+            this.pool.release(bullet);
         }
         this.bullets = [];
     }

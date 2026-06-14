@@ -49,8 +49,13 @@ export class PlayerController {
         this.joystickTouchId = null; // Track which touch is controlling the joystick
         this.aimTouchId = null; // Track which touch is controlling the aim/camera
         this.touchControlsInitialized = false; // Prevent duplicate initialization
-        
-        // Bind mouse move handler once so we can properly remove it
+        this.settings = {};
+        this.joystickDeadZone = 0.15;
+        this.gyroRotation = { x: 0, y: 0 };
+        this._lastGyro = null;
+        this.gyroPermissionGranted = false;
+        this._deviceOrientationHandler = null;
+        this._wasAiming = false;
         this.boundMouseMoveHandler = this.onMouseMove.bind(this);
         
         this.initControls();
@@ -90,6 +95,107 @@ export class PlayerController {
         // Make sure raycast can detect this mesh
         this.colliderMesh.raycast = THREE.Mesh.prototype.raycast;
         this.scene.add(this.colliderMesh);
+        this.initGyro();
+    }
+
+    applySettings(settings = {}) {
+        this.settings = { ...this.settings, ...settings };
+        this._lastGyro = null;
+    }
+
+    getLookSensitivityMultiplier() {
+        const hip = this.settings.lookSensitivity ?? window.menuManager?.settings?.lookSensitivity ?? 50;
+        const ads = this.settings.adsSens ?? window.menuManager?.settings?.adsSens ?? 25;
+        const setting = this.isAiming ? ads : hip;
+        return 0.2 + (setting / 100) * 1.8;
+    }
+
+    getTouchSensitivity() {
+        return 0.001 + this.getLookSensitivityMultiplier() * 0.002;
+    }
+
+    getMouseSensitivity() {
+        return 0.0005 + this.getLookSensitivityMultiplier() * 0.003;
+    }
+
+    getGyroStrength() {
+        const hip = (this.settings.gyroLook ?? window.menuManager?.settings?.gyroLook ?? 0) / 100;
+        const ads = (this.settings.gyroADS ?? window.menuManager?.settings?.gyroADS ?? 0) / 100;
+
+        if (this.isAiming) {
+            return ads > 0 ? ads : hip * 0.5;
+        }
+        return hip;
+    }
+
+    isGyroEnabled() {
+        return this.gyroPermissionGranted && this.getGyroStrength() > 0;
+    }
+
+    initGyro() {
+        if (typeof window === 'undefined' || typeof DeviceOrientationEvent === 'undefined') {
+            return;
+        }
+
+        this._deviceOrientationHandler = this.onDeviceOrientation.bind(this);
+        window.addEventListener('deviceorientation', this._deviceOrientationHandler, true);
+    }
+
+    async requestGyroPermission() {
+        if (typeof DeviceOrientationEvent === 'undefined') {
+            return false;
+        }
+
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const state = await DeviceOrientationEvent.requestPermission();
+                this.gyroPermissionGranted = state === 'granted';
+                return this.gyroPermissionGranted;
+            } catch (error) {
+                console.debug('Gyro permission denied:', error.message);
+                this.gyroPermissionGranted = false;
+                return false;
+            }
+        }
+
+        this.gyroPermissionGranted = true;
+        return true;
+    }
+
+    onDeviceOrientation(event) {
+        if (!this.isGyroEnabled()) {
+            this._lastGyro = null;
+            return;
+        }
+
+        if (event.beta === null || event.gamma === null) {
+            return;
+        }
+
+        if (this._lastGyro === null) {
+            this._lastGyro = { beta: event.beta, gamma: event.gamma };
+            return;
+        }
+
+        const deltaGamma = event.gamma - this._lastGyro.gamma;
+        const deltaBeta = event.beta - this._lastGyro.beta;
+        this._lastGyro = { beta: event.beta, gamma: event.gamma };
+
+        if (Math.abs(deltaGamma) < 0.05 && Math.abs(deltaBeta) < 0.05) {
+            return;
+        }
+
+        const strength = this.getGyroStrength();
+        const sens = strength * 0.025 * (Math.PI / 180);
+        this.gyroRotation.x += deltaGamma * sens;
+        this.gyroRotation.y -= deltaBeta * sens;
+    }
+
+    disposeGyro() {
+        if (this._deviceOrientationHandler) {
+            window.removeEventListener('deviceorientation', this._deviceOrientationHandler, true);
+            this._deviceOrientationHandler = null;
+        }
     }
 
     getCamera() {
@@ -213,11 +319,6 @@ export class PlayerController {
         this.initTouchControls();
     }
 
-    getTouchSensitivity() {
-        const setting = window.menuManager?.settings?.lookSensitivity ?? 50;
-        return 0.001 + (setting / 100) * 0.003;
-    }
-
     initTouchControls() {
         // Prevent duplicate initialization
         if (this.touchControlsInitialized) {
@@ -230,12 +331,10 @@ export class PlayerController {
         
         // Safety check - ensure elements exist, retry after a short delay if not
         if (!joystickContainer || !joystick) {
-            console.warn('Joystick elements not found, retrying in 100ms...');
             setTimeout(() => this.initTouchControls(), 100);
             return;
         }
         
-        console.log('Joystick elements found, initializing touch controls');
         this.touchControlsInitialized = true;
         
         const joystickRadius = 75;
@@ -258,11 +357,15 @@ export class PlayerController {
         const handleJoystickStart = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const touch = e.touches ? e.touches[0] : null;
-            if (touch && this.joystickTouchId === null) {
-                this.joystickTouchId = touch.identifier;
-                console.log('Joystick touch started, ID:', this.joystickTouchId);
-                this.updateJoystick(touch, joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+            if (!e.touches) return;
+
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                if (this.joystickTouchId === null) {
+                    this.joystickTouchId = touch.identifier;
+                    this.updateJoystick(touch, joystickContainer, joystick, joystickRadius, joystickHandleRadius);
+                    break;
+                }
             }
         };
 
@@ -369,64 +472,78 @@ export class PlayerController {
             return null;
         };
 
-        // Helper function to check if touch is on right half of screen
-        const isOnRightHalf = (clientX) => {
-            return clientX > window.innerWidth / 2;
+        const isOnActionButton = (clientX, clientY) => {
+            const selectors = [
+                '.hud-bottom-right .btn-action',
+                '.hud-top-left .btn-exit',
+                '.hud-top-left .btn-chat',
+                '.hud-top-right .btn-info'
+            ];
+
+            for (const selector of selectors) {
+                const elements = document.querySelectorAll(selector);
+                for (const element of elements) {
+                    const rect = element.getBoundingClientRect();
+                    if (clientX >= rect.left && clientX <= rect.right
+                        && clientY >= rect.top && clientY <= rect.bottom) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         };
 
-        // Helper function to check if touch is on joystick area (left side, bottom area)
         const isOnJoystickArea = (clientX, clientY) => {
             const joystickRect = joystickContainer.getBoundingClientRect();
-            const padding = 50; // Extra padding around joystick
-            return clientX < window.innerWidth / 2 && 
-                   clientY > window.innerHeight - 200; // Bottom area
+            const padding = 40;
+            return clientX >= joystickRect.left - padding
+                && clientX <= joystickRect.right + padding
+                && clientY >= joystickRect.top - padding
+                && clientY <= joystickRect.bottom + padding;
         };
 
-        // Aim/camera rotation touch handlers - right half of screen
         const handleAimTouchStart = (e) => {
-            // Check all touches to find one on right half that's not the joystick
             for (let i = 0; i < e.touches.length; i++) {
                 const touch = e.touches[i];
-                // Skip if this is the joystick touch
                 if (touch.identifier === this.joystickTouchId) continue;
-                // Skip if this is already the aim touch
                 if (touch.identifier === this.aimTouchId) {
-                    // Update last touch position if it's already the aim touch
                     this.lastTouch = { x: touch.clientX, y: touch.clientY };
                     continue;
                 }
-                
-                // If touch is on right half and not on joystick area, use it for aiming
-                if (isOnRightHalf(touch.clientX) && !isOnJoystickArea(touch.clientX, touch.clientY)) {
-                    if (this.aimTouchId === null) {
-                        this.aimTouchId = touch.identifier;
-                        this.lastTouch = { x: touch.clientX, y: touch.clientY };
-                        console.log('Aim touch started on right side, ID:', this.aimTouchId);
-                        break;
-                    }
+                if (isOnActionButton(touch.clientX, touch.clientY)) continue;
+                if (isOnJoystickArea(touch.clientX, touch.clientY)) continue;
+                if (touch.clientX <= window.innerWidth / 2) continue;
+
+                if (this.aimTouchId === null) {
+                    this.aimTouchId = touch.identifier;
+                    this.lastTouch = { x: touch.clientX, y: touch.clientY };
+                    break;
                 }
             }
         };
 
         const handleAimTouchMove = (e) => {
             const aimTouch = findAimTouch(e.touches);
-            if (aimTouch) {
-                // Only handle if this is not a joystick touch
-                if (aimTouch.identifier !== this.joystickTouchId) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const deltaX = aimTouch.clientX - this.lastTouch.x;
-                    const deltaY = aimTouch.clientY - this.lastTouch.y;
-                    const sensitivity = this.getTouchSensitivity();
-                    
-                    this.touchRotation.x += deltaX * sensitivity;
-                    this.touchRotation.y += deltaY * sensitivity;
-                    this.touchRotation.y = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.touchRotation.y));
-                    
-                    this.lastTouch = { x: aimTouch.clientX, y: aimTouch.clientY };
-                }
+            if (!aimTouch || aimTouch.identifier === this.joystickTouchId) return;
+
+            if (isOnJoystickArea(aimTouch.clientX, aimTouch.clientY)) {
+                this.aimTouchId = null;
+                this.lastTouch = null;
+                return;
             }
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const deltaX = aimTouch.clientX - this.lastTouch.x;
+            const deltaY = aimTouch.clientY - this.lastTouch.y;
+            const sensitivity = this.getTouchSensitivity();
+
+            this.touchRotation.x += deltaX * sensitivity;
+            this.touchRotation.y += deltaY * sensitivity;
+            this.touchRotation.y = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.touchRotation.y));
+
+            this.lastTouch = { x: aimTouch.clientX, y: aimTouch.clientY };
         };
 
         const handleAimTouchEnd = (e) => {
@@ -438,7 +555,7 @@ export class PlayerController {
                         const aimTouch = findAimTouch(e.touches);
                         if (!aimTouch) {
                             this.aimTouchId = null;
-                            console.log('Aim touch ended');
+                            this.lastTouch = null;
                         }
                         break;
                     }
@@ -463,8 +580,19 @@ export class PlayerController {
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         
         if (distance < radius) {
-            this.touchJoystick.x = deltaX / radius;
-            this.touchJoystick.y = deltaY / radius;
+            let normX = deltaX / radius;
+            let normY = deltaY / radius;
+            const magnitude = Math.sqrt(normX * normX + normY * normY);
+
+            if (magnitude < this.joystickDeadZone) {
+                this.touchJoystick.x = 0;
+                this.touchJoystick.y = 0;
+            } else {
+                const scaled = (magnitude - this.joystickDeadZone) / (1 - this.joystickDeadZone);
+                this.touchJoystick.x = (normX / magnitude) * scaled;
+                this.touchJoystick.y = (normY / magnitude) * scaled;
+            }
+
             joystick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
         } else {
             const angle = Math.atan2(deltaY, deltaX);
@@ -480,10 +608,11 @@ export class PlayerController {
     onMouseMove(event) {
         const movementX = event.movementX || 0;
         const movementY = event.movementY || 0;
+        const sensitivity = this.getMouseSensitivity();
         
         this.euler.setFromQuaternion(this.yawObject.quaternion);
-        this.euler.y -= movementX * 0.002;
-        this.euler.x -= movementY * 0.002;
+        this.euler.y -= movementX * sensitivity;
+        this.euler.x -= movementY * sensitivity;
         this.euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.euler.x));
         this.yawObject.quaternion.setFromEuler(this.euler);
     }
@@ -502,8 +631,8 @@ export class PlayerController {
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) this.direction.x -= 1;
         if (this.keys['KeyD'] || this.keys['ArrowRight']) this.direction.x += 1;
 
-        // Mobile joystick controls - use lower threshold for better responsiveness
-        if (Math.abs(this.touchJoystick.x) > 0.01 || Math.abs(this.touchJoystick.y) > 0.01) {
+        // Mobile joystick controls
+        if (Math.abs(this.touchJoystick.x) > 0.001 || Math.abs(this.touchJoystick.y) > 0.001) {
             this.direction.x += this.touchJoystick.x;
             this.direction.z += this.touchJoystick.y;
         }
@@ -517,6 +646,11 @@ export class PlayerController {
     }
 
     update(deltaTime) {
+        if (this._wasAiming !== this.isAiming) {
+            this._lastGyro = null;
+            this._wasAiming = this.isAiming;
+        }
+
         // Update aim/zoom FOV smoothly
         const targetFOV = this.isAiming ? this.aimFOV : this.defaultFOV;
         this.currentFOV += (targetFOV - this.currentFOV) * this.aimTransitionSpeed * deltaTime;
@@ -525,15 +659,20 @@ export class PlayerController {
             this.camera.updateProjectionMatrix();
         }
         
-        // Update camera rotation from touch
-        if (Math.abs(this.touchRotation.x) > 0.001 || Math.abs(this.touchRotation.y) > 0.001) {
+        // Update camera rotation from touch + gyro
+        const hasTouchRotation = Math.abs(this.touchRotation.x) > 0.001 || Math.abs(this.touchRotation.y) > 0.001;
+        const hasGyroRotation = Math.abs(this.gyroRotation.x) > 0.0001 || Math.abs(this.gyroRotation.y) > 0.0001;
+
+        if (hasTouchRotation || hasGyroRotation) {
             this.euler.setFromQuaternion(this.yawObject.quaternion);
-            this.euler.y -= this.touchRotation.x;
-            this.euler.x -= this.touchRotation.y;
+            this.euler.y -= this.touchRotation.x + this.gyroRotation.x;
+            this.euler.x -= this.touchRotation.y + this.gyroRotation.y;
             this.euler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.euler.x));
             this.yawObject.quaternion.setFromEuler(this.euler);
             this.touchRotation.x *= 0.9;
             this.touchRotation.y *= 0.9;
+            this.gyroRotation.x = 0;
+            this.gyroRotation.y = 0;
         }
 
         // Get movement direction

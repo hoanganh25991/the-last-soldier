@@ -888,3 +888,39 @@
     font-weight: bold;
 }
 
+/* Orientation overlay — portrait mode on mobile */
+.orientation-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.92);
+    color: #fff;
+    text-align: center;
+    padding: 24px;
+    pointer-events: auto;
+}
+
+.orientation-overlay.hidden {
+    display: none;
+}
+
+.orientation-overlay-content {
+    max-width: 280px;
+}
+
+.orientation-icon {
+    display: block;
+    font-size: 64px;
+    margin-bottom: 16px;
+    transform: rotate(90deg);
+}
+
+.orientation-overlay p {
+    font-size: 18px;
+    line-height: 1.4;
+    margin: 0;
+}
+
