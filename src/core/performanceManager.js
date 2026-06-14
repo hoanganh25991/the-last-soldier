@@ -137,7 +137,7 @@ export class PerformanceManager {
         });
     }
 
-    update(camera, enemyMeshes = []) {
+    update(camera, enemyMeshes = [], playerWorldPosition = null) {
         this.frameCount++;
         if (this.webglContextLost || !camera) return;
 
@@ -145,21 +145,34 @@ export class PerformanceManager {
             this.enemyMeshes = enemyMeshes;
         }
 
-        camera.getWorldPosition(_cameraPos);
-        this.updateWorldVisibility(_cameraPos);
-        this.updateEnemyLod(_cameraPos);
+        let refPos = playerWorldPosition;
+        if (!refPos) {
+            camera.getWorldPosition(_cameraPos);
+            refPos = _cameraPos;
+        }
+        this.updateWorldVisibility(refPos);
+        this.updateEnemyLod(refPos);
     }
 
-    updateWorldVisibility(cameraPosition) {
+    _getObjectWorldCoords(object, out) {
+        if (object.userData?.isColliderProxy || object.parent?.name === 'world') {
+            out.copy(object.position);
+            return out;
+        }
+        object.getWorldPosition(out);
+        return out;
+    }
+
+    updateWorldVisibility(referencePosition) {
         const { showDistance, hideDistance } = this.profile.worldVisibility;
         const showDistSq = showDistance * showDistance;
         const hideDistSq = hideDistance * hideDistance;
 
         for (const object of this.worldObjects) {
             if (!object) continue;
-            object.getWorldPosition(_objectPos);
-            const dx = _objectPos.x - cameraPosition.x;
-            const dz = _objectPos.z - cameraPosition.z;
+            this._getObjectWorldCoords(object, _objectPos);
+            const dx = _objectPos.x - referencePosition.x;
+            const dz = _objectPos.z - referencePosition.z;
             const distSq = dx * dx + dz * dz;
 
             if (distSq <= showDistSq) {
@@ -170,16 +183,16 @@ export class PerformanceManager {
         }
     }
 
-    updateEnemyLod(cameraPosition) {
+    updateEnemyLod(referencePosition) {
         const { highDetail, hide } = this.profile.enemyLod;
         const highSq = highDetail * highDetail;
         const hideSq = hide * hide;
 
         for (const mesh of this.enemyMeshes) {
             if (!mesh) continue;
-            mesh.getWorldPosition(_objectPos);
-            const dx = _objectPos.x - cameraPosition.x;
-            const dz = _objectPos.z - cameraPosition.z;
+            this._getObjectWorldCoords(mesh, _objectPos);
+            const dx = _objectPos.x - referencePosition.x;
+            const dz = _objectPos.z - referencePosition.z;
             const distSq = dx * dx + dz * dz;
 
             if (distSq >= hideSq) {

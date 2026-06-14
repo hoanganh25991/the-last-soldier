@@ -8,6 +8,13 @@ export class PlayerController {
         
         this.velocity = new THREE.Vector3();
         this.direction = new THREE.Vector3();
+        this.worldPosition = new THREE.Vector3(0, 1.6, 0);
+        this._forward = new THREE.Vector3();
+        this._right = new THREE.Vector3();
+        this._moveVelocity = new THREE.Vector3();
+        this._newPosition = new THREE.Vector3();
+        this._velocityStep = new THREE.Vector3();
+        this._scenePoint = new THREE.Vector3();
         this.moveSpeed = 5.0;
         this.sprintSpeed = 8.0;
         this.crouchSpeed = 2.5;
@@ -57,6 +64,7 @@ export class PlayerController {
         
         // Set initial position
         this.yawObject.position.set(0, 1.6, 0);
+        this.worldPosition.set(0, 1.6, 0);
         
         // Initialize camera FOV
         if (this.camera && this.camera.fov !== undefined) {
@@ -531,40 +539,35 @@ export class PlayerController {
         // Get movement direction
         const moveDirection = this.getMoveDirection();
 
-        // Apply movement relative to camera rotation
-        const forward = new THREE.Vector3(0, 0, -1);
-        const right = new THREE.Vector3(1, 0, 0);
-        forward.applyQuaternion(this.yawObject.quaternion);
-        right.applyQuaternion(this.yawObject.quaternion);
-        forward.y = 0;
-        right.y = 0;
-        forward.normalize();
-        right.normalize();
+        this._forward.set(0, 0, -1);
+        this._right.set(1, 0, 0);
+        this._forward.applyQuaternion(this.yawObject.quaternion);
+        this._right.applyQuaternion(this.yawObject.quaternion);
+        this._forward.y = 0;
+        this._right.y = 0;
+        this._forward.normalize();
+        this._right.normalize();
 
-        // Calculate movement velocity
-        const moveVelocity = new THREE.Vector3();
+        this._moveVelocity.set(0, 0, 0);
         if (moveDirection.length() > 0) {
-            moveVelocity.add(forward.multiplyScalar(-moveDirection.z * this.currentSpeed));
-            moveVelocity.add(right.multiplyScalar(moveDirection.x * this.currentSpeed));
+            this._moveVelocity.add(this._forward.multiplyScalar(-moveDirection.z * this.currentSpeed));
+            this._moveVelocity.add(this._right.multiplyScalar(moveDirection.x * this.currentSpeed));
         }
 
-        // Apply horizontal movement
-        this.velocity.x = moveVelocity.x;
-        this.velocity.z = moveVelocity.z;
+        this.velocity.x = this._moveVelocity.x;
+        this.velocity.z = this._moveVelocity.z;
 
-        // Apply gravity
         this.velocity.y -= 9.8 * deltaTime;
 
-        // Check collisions and move
-        const newPosition = this.yawObject.position.clone().add(this.velocity.clone().multiplyScalar(deltaTime));
+        this._velocityStep.copy(this.velocity).multiplyScalar(deltaTime);
+        this._newPosition.copy(this.worldPosition).add(this._velocityStep);
         
-        // Use different collision height when crouching
         const collisionHeight = this.isCrouching ? 0.8 : 1.6;
         
         if (this.collisionSystem) {
             const collisionResult = this.collisionSystem.checkCollision(
-                this.yawObject.position,
-                newPosition,
+                this.worldPosition,
+                this._newPosition,
                 0.5,
                 collisionHeight
             );
@@ -574,21 +577,16 @@ export class PlayerController {
                 this.canJump = true;
             }
             
-            this.yawObject.position.copy(collisionResult.position);
+            this.worldPosition.copy(collisionResult.position);
         } else {
-            this.yawObject.position.copy(newPosition);
+            this.worldPosition.copy(this._newPosition);
         }
+
+        this.yawObject.position.set(0, this.worldPosition.y, 0);
         
-        // Update collider mesh position to match player position
-        // CRITICAL: This must be updated every frame for collision detection to work
-        // When crouching, lower the collider so bullets can't hit (enemies aim at 0.9)
         if (this.colliderMesh) {
-            const colliderHeight = this.isCrouching ? 0.3 : 0.9; // Much lower when crouching
-            this.colliderMesh.position.set(
-                this.yawObject.position.x,
-                colliderHeight, // Lower when crouching to avoid bullets
-                this.yawObject.position.z
-            );
+            const colliderHeight = this.isCrouching ? 0.3 : 0.9;
+            this.colliderMesh.position.set(0, colliderHeight, 0);
             // Scale down collider height when crouching to match lower profile
             if (this.isCrouching) {
                 this.colliderMesh.scale.y = 0.5; // Make collider shorter when crouching
@@ -611,7 +609,25 @@ export class PlayerController {
     }
 
     getPosition() {
-        return this.yawObject.position;
+        return this.worldPosition;
+    }
+
+    scenePointToWorld(scenePoint, out = this._scenePoint) {
+        out.set(
+            this.worldPosition.x + scenePoint.x,
+            this.worldPosition.y + (scenePoint.y - this.yawObject.position.y),
+            this.worldPosition.z + scenePoint.z
+        );
+        return out;
+    }
+
+    worldPointToScene(worldPoint, out = this._scenePoint) {
+        out.set(
+            worldPoint.x - this.worldPosition.x,
+            worldPoint.y,
+            worldPoint.z - this.worldPosition.z
+        );
+        return out;
     }
 
     getRotation() {

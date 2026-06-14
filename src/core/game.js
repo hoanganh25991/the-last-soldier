@@ -22,10 +22,11 @@ export class Game {
         this.audioManager = audioManager;
         this.animationFrameId = null;
         this.isRunning = false;
-        this.settings = settings || {};
-        this.frameInterval = 1000 / (this.settings.frameRate || 60);
+        this.settings = {};
+        this.frameInterval = 1000 / 60;
         this.lastFrameTime = 0;
         this._zeroVelocity = new THREE.Vector3();
+        this.worldGroup = null;
     }
 
     async init(selectedWeapons = null, settings = null, loadingManager = null) {
@@ -54,8 +55,12 @@ export class Game {
         // Initialize collision system
         this.collisionSystem = new CollisionSystem();
 
+        this.worldGroup = new THREE.Group();
+        this.worldGroup.name = 'world';
+        this.engine.scene.add(this.worldGroup);
+
         // Initialize battlefield
-        this.battlefield = new Battlefield(this.engine.scene, this.settings);
+        this.battlefield = new Battlefield(this.worldGroup, this.settings);
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 this.battlefield.init(),
@@ -66,7 +71,7 @@ export class Game {
         }
 
         // Initialize team manager (will be updated with bulletManager after weaponManager is created)
-        this.teamManager = new TeamManager(this.engine.scene, this.collisionSystem);
+        this.teamManager = new TeamManager(this.worldGroup, this.collisionSystem);
         // Spawn enemies and allies
         if (loadingManager) {
             await loadingManager.loadWithProgress(
@@ -106,13 +111,14 @@ export class Game {
             this.collisionSystem.setLineOfSightInterval(this.performanceManager.profile.collision.lineOfSightInterval);
         }
 
-        // Initialize weapon manager (use player's camera hierarchy)
+        // Initialize weapon manager — player bullets in scene space, enemy bullets in worldGroup
         this.weaponManager = new WeaponManager(
             this.player.getCamera(),
             this.engine.scene,
             this.teamManager,
             this.audioManager,
-            this.collisionSystem
+            this.collisionSystem,
+            this.worldGroup
         );
         
         // Set selected weapons BEFORE init so they're applied during initialization
@@ -130,9 +136,14 @@ export class Game {
         } else {
             await this.weaponManager.init();
         }
+
+        if (this.weaponManager.bulletManager && this.performanceManager) {
+            this.weaponManager.bulletManager.setBulletProfile(this.performanceManager.profile.bullets);
+        }
         
         // Set player reference in weapon manager for bullet collision detection
         this.weaponManager.player = this.player;
+        this.weaponManager.bulletManager.player = this.player;
         
         // Update team manager with bullet manager for soldier shooting
         this.teamManager.bulletManager = this.weaponManager.bulletManager;
@@ -183,6 +194,9 @@ export class Game {
             if (this.collisionSystem) {
                 this.collisionSystem.setLineOfSightInterval(this.performanceManager.profile.collision.lineOfSightInterval);
             }
+            if (this.weaponManager?.bulletManager) {
+                this.weaponManager.bulletManager.setBulletProfile(this.performanceManager.profile.bullets);
+            }
         }
     }
 
@@ -203,7 +217,7 @@ export class Game {
                 this.lastFrameTime = timestamp - (elapsed % this.frameInterval);
             }
 
-            const deltaTime = this.engine.update();
+            const deltaTime = Math.min(this.engine.update(), 0.05);
 
             // Update systems
             if (!this.player) return; // Safety check
@@ -223,9 +237,15 @@ export class Game {
                 // Don't update player when dead - wait for respawn
                 // But still update other systems so game continues
             } else {
-                // Player is alive - update normally
                 this.player.update(deltaTime);
             }
+
+            if (this.worldGroup && this.player) {
+                const pos = this.player.getPosition();
+                this.worldGroup.position.set(-pos.x, 0, -pos.z);
+            }
+
+            const playerPosition = this.player.getPosition();
             
             // Pass player velocity to weapon manager for weapon sway (only if alive)
             const playerVelocity = isPlayerDead ? this._zeroVelocity : this.player.velocity;
@@ -233,10 +253,9 @@ export class Game {
             
             // Pass player position and collider mesh to team manager so enemies can hunt and shoot at player
             // Use last known position if player is dead (for respawn location)
-            const playerPosition = this.player.getPosition();
             const playerColliderMesh = (this.player && typeof this.player.getColliderMesh === 'function') 
                 ? this.player.getColliderMesh() 
-                : null; // Use collider mesh for accurate targeting
+                : null;
             this.teamManager.update(deltaTime, playerPosition, playerColliderMesh);
             
             // Check for game end condition (team elimination)
@@ -264,14 +283,14 @@ export class Game {
             }
             
             this.uiManager.update(deltaTime);
-            this.battlefield.update(this.engine.camera);
+            this.battlefield.update(this.engine.camera, playerPosition);
 
             if (this.performanceManager) {
                 const enemyMeshes = [
                     ...this.teamManager.enemies.map(e => e.mesh),
                     ...this.teamManager.allies.map(a => a.mesh)
                 ];
-                this.performanceManager.update(this.engine.camera, enemyMeshes);
+                this.performanceManager.update(this.engine.camera, enemyMeshes, playerPosition);
             }
 
             // Render
@@ -394,8 +413,8 @@ export class Game {
         if (this.teamManager) {
             // Remove all enemies
             this.teamManager.enemies.forEach(enemy => {
-                if (enemy.mesh && this.engine && this.engine.scene) {
-                    this.engine.scene.remove(enemy.mesh);
+                if (enemy.mesh && this.worldGroup) {
+                    this.worldGroup.remove(enemy.mesh);
                 }
                 if (enemy.dispose) {
                     enemy.dispose();
@@ -404,8 +423,8 @@ export class Game {
             
             // Remove all allies
             this.teamManager.allies.forEach(ally => {
-                if (ally.mesh && this.engine && this.engine.scene) {
-                    this.engine.scene.remove(ally.mesh);
+                if (ally.mesh && this.worldGroup) {
+                    this.worldGroup.remove(ally.mesh);
                 }
                 if (ally.dispose) {
                     ally.dispose();
@@ -448,6 +467,10 @@ export class Game {
             this.performanceManager = null;
         }
         
+        if (this.worldGroup && this.engine && this.engine.scene) {
+            this.engine.scene.remove(this.worldGroup);
+        }
+        
         // Dispose player
         if (this.player) {
             // Remove player collider mesh from scene
@@ -480,6 +503,7 @@ export class Game {
         this.teamManager = null;
         this.uiManager = null;
         this.audioManager = null;
+        this.worldGroup = null;
     }
 }
 

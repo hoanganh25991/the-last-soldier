@@ -534,14 +534,15 @@ export class Enemy {
         direction.z += (Math.random() - 0.5) * spread;
         direction.normalize();
         
-        // Create bullet (without trail for enemies/teammates)
+        // Create bullet (without trail for enemies/teammates; positions are world coords)
         this.bulletManager.createBullet(
             bulletStart,
             direction,
             this.bulletSpeed,
             this.shootRange,
             this.shootDamage,
-            false // showTrail = false for enemies/teammates
+            false,
+            true
         );
     }
 

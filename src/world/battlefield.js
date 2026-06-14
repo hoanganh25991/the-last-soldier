@@ -1,14 +1,40 @@
 import * as THREE from 'three';
 import { LODTerrain } from './lodTerrain.js';
 import { graphicsSliderToLevel } from '../config/renderConfig.js';
+import { getPerformanceProfile } from '../config/performanceProfile.js';
+import { InstancedPropGroup, PROP_BOUNDS } from './instancedProps.js';
+
+const TREE_CLUSTERS = [
+    { centerX: 0, centerZ: 0, radius: 200, count: 100 },
+    { centerX: 100, centerZ: 100, radius: 150, count: 80 },
+    { centerX: -100, centerZ: 100, radius: 150, count: 80 },
+    { centerX: 100, centerZ: -100, radius: 150, count: 80 },
+    { centerX: -100, centerZ: -100, radius: 150, count: 80 },
+    { centerX: 200, centerZ: 0, radius: 150, count: 70 },
+    { centerX: -200, centerZ: 0, radius: 150, count: 70 },
+    { centerX: 0, centerZ: 200, radius: 150, count: 70 },
+    { centerX: 0, centerZ: -200, radius: 150, count: 70 }
+];
+
+const OBSTACLE_CLUSTERS = [
+    { centerX: 0, centerZ: 0, radius: 250, count: 50 },
+    { centerX: 150, centerZ: 150, radius: 100, count: 30 },
+    { centerX: -150, centerZ: 150, radius: 100, count: 30 },
+    { centerX: 150, centerZ: -150, radius: 100, count: 30 },
+    { centerX: -150, centerZ: -150, radius: 100, count: 30 }
+];
 
 export class Battlefield {
-    constructor(scene, settings = null) {
-        this.scene = scene;
+    constructor(worldGroup, settings = null) {
+        this.worldGroup = worldGroup;
+        this.scene = worldGroup;
         this.settings = settings || {};
         this.qualityLevel = graphicsSliderToLevel(this.settings.graphics ?? 50);
+        this.profile = getPerformanceProfile(this.qualityLevel);
+        this.spawnCounts = this.profile.spawnCounts;
         this.terrain = null;
         this.objects = [];
+        this.instancedGroups = [];
     }
 
     async init() {
@@ -32,24 +58,24 @@ export class Battlefield {
     }
     
     dispose() {
-        // Remove terrain from scene
         if (this.terrain && this.terrain.mesh && this.scene) {
             this.scene.remove(this.terrain.mesh);
             if (this.terrain.dispose) {
                 this.terrain.dispose();
             }
         }
+
+        for (const group of this.instancedGroups) {
+            group.dispose();
+        }
+        this.instancedGroups = [];
         
-        // Remove all objects from scene and dispose them
         if (this.objects && this.scene) {
             this.objects.forEach(obj => {
                 if (obj && this.scene) {
                     this.scene.remove(obj);
-                    // Dispose geometry and materials
                     obj.traverse((child) => {
-                        if (child.geometry) {
-                            child.geometry.dispose();
-                        }
+                        if (child.geometry) child.geometry.dispose();
                         if (child.material) {
                             if (Array.isArray(child.material)) {
                                 child.material.forEach(material => material.dispose());
@@ -62,7 +88,6 @@ export class Battlefield {
             });
         }
         
-        // Clear arrays
         this.objects = [];
         this.terrain = null;
     }
@@ -88,112 +113,89 @@ export class Battlefield {
     }
 
     createTrees() {
-        const treeGeometry = new THREE.ConeGeometry(2, 8, 8);
-        const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x228b22 });
-        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 8);
+        const castShadow = this.profile.castShadows;
+        const treeMultiplier = this.spawnCounts.treeMultiplier;
+        const maxTrees = Math.ceil(700 * treeMultiplier);
+
+        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 3, 6);
+        trunkGeometry.translate(0, 1.5, 0);
         const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+        const foliageGeometry = new THREE.ConeGeometry(2, 8, 6);
+        foliageGeometry.translate(0, 5, 0);
+        const foliageMaterial = new THREE.MeshLambertMaterial({ color: 0x228b22 });
 
-        // Spawn trees in clusters around the deployment area (player starts at center)
-        // Create multiple clusters within visible range (0-500 units from center)
-        const clusters = [
-            { centerX: 0, centerZ: 0, radius: 200, count: 100 },      // Center cluster
-            { centerX: 100, centerZ: 100, radius: 150, count: 80 },  // NE cluster
-            { centerX: -100, centerZ: 100, radius: 150, count: 80 }, // NW cluster
-            { centerX: 100, centerZ: -100, radius: 150, count: 80 }, // SE cluster
-            { centerX: -100, centerZ: -100, radius: 150, count: 80 }, // SW cluster
-            { centerX: 200, centerZ: 0, radius: 150, count: 70 },    // East cluster
-            { centerX: -200, centerZ: 0, radius: 150, count: 70 },   // West cluster
-            { centerX: 0, centerZ: 200, radius: 150, count: 70 },    // North cluster
-            { centerX: 0, centerZ: -200, radius: 150, count: 70 },   // South cluster
-        ];
+        const trunks = new InstancedPropGroup(this.scene, trunkGeometry, trunkMaterial, maxTrees, castShadow);
+        const foliage = new InstancedPropGroup(this.scene, foliageGeometry, foliageMaterial, maxTrees, castShadow);
 
-        let totalTrees = 0;
-        for (const cluster of clusters) {
-            for (let i = 0; i < cluster.count; i++) {
-                const tree = new THREE.Group();
-                
-                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-                trunk.position.y = 1.5;
-                trunk.castShadow = true;
-                trunk.receiveShadow = true;
-                tree.add(trunk);
-
-                const foliage = new THREE.Mesh(treeGeometry, treeMaterial);
-                foliage.position.y = 5;
-                foliage.castShadow = true;
-                foliage.receiveShadow = true;
-                tree.add(foliage);
-
-                // Random position within cluster
+        let placed = 0;
+        for (const cluster of TREE_CLUSTERS) {
+            const clusterCount = Math.ceil(cluster.count * treeMultiplier);
+            for (let i = 0; i < clusterCount && placed < maxTrees; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const distance = Math.random() * cluster.radius;
-                tree.position.set(
-                    cluster.centerX + Math.cos(angle) * distance,
-                    0,
-                    cluster.centerZ + Math.sin(angle) * distance
-                );
+                const x = cluster.centerX + Math.cos(angle) * distance;
+                const z = cluster.centerZ + Math.sin(angle) * distance;
 
-                tree.castShadow = true;
-                tree.receiveShadow = true;
-                this.scene.add(tree);
-                this.objects.push(tree);
-                totalTrees++;
+                trunks.addInstance(x, 0, z, 0, PROP_BOUNDS.treeTrunk);
+                foliage.addInstance(x, 0, z, 0, PROP_BOUNDS.treeFoliage);
+                placed++;
             }
         }
+
+        trunks.finalize();
+        foliage.finalize();
+        this.instancedGroups.push(trunks, foliage);
+        this.objects.push(...trunks.colliderProxies, ...foliage.colliderProxies);
     }
 
     createObstacles() {
-        // Create some cover objects (boxes, stones, walls) around deployment area
+        const castShadow = this.profile.castShadows;
+        const total = this.spawnCounts.obstacles;
+        const boxCount = Math.ceil(total * 0.5);
+        const stoneCount = total - boxCount;
+
         const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+        boxGeometry.translate(0, 1, 0);
         const boxMaterial = new THREE.MeshLambertMaterial({ color: 0x808080 });
-        
-        // Create stone/rock geometry variations
         const stoneGeometry = new THREE.DodecahedronGeometry(1, 0);
+        stoneGeometry.translate(0, 0.5, 0);
         const stoneMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
 
-        // Spawn obstacles in clusters around deployment area (visible range)
-        const clusters = [
-            { centerX: 0, centerZ: 0, radius: 250, count: 50 },      // Center cluster
-            { centerX: 150, centerZ: 150, radius: 100, count: 30 }, // NE cluster
-            { centerX: -150, centerZ: 150, radius: 100, count: 30 }, // NW cluster
-            { centerX: 150, centerZ: -150, radius: 100, count: 30 }, // SE cluster
-            { centerX: -150, centerZ: -150, radius: 100, count: 30 }, // SW cluster
-        ];
+        const boxes = new InstancedPropGroup(this.scene, boxGeometry, boxMaterial, boxCount, castShadow);
+        const stones = new InstancedPropGroup(this.scene, stoneGeometry, stoneMaterial, stoneCount, castShadow);
 
-        let totalObstacles = 0;
-        for (const cluster of clusters) {
-            for (let i = 0; i < cluster.count; i++) {
-                // Mix boxes and stones
-                const isStone = Math.random() > 0.5;
-                const geometry = isStone ? stoneGeometry : boxGeometry;
-                const material = isStone ? stoneMaterial : boxMaterial;
-                
-                const obstacle = new THREE.Mesh(geometry, material);
-                
-                // Random position within cluster
+        let boxPlaced = 0;
+        let stonePlaced = 0;
+        const scale = total / 170;
+
+        for (const cluster of OBSTACLE_CLUSTERS) {
+            const clusterCount = Math.ceil(cluster.count * scale);
+            for (let i = 0; i < clusterCount; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const distance = Math.random() * cluster.radius;
-                obstacle.position.set(
-                    cluster.centerX + Math.cos(angle) * distance,
-                    isStone ? 0.5 : 1,
-                    cluster.centerZ + Math.sin(angle) * distance
-                );
-                obstacle.rotation.y = Math.random() * Math.PI * 2;
-                obstacle.rotation.x = isStone ? Math.random() * Math.PI * 0.3 : 0;
-                obstacle.castShadow = true;
-                obstacle.receiveShadow = true;
-                this.scene.add(obstacle);
-                this.objects.push(obstacle);
-                totalObstacles++;
+                const x = cluster.centerX + Math.cos(angle) * distance;
+                const z = cluster.centerZ + Math.sin(angle) * distance;
+                const isStone = Math.random() > 0.5;
+
+                if (isStone && stonePlaced < stoneCount) {
+                    stones.addInstance(x, 0, z, Math.random() * Math.PI * 2, PROP_BOUNDS.stone);
+                    stonePlaced++;
+                } else if (boxPlaced < boxCount) {
+                    boxes.addInstance(x, 0, z, Math.random() * Math.PI * 2, PROP_BOUNDS.box);
+                    boxPlaced++;
+                }
             }
         }
+
+        boxes.finalize();
+        stones.finalize();
+        this.instancedGroups.push(boxes, stones);
+        this.objects.push(...boxes.colliderProxies, ...stones.colliderProxies);
     }
 
     createHouses() {
-        // Create various sized houses/buildings across the map
-        const mapSize = 25000; // Half of 50000 (map extends from -25000 to +25000)
-        const houseCount = 150; // Total number of houses
-        
+        const houseCount = this.spawnCounts.houses;
+        const allowFar = this.spawnCounts.farStructures;
         // House materials
         const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xd3d3d3 }); // Light gray
         const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown
@@ -277,11 +279,9 @@ export class Battlefield {
             
             // Random position across the map (more dense near center)
             let distance, angle;
-            if (Math.random() < 0.5) {
-                // 50% spawn closer to center (within 2000 units)
+            if (!allowFar || Math.random() < 0.5) {
                 distance = Math.random() * 2000;
             } else {
-                // 50% spawn further out (2000-10000 units)
                 distance = 2000 + Math.random() * 8000;
             }
             angle = Math.random() * Math.PI * 2;
@@ -301,9 +301,8 @@ export class Battlefield {
     }
 
     createVehicles() {
-        // Create vehicles (trucks, cars) across the map
-        const vehicleCount = 80;
-        
+        const vehicleCount = this.spawnCounts.vehicles;
+        const allowFar = this.spawnCounts.farStructures;
         const vehicleBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x2c3e50 }); // Dark blue-gray
         const vehicleWindowMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a2e }); // Dark
         const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a }); // Black
@@ -356,7 +355,7 @@ export class Battlefield {
             
             // Random position
             let distance, angle;
-            if (Math.random() < 0.6) {
+            if (!allowFar || Math.random() < 0.6) {
                 distance = Math.random() * 3000;
             } else {
                 distance = 3000 + Math.random() * 7000;
@@ -378,106 +377,121 @@ export class Battlefield {
     }
 
     createBarrelsAndCrates() {
-        // Create barrels, crates, and containers
-        const objectCount = 200;
-        
-        const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Brown
-        const crateMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 }); // Dark brown
-        const containerMaterial = new THREE.MeshLambertMaterial({ color: 0x4682b4 }); // Steel blue
-        
+        const objectCount = this.spawnCounts.barrels;
+        const allowFar = this.spawnCounts.farStructures;
+        const castShadow = this.profile.castShadows;
+
+        const barrelCount = Math.ceil(objectCount * 0.4);
+        const crateCount = Math.ceil(objectCount * 0.4);
+        const containerCount = objectCount - barrelCount - crateCount;
+
+        const barrelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 8);
+        barrelGeometry.translate(0, 0.6, 0);
+        const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+        const crateGeometry = new THREE.BoxGeometry(1.1, 1.1, 1.1);
+        crateGeometry.translate(0, 0.55, 0);
+        const crateMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+        const containerGeometry = new THREE.BoxGeometry(2.5, 2.5, 4);
+        containerGeometry.translate(0, 1.25, 0);
+        const containerMaterial = new THREE.MeshLambertMaterial({ color: 0x4682b4 });
+
+        const barrels = new InstancedPropGroup(this.scene, barrelGeometry, barrelMaterial, barrelCount, castShadow);
+        const crates = new InstancedPropGroup(this.scene, crateGeometry, crateMaterial, crateCount, castShadow);
+        const containers = new InstancedPropGroup(this.scene, containerGeometry, containerMaterial, containerCount, castShadow);
+
+        let barrelPlaced = 0;
+        let cratePlaced = 0;
+        let containerPlaced = 0;
+
         for (let i = 0; i < objectCount; i++) {
-            const objectType = Math.random();
-            let object;
-            
-            if (objectType < 0.4) {
-                // Barrel (40%)
-                const barrelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 16);
-                object = new THREE.Mesh(barrelGeometry, barrelMaterial);
-                object.position.y = 0.6;
-            } else if (objectType < 0.8) {
-                // Crate (40%)
-                const crateSize = 0.8 + Math.random() * 0.6;
-                const crateGeometry = new THREE.BoxGeometry(crateSize, crateSize, crateSize);
-                object = new THREE.Mesh(crateGeometry, crateMaterial);
-                object.position.y = crateSize / 2;
-                object.rotation.y = Math.random() * Math.PI * 2;
-            } else {
-                // Container (20%)
-                const containerWidth = 2 + Math.random() * 1;
-                const containerHeight = 2 + Math.random() * 1;
-                const containerDepth = 3 + Math.random() * 2;
-                const containerGeometry = new THREE.BoxGeometry(containerWidth, containerHeight, containerDepth);
-                object = new THREE.Mesh(containerGeometry, containerMaterial);
-                object.position.y = containerHeight / 2;
-                object.rotation.y = Math.random() * Math.PI * 2;
-            }
-            
-            // Random position
             let distance, angle;
-            if (Math.random() < 0.7) {
+            if (!allowFar || Math.random() < 0.7) {
                 distance = Math.random() * 4000;
             } else {
                 distance = 4000 + Math.random() * 6000;
             }
             angle = Math.random() * Math.PI * 2;
-            
-            object.position.x = Math.cos(angle) * distance;
-            object.position.z = Math.sin(angle) * distance;
-            
-            object.castShadow = true;
-            object.receiveShadow = true;
-            this.scene.add(object);
-            this.objects.push(object);
+            const x = Math.cos(angle) * distance;
+            const z = Math.sin(angle) * distance;
+            const roll = Math.random();
+
+            if (roll < 0.4 && barrelPlaced < barrelCount) {
+                barrels.addInstance(x, 0, z, Math.random() * Math.PI * 2, PROP_BOUNDS.barrel);
+                barrelPlaced++;
+            } else if (roll < 0.8 && cratePlaced < crateCount) {
+                crates.addInstance(x, 0, z, Math.random() * Math.PI * 2, PROP_BOUNDS.crate);
+                cratePlaced++;
+            } else if (containerPlaced < containerCount) {
+                containers.addInstance(x, 0, z, Math.random() * Math.PI * 2, PROP_BOUNDS.container);
+                containerPlaced++;
+            }
         }
+
+        barrels.finalize();
+        crates.finalize();
+        containers.finalize();
+        this.instancedGroups.push(barrels, crates, containers);
+        this.objects.push(...barrels.colliderProxies, ...crates.colliderProxies, ...containers.colliderProxies);
     }
 
     createWallsAndFences() {
-        // Create walls and fences for cover
-        const wallCount = 100;
-        
-        const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 }); // Gray
-        const fenceMaterial = new THREE.MeshLambertMaterial({ color: 0x8b7355 }); // Brown
-        
+        const wallCount = this.spawnCounts.walls;
+        const allowFar = this.spawnCounts.farStructures;
+        const castShadow = this.profile.castShadows;
+        const fenceCount = Math.ceil(wallCount * 0.5);
+        const solidCount = wallCount - fenceCount;
+
+        const wallGeometry = new THREE.BoxGeometry(3, 2.25, 0.2);
+        wallGeometry.translate(0, 1.125, 0);
+        const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x696969 });
+        const fenceGeometry = new THREE.BoxGeometry(5, 1.25, 0.2);
+        fenceGeometry.translate(0, 0.625, 0);
+        const fenceMaterial = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+
+        const walls = new InstancedPropGroup(this.scene, wallGeometry, wallMaterial, solidCount, castShadow);
+        const fences = new InstancedPropGroup(this.scene, fenceGeometry, fenceMaterial, fenceCount, castShadow);
+
+        let wallPlaced = 0;
+        let fencePlaced = 0;
+
         for (let i = 0; i < wallCount; i++) {
             const isFence = Math.random() > 0.5;
-            const material = isFence ? fenceMaterial : wallMaterial;
-            
-            let length, height;
-            if (isFence) {
-                length = 3 + Math.random() * 5;
-                height = 1 + Math.random() * 0.5;
-            } else {
-                length = 2 + Math.random() * 4;
-                height = 1.5 + Math.random() * 1.5;
-            }
-            
-            const wallGeometry = new THREE.BoxGeometry(length, height, 0.2);
-            const wall = new THREE.Mesh(wallGeometry, material);
-            wall.position.y = height / 2;
-            
-            // Random position
             let distance, angle;
-            if (Math.random() < 0.6) {
+            if (!allowFar || Math.random() < 0.6) {
                 distance = Math.random() * 3000;
             } else {
                 distance = 3000 + Math.random() * 7000;
             }
             angle = Math.random() * Math.PI * 2;
-            
-            wall.position.x = Math.cos(angle) * distance;
-            wall.position.z = Math.sin(angle) * distance;
-            wall.rotation.y = Math.random() * Math.PI * 2;
-            
-            wall.castShadow = true;
-            wall.receiveShadow = true;
-            this.scene.add(wall);
-            this.objects.push(wall);
+            const x = Math.cos(angle) * distance;
+            const z = Math.sin(angle) * distance;
+            const rotY = Math.random() * Math.PI * 2;
+
+            if (isFence && fencePlaced < fenceCount) {
+                fences.addInstance(x, 0, z, rotY, PROP_BOUNDS.fence);
+                fencePlaced++;
+            } else if (wallPlaced < solidCount) {
+                walls.addInstance(x, 0, z, rotY, PROP_BOUNDS.wall);
+                wallPlaced++;
+            }
         }
+
+        walls.finalize();
+        fences.finalize();
+        this.instancedGroups.push(walls, fences);
+        this.objects.push(...walls.colliderProxies, ...fences.colliderProxies);
     }
 
-    update(camera) {
+    update(camera, playerPosition) {
         if (this.terrain) {
             this.terrain.update(camera);
+        }
+
+        if (playerPosition) {
+            const { showDistance, hideDistance } = this.profile.worldVisibility;
+            for (const group of this.instancedGroups) {
+                group.updateVisibility(playerPosition, showDistance, hideDistance);
+            }
         }
     }
 }

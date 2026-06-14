@@ -17,6 +17,10 @@ const _rayDir = new THREE.Vector3();
 const _invDir = new THREE.Vector3();
 
 function cacheColliderBounds(object) {
+    if (object.userData && object.userData.collisionBounds) {
+        return;
+    }
+
     _box.setFromObject(object);
     if (_box.isEmpty()) {
         object.userData.collisionBounds = null;
@@ -92,15 +96,34 @@ class SpatialGrid {
     }
 
     addObject(object) {
-        const box = new THREE.Box3().setFromObject(object);
-        const min = box.min;
-        const max = box.max;
+        if (object.userData?._spatialCells) {
+            this.removeObject(object);
+        }
+        if (!object.userData) {
+            object.userData = {};
+        }
+        object.userData._spatialCells = [];
 
-        // Get all cells this object overlaps
-        const minCellX = Math.floor(min.x / this.cellSize);
-        const maxCellX = Math.floor(max.x / this.cellSize);
-        const minCellZ = Math.floor(min.z / this.cellSize);
-        const maxCellZ = Math.floor(max.z / this.cellSize);
+        let minX, maxX, minZ, maxZ;
+        if (object.userData.collisionBounds) {
+            const b = object.userData.collisionBounds;
+            minX = b.minX;
+            maxX = b.maxX;
+            minZ = b.minZ;
+            maxZ = b.maxZ;
+        } else {
+            const box = new THREE.Box3().setFromObject(object);
+            if (box.isEmpty()) return;
+            minX = box.min.x;
+            maxX = box.max.x;
+            minZ = box.min.z;
+            maxZ = box.max.z;
+        }
+
+        const minCellX = Math.floor(minX / this.cellSize);
+        const maxCellX = Math.floor(maxX / this.cellSize);
+        const minCellZ = Math.floor(minZ / this.cellSize);
+        const maxCellZ = Math.floor(maxZ / this.cellSize);
 
         for (let x = minCellX; x <= maxCellX; x++) {
             for (let z = minCellZ; z <= maxCellZ; z++) {
@@ -109,8 +132,27 @@ class SpatialGrid {
                     this.grid.set(key, []);
                 }
                 this.grid.get(key).push(object);
+                object.userData._spatialCells.push(key);
             }
         }
+    }
+
+    removeObject(object) {
+        if (!object.userData?._spatialCells) return;
+
+        for (const key of object.userData._spatialCells) {
+            const cell = this.grid.get(key);
+            if (!cell) continue;
+            const index = cell.indexOf(object);
+            if (index > -1) {
+                cell.splice(index, 1);
+            }
+            if (cell.length === 0) {
+                this.grid.delete(key);
+            }
+        }
+
+        delete object.userData._spatialCells;
     }
 
     getObjectsInArea(minX, maxX, minZ, maxZ) {
@@ -174,13 +216,7 @@ export class CollisionSystem {
         const index = this.colliders.indexOf(object);
         if (index > -1) {
             this.colliders.splice(index, 1);
-            // Rebuild spatial grid (simple approach - could be optimized)
-            this.spatialGrid.clear();
-            this.colliders.forEach(collider => {
-                if (collider !== object) {
-                    this.spatialGrid.addObject(collider);
-                }
-            });
+            this.spatialGrid.removeObject(object);
         }
     }
 

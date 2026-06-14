@@ -3,8 +3,9 @@ import { Enemy } from './enemy.js';
 import { BloodEffect } from '../effects/bloodEffect.js';
 
 export class TeamManager {
-    constructor(scene, collisionSystem, bulletManager = null) {
-        this.scene = scene;
+    constructor(worldGroup, collisionSystem, bulletManager = null) {
+        this.worldGroup = worldGroup;
+        this.scene = worldGroup;
         this.collisionSystem = collisionSystem;
         this.bulletManager = bulletManager;
         this.uiManager = null; // Will be set by Game after UIManager is initialized
@@ -579,9 +580,8 @@ export class TeamManager {
                 // Reset player health
                 if (player) {
                     player.health = player.maxHealth;
-                    // Reset position to spawn point (center)
+                    player.worldPosition.set(0, 1.6, 0);
                     player.yawObject.position.set(0, 1.6, 0);
-                    // Reset velocity
                     player.velocity.set(0, 0, 0);
                 }
                 // Reset death time

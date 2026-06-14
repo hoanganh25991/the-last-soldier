@@ -6,14 +6,14 @@ import { BulletManager } from './bulletManager.js';
 import { WEAPON_ICONS, getWeaponIcon } from '../config/weaponIcons.js';
 
 export class WeaponManager {
-    constructor(camera, scene, teamManager, audioManager = null, collisionSystem = null) {
+    constructor(camera, scene, teamManager, audioManager = null, collisionSystem = null, worldScene = null) {
         this.camera = camera;
         this.scene = scene;
         this.teamManager = teamManager;
         this.audioManager = audioManager;
         this.player = null; // Will be set after player initialization
         
-        this.bulletManager = new BulletManager(scene, collisionSystem);
+        this.bulletManager = new BulletManager(scene, worldScene, collisionSystem);
         
         this.primaryWeapon = null;
         this.secondaryWeapon = null;

@@ -1,3 +1,10 @@
+export const SPAWN_COUNTS = {
+    high:    { treeMultiplier: 1.0, obstacles: 170, houses: 150, vehicles: 80, barrels: 200, walls: 100, farStructures: true },
+    medium:  { treeMultiplier: 0.5, obstacles: 85,  houses: 75,  vehicles: 40, barrels: 100, walls: 50,  farStructures: true },
+    low:     { treeMultiplier: 0.3, obstacles: 51,  houses: 45,  vehicles: 24, barrels: 60,  walls: 30,  farStructures: true },
+    minimal: { treeMultiplier: 0.15, obstacles: 26, houses: 23,  vehicles: 12, barrels: 30,  walls: 15,  farStructures: false }
+};
+
 export const TERRAIN_LOD = {
     high:    { segments: [96, 48, 24], distances: [0, 120, 280] },
     medium:  { segments: [64, 32, 16], distances: [0, 80, 200] },
@@ -46,6 +53,7 @@ export function getPerformanceProfile(qualityLevel) {
         enemyLod: ENEMY_LOD[qualityLevel] || ENEMY_LOD.medium,
         collision: COLLISION_PROFILE[qualityLevel] || COLLISION_PROFILE.medium,
         bullets: BULLET_PROFILE[qualityLevel] || BULLET_PROFILE.medium,
+        spawnCounts: SPAWN_COUNTS[qualityLevel] || SPAWN_COUNTS.medium,
         castShadows: qualityLevel === 'high' || qualityLevel === 'medium',
         receiveShadows: qualityLevel === 'high' || qualityLevel === 'medium'
     };

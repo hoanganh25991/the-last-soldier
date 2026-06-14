@@ -159,11 +159,19 @@ export class WeaponBase {
             }, 80);
         }
 
-        // Raycast for hit detection
-        const worldPosition = new THREE.Vector3();
+        // Raycast for hit detection (scene space for rendering; world space for static collision)
+        const scenePosition = new THREE.Vector3();
         const worldQuaternion = new THREE.Quaternion();
-        this.camera.getWorldPosition(worldPosition);
+        this.camera.getWorldPosition(scenePosition);
         this.camera.getWorldQuaternion(worldQuaternion);
+
+        const worldPosition = new THREE.Vector3();
+        const player = this.bulletManager?.player;
+        if (player && typeof player.scenePointToWorld === 'function') {
+            player.scenePointToWorld(scenePosition, worldPosition);
+        } else {
+            worldPosition.copy(scenePosition);
+        }
         
         const direction = new THREE.Vector3(0, 0, -1);
         direction.applyQuaternion(worldQuaternion);
@@ -187,26 +195,24 @@ export class WeaponBase {
             this.audioManager.playBulletSound(this.bulletSoundUrl, 0.4);
         }
 
-        // Create visible bullet
+        // Create visible bullet in scene space (camera-relative)
         if (this.bulletManager) {
-            let bulletStart = worldPosition.clone();
-            
-            // Get muzzle flash position in world space for bullet origin
+            let bulletStart = new THREE.Vector3();
+
             if (this.muzzleFlash && this.weaponMesh) {
-                const muzzleWorldPosition = new THREE.Vector3();
-                this.muzzleFlash.getWorldPosition(muzzleWorldPosition);
-                bulletStart = muzzleWorldPosition;
+                this.muzzleFlash.getWorldPosition(bulletStart);
             } else {
-                // Fallback: offset bullet start slightly forward from camera
+                bulletStart.copy(scenePosition);
                 bulletStart.add(direction.clone().multiplyScalar(0.5));
             }
-            
+
             this.bulletManager.createBullet(
                 bulletStart,
                 direction,
                 this.bulletSpeed,
                 this.range,
-                this.damage
+                this.damage,
+                true
             );
         }
 

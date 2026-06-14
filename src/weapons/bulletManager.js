@@ -1,116 +1,167 @@
 import * as THREE from 'three';
 import { Bullet } from './bullet.js';
+import { ObjectPool } from '../core/objectPool.js';
+
+const _pathDirection = new THREE.Vector3();
+const _worldPrev = new THREE.Vector3();
 
 export class BulletManager {
-    constructor(scene, collisionSystem = null) {
+    constructor(scene, worldScene, collisionSystem = null) {
         this.scene = scene;
+        this.worldScene = worldScene || scene;
         this.collisionSystem = collisionSystem;
         this.bullets = [];
+        this.bulletProfile = { showTrail: true, segments: 6 };
+        this.pendingRelease = [];
+        this.maxDisposalsPerFrame = 5;
+
+        this.playerPool = new ObjectPool(
+            () => new Bullet(scene, 'scene'),
+            (bullet) => {
+                bullet.deactivate();
+                return bullet;
+            },
+            50
+        );
+
+        this.worldPool = new ObjectPool(
+            () => new Bullet(this.worldScene, 'world'),
+            (bullet) => {
+                bullet.deactivate();
+                return bullet;
+            },
+            50
+        );
     }
 
-    createBullet(startPosition, direction, speed, range, damage, showTrail = true) {
-        const bullet = new Bullet(startPosition, direction, speed, range, damage, this.scene, showTrail);
+    setBulletProfile(profile) {
+        if (profile) {
+            this.bulletProfile = profile;
+        }
+    }
+
+    createBullet(startPosition, direction, speed, range, damage, showTrail = null, useWorldCoords = false) {
+        const useTrail = showTrail !== null ? showTrail : this.bulletProfile.showTrail;
+        const pool = useWorldCoords ? this.worldPool : this.playerPool;
+        const bullet = pool.acquire();
+        bullet.reset(startPosition, direction, speed, range, damage, useTrail);
         this.bullets.push(bullet);
         return bullet;
     }
 
+    releaseBullet(bullet) {
+        bullet.deactivate();
+        this.pendingRelease.push(bullet);
+    }
+
+    processPendingReleases() {
+        const count = Math.min(this.maxDisposalsPerFrame, this.pendingRelease.length);
+        for (let i = 0; i < count; i++) {
+            const bullet = this.pendingRelease.shift();
+            const index = this.bullets.indexOf(bullet);
+            if (index > -1) {
+                this.bullets.splice(index, 1);
+            }
+            if (bullet.coordinateSpace === 'world') {
+                this.worldPool.release(bullet);
+            } else {
+                this.playerPool.release(bullet);
+            }
+        }
+    }
+
     update(deltaTime) {
-        // Update all bullets
+        this.processPendingReleases();
+
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
             if (bullet.isActive) {
                 bullet.update(deltaTime);
-            } else {
-                // Remove inactive bullets
-                this.bullets.splice(i, 1);
+                if (!bullet.isActive) {
+                    this.releaseBullet(bullet);
+                }
             }
         }
     }
 
     checkCollisions(enemies, allies, enemyCallback, allyCallback, playerMesh = null, playerCallback = null) {
-        // Check bullet collisions with both enemies and allies (friendly fire)
         const allTargets = [...enemies, ...allies];
         if (playerMesh) {
             allTargets.push(playerMesh);
-            // Ensure player mesh is detectable by raycast
-            playerMesh.visible = true; // Make sure it's visible to raycast even if material is invisible
+            playerMesh.visible = true;
         }
-        
+
         for (const bullet of this.bullets) {
             if (!bullet.isActive) continue;
 
             const bulletPos = bullet.getPosition();
             const previousPos = bullet.getPreviousPosition();
-            const pathDirection = new THREE.Vector3()
-                .subVectors(bulletPos, previousPos)
-                .normalize();
-            const pathDistance = bulletPos.distanceTo(previousPos);
-            
-            // Check collisions along the bullet's path
-            // Use raycast from previous position to current position (plus a bit extra for safety)
+            _pathDirection.subVectors(bulletPos, previousPos);
+            const pathDistance = _pathDirection.length();
+            if (pathDistance > 0) {
+                _pathDirection.normalize();
+            } else {
+                _pathDirection.copy(bullet.direction);
+            }
+
             const raycaster = new THREE.Raycaster(
                 previousPos,
-                pathDirection.length() > 0 ? pathDirection : bullet.direction,
+                _pathDirection,
                 0,
-                pathDistance + 2.0 // Add 2 unit buffer for safety
+                pathDistance + 2.0
             );
 
-            // First check player collision (highest priority)
             if (playerMesh) {
                 const playerIntersects = raycaster.intersectObject(playerMesh, true);
                 if (playerIntersects.length > 0) {
                     const hit = playerIntersects[0];
                     if (playerCallback) {
                         playerCallback(bullet.damage, hit.point);
-                        bullet.destroy();
+                        this.releaseBullet(bullet);
                         continue;
                     }
                 }
             }
 
-            // Then check world object collisions (walls, houses, trees, etc.)
-            // Only check if bullet hasn't hit player
             if (this.collisionSystem) {
-                // Use the actual path distance plus a buffer for safety
                 const checkDistance = pathDistance + 2.0;
+                if (bullet.coordinateSpace === 'world') {
+                    _worldPrev.copy(previousPos);
+                } else if (this.player?.scenePointToWorld) {
+                    this.player.scenePointToWorld(previousPos, _worldPrev);
+                } else {
+                    _worldPrev.copy(previousPos);
+                }
                 const worldCollision = this.collisionSystem.checkBulletCollision(
-                    previousPos,
-                    pathDirection.length() > 0 ? pathDirection : bullet.direction,
+                    _worldPrev,
+                    _pathDirection,
                     checkDistance
                 );
                 if (worldCollision.hit && worldCollision.distance <= checkDistance) {
-                    // Bullet hit a world object, destroy it
-                    bullet.destroy();
+                    this.releaseBullet(bullet);
                     continue;
                 }
             }
 
-            // Finally check enemy/ally collisions
-            // Check enemy/ally collisions (skip player as we already checked it)
             const nonPlayerTargets = allTargets.filter(t => t !== playerMesh);
             const intersects = raycaster.intersectObjects(nonPlayerTargets, true);
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                // Traverse up the parent chain to find the root group with userData
                 let target = hit.object;
-                while (target.parent && target.parent !== this.scene) {
-                    // Check if current target has userData with team info
+                while (target.parent && target.parent !== this.scene && target.parent !== this.worldScene) {
                     if (target.userData && (target.userData.isEnemy !== undefined || target.userData.team)) {
-                        break; // Found the root group with userData
+                        break;
                     }
                     target = target.parent;
                 }
-                
-                // If we found userData on the target
+
                 if (target.userData) {
                     if (target.userData.isEnemy || target.userData.team === 'red') {
-                        // Hit an enemy
                         enemyCallback(target, bullet.damage, hit.point);
-                        bullet.destroy();
+                        this.releaseBullet(bullet);
                     } else if (target.userData.team === 'blue') {
-                        // Hit an ally (friendly fire)
                         allyCallback(target, bullet.damage, hit.point);
-                        bullet.destroy();
+                        this.releaseBullet(bullet);
                     }
                 }
             }
@@ -118,10 +169,22 @@ export class BulletManager {
     }
 
     clear() {
+        while (this.pendingRelease.length > 0) {
+            const bullet = this.pendingRelease.pop();
+            if (bullet.coordinateSpace === 'world') {
+                this.worldPool.release(bullet);
+            } else {
+                this.playerPool.release(bullet);
+            }
+        }
         for (const bullet of this.bullets) {
-            bullet.destroy();
+            bullet.deactivate();
+            if (bullet.coordinateSpace === 'world') {
+                this.worldPool.release(bullet);
+            } else {
+                this.playerPool.release(bullet);
+            }
         }
         this.bullets = [];
     }
 }
-
