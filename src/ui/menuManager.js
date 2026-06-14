@@ -19,10 +19,10 @@ export class MenuManager {
             music: 100,
             game: 100,
             graphics: 50, // MED
-            resolution: 80,
+            resolution: 100,
             realTimeShadows: false,
             bakeShadows: false,
-            frameRate: 60,
+            frameRate: 120,
             bloom: false,
             motionBlur: false,
             fisheyeLens: false,
@@ -31,7 +31,7 @@ export class MenuManager {
             gyroADS: 0,
             lookSensitivity: 50,
             adsSens: 25,
-            showFPS: false, // Default: HIDE
+            showFPS: true,
             showChat: false // Default: HIDE
         };
         // Load weapon selections from localStorage or use defaults
@@ -895,12 +895,8 @@ export class MenuManager {
     }
 
     applyFPSVisibility() {
-        // Apply FPS visibility to existing game instance if available
-        if (this.gameInstance && this.gameInstance.engine && this.gameInstance.engine.stats) {
-            const statsDom = this.gameInstance.engine.stats.dom;
-            if (statsDom) {
-                statsDom.style.display = this.settings.showFPS ? 'block' : 'none';
-            }
+        if (this.gameInstance?.engine?.setFPSVisibility) {
+            this.gameInstance.engine.setFPSVisibility(this.settings.showFPS);
         }
     }
 

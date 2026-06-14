@@ -284,7 +284,10 @@
 
         <!-- Top Right -->
         <div class="hud-top-right">
-            <button class="btn-info" id="btn-info">ℹ️</button>
+            <div class="hud-top-right-controls">
+                <button class="btn-fps" id="btn-fps" type="button" title="Frames per second" aria-label="Frames per second">--</button>
+                <button class="btn-info" id="btn-info">ℹ️</button>
+            </div>
             <div class="weapon-icon" id="weapon-icon"></div>
             <div class="ammo-count" id="ammo-count">
                 <span id="ammo-current">4</span>
@@ -571,7 +574,7 @@
                     </div>
                     <div class="settings-item">
                         <label>SHOW FPS</label>
-                        <input type="checkbox" class="settings-checkbox" data-setting="showFPS">
+                        <input type="checkbox" class="settings-checkbox" data-setting="showFPS" checked>
                     </div>
                     <div class="settings-item">
                         <label>SHOW CHAT</label>

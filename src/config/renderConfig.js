@@ -32,13 +32,13 @@ export const RENDER_CONFIG = {
         init: {
             antialias: true,
             powerPreference: 'high-performance',
-            precision: 'mediump',
+            precision: 'highp',
             stencil: false,
             depth: true,
             alpha: false
         },
         settings: {
-            pixelRatioMultiplier: 0.85,
+            pixelRatioMultiplier: 1,
             maxPixelRatio: 2,
             shadowMapEnabled: true,
             shadowMapSize: 1024,
@@ -48,7 +48,7 @@ export const RENDER_CONFIG = {
     },
     low: {
         init: {
-            antialias: false,
+            antialias: true,
             powerPreference: 'high-performance',
             precision: 'mediump',
             stencil: false,
@@ -56,8 +56,8 @@ export const RENDER_CONFIG = {
             alpha: false
         },
         settings: {
-            pixelRatioMultiplier: 0.7,
-            maxPixelRatio: 1.5,
+            pixelRatioMultiplier: 0.9,
+            maxPixelRatio: 2,
             shadowMapEnabled: false,
             shadowMapSize: 512,
             shadowMapType: THREE.BasicShadowMap,
@@ -66,16 +66,16 @@ export const RENDER_CONFIG = {
     },
     minimal: {
         init: {
-            antialias: false,
+            antialias: true,
             powerPreference: 'high-performance',
-            precision: 'lowp',
+            precision: 'mediump',
             stencil: false,
             depth: true,
             alpha: false
         },
         settings: {
-            pixelRatioMultiplier: 0.5,
-            maxPixelRatio: 1,
+            pixelRatioMultiplier: 0.75,
+            maxPixelRatio: 1.5,
             shadowMapEnabled: false,
             shadowMapSize: 512,
             shadowMapType: THREE.BasicShadowMap,

@@ -14,6 +14,9 @@ export class Engine {
         this.qualityLevel = graphicsSliderToLevel(this.settings.graphics ?? 50);
         this.directionalLight = null;
         this.renderInfoEl = null;
+        this.fpsEl = null;
+        this._lastDelta = 0;
+        this._fpsSmooth = 60;
     }
 
     async init() {
@@ -22,7 +25,7 @@ export class Engine {
         // Create scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
-        this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
+        this.scene.fog = new THREE.Fog(0x87ceeb, 50, 240);
 
         // Create camera (keep original zoom/view distance)
         this.camera = new THREE.PerspectiveCamera(
@@ -64,22 +67,22 @@ export class Engine {
         // Clock for delta time
         this.clock = new THREE.Clock();
 
-        // Initialize Stats for FPS monitoring
+        // Stats (measurement only — hidden UI; FPS shown in #fps-counter)
         this.stats = new Stats();
-        this.stats.showPanel(0); // 0: fps, 1: ms, 2: mb
-        // Add stats to DOM
-        this.stats.dom.style.position = 'fixed';
-        this.stats.dom.style.top = '0';
-        this.stats.dom.style.left = '0';
-        this.stats.dom.style.zIndex = '10000';
+        this.stats.showPanel(0);
+        this.stats.dom.style.display = 'none';
         document.body.appendChild(this.stats.dom);
-        
-        // Set initial visibility based on settings (default: hidden)
-        this.setFPSVisibility(false);
+
+        this._initFpsCounter();
         this._initRenderInfo();
+        this.setFPSVisibility(this.settings.showFPS !== false);
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
+    }
+
+    _initFpsCounter() {
+        this.fpsEl = document.getElementById('btn-fps');
     }
 
     _initRenderInfo() {
@@ -100,47 +103,59 @@ export class Engine {
     }
 
     update() {
-        // Update stats
         if (this.stats) {
             this.stats.begin();
         }
-        return this.clock.getDelta();
+        this._lastDelta = this.clock.getDelta();
+        return this._lastDelta;
     }
 
     render() {
         this.renderer.render(this.scene, this.camera);
+        this._updateFpsCounter();
         this._updateRenderInfo();
         if (this.stats) {
             this.stats.end();
         }
     }
 
+    _updateFpsCounter() {
+        if (!this.fpsEl) return;
+
+        const show = this.settings.showFPS !== false;
+        this.fpsEl.classList.toggle('hidden', !show);
+        if (!show || this._lastDelta <= 0) return;
+
+        const instant = 1 / this._lastDelta;
+        this._fpsSmooth += (instant - this._fpsSmooth) * 0.12;
+        const fps = Math.round(this._fpsSmooth);
+
+        this.fpsEl.textContent = `${fps}`;
+        this.fpsEl.title = `${fps} FPS`;
+        this.fpsEl.setAttribute('aria-label', `${fps} frames per second`);
+        this.fpsEl.classList.remove('fps-good', 'fps-ok', 'fps-low');
+        if (fps >= 55) {
+            this.fpsEl.classList.add('fps-good');
+        } else if (fps >= 40) {
+            this.fpsEl.classList.add('fps-ok');
+        } else {
+            this.fpsEl.classList.add('fps-low');
+        }
+    }
+
     _updateRenderInfo() {
         if (!this.renderInfoEl) return;
-
-        const show = this.settings.showFPS === true;
-        this.renderInfoEl.classList.toggle('visible', show);
-        if (!show || !this.renderer?.info) return;
-
-        const render = this.renderer.info.render;
-        const memory = this.renderer.info.memory;
-        this.renderInfoEl.textContent =
-            `DC:${render.calls}  Tri:${render.triangles}\nGeo:${memory.geometries}  Tex:${memory.textures}`;
+        this.renderInfoEl.classList.remove('visible');
     }
 
     getFPS() {
-        if (this.stats) {
-            return this.stats.dom.querySelector('.fps')?.textContent || '60';
-        }
-        return '60';
+        return String(Math.round(this._fpsSmooth));
     }
 
     setFPSVisibility(visible) {
-        if (this.stats && this.stats.dom) {
-            this.stats.dom.style.display = visible ? 'block' : 'none';
-        }
-        if (this.renderInfoEl) {
-            this.renderInfoEl.classList.toggle('visible', visible && this.settings.showFPS === true);
+        const show = visible !== false;
+        if (this.fpsEl) {
+            this.fpsEl.classList.toggle('hidden', !show);
         }
     }
 
@@ -161,7 +176,7 @@ export class Engine {
             this.directionalLight.castShadow = shadowsEnabled;
         }
 
-        this.setFPSVisibility(this.settings.showFPS === true);
+        this.setFPSVisibility(this.settings.showFPS !== false);
     }
 
     onWindowResize() {
@@ -205,6 +220,11 @@ export class Engine {
             }
         }
         
+        if (this.fpsEl) {
+            this.fpsEl.textContent = '--';
+            this.fpsEl.classList.remove('fps-good', 'fps-ok', 'fps-low');
+        }
+
         // Clear references
         this.scene = null;
         this.camera = null;
@@ -212,6 +232,8 @@ export class Engine {
         this.clock = null;
         this.container = null;
         this.stats = null;
+        this.fpsEl = null;
+        this.renderInfoEl = null;
     }
 }
 

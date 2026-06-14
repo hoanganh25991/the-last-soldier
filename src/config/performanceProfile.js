@@ -13,10 +13,10 @@ export const TERRAIN_LOD = {
 };
 
 export const WORLD_VISIBILITY = {
-    high:    { showDistance: 450, hideDistance: 600, fogNear: 50, fogFar: 220 },
-    medium:  { showDistance: 320, hideDistance: 450, fogNear: 40, fogFar: 180 },
-    low:     { showDistance: 220, hideDistance: 320, fogNear: 30, fogFar: 140 },
-    minimal: { showDistance: 150, hideDistance: 220, fogNear: 25, fogFar: 110 }
+    high:    { showDistance: 450, hideDistance: 600, fogNear: 60, fogFar: 280 },
+    medium:  { showDistance: 320, hideDistance: 450, fogNear: 50, fogFar: 240 },
+    low:     { showDistance: 220, hideDistance: 320, fogNear: 40, fogFar: 200 },
+    minimal: { showDistance: 150, hideDistance: 220, fogNear: 35, fogFar: 160 }
 };
 
 export const ENEMY_LOD = {

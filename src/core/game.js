@@ -54,8 +54,7 @@ export class Game {
         if (settings && settings.showFPS !== undefined) {
             this.engine.setFPSVisibility(settings.showFPS);
         } else {
-            // Default to hidden if no settings provided
-            this.engine.setFPSVisibility(false);
+            this.engine.setFPSVisibility(true);
         }
 
         // Initialize collision system

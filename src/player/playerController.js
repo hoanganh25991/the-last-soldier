@@ -27,8 +27,8 @@ export class PlayerController {
         
         // Aim/zoom settings
         this.defaultFOV = 75;
-        this.aimFOV = 25; // Zoomed in FOV (lower = more zoom)
-        this.aimTransitionSpeed = 8.0; // Speed of FOV transition
+        this.aimFOV = 22;
+        this.aimTransitionSpeed = 18.0;
         
         // Player health
         this.health = 100;
@@ -114,11 +114,11 @@ export class PlayerController {
     }
 
     getTouchSensitivity() {
-        return 0.001 + this.getLookSensitivityMultiplier() * 0.002;
+        return 0.0012 + this.getLookSensitivityMultiplier() * 0.0025;
     }
 
     getMouseSensitivity() {
-        return 0.0005 + this.getLookSensitivityMultiplier() * 0.003;
+        return 0.0007 + this.getLookSensitivityMultiplier() * 0.0035;
     }
 
     getGyroStrength() {
@@ -480,7 +480,8 @@ export class PlayerController {
                 '.hud-bottom-right .btn-action',
                 '.hud-top-left .btn-exit',
                 '.hud-top-left .btn-chat',
-                '.hud-top-right .btn-info'
+                '.hud-top-right .btn-info',
+                '.hud-top-right .btn-fps'
             ];
 
             for (const selector of selectors) {

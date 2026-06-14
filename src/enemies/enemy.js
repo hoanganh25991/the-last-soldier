@@ -8,15 +8,14 @@ export class Enemy {
         
         // Base stats
         const baseHealth = 100;
-        const baseSpeed = 5.0;
+        const baseSpeed = 2.5;
         
         // Enemy scaling: enemies are stronger than teammates
         // For enemies (red team), apply wave-based scaling
         if (team === 'red') {
-            // Enemies are stronger: 1.5x health, 1.3x speed
-            this.maxHealth = baseHealth * 1.5; // 150 health
+            this.maxHealth = baseHealth * 1.5;
             this.health = this.maxHealth;
-            this.speed = baseSpeed * 1.3; // 6.5 speed (faster than teammates)
+            this.speed = baseSpeed * 0.9;
             
             // Wave-based damage scaling
             this.shootDamage = baseDamage + (waveNumber * damagePerWave);
@@ -52,7 +51,7 @@ export class Enemy {
         this.lastScanChange = 0; // Time since last scan direction change
         this.scanChangeInterval = 1.5; // Change scan direction every 1.5 seconds
         this.scanDirection = 1; // 1 for right, -1 for left
-        this.forwardMoveSpeed = 4.0; // Speed when moving forward (slightly slower than max speed)
+        this.forwardMoveSpeed = 2.0;
         
         // Group-specific properties
         this.isInGroup = false;
@@ -65,7 +64,7 @@ export class Enemy {
         this.lookAroundInterval = 2.0 + Math.random() * 2.0; // 2-4 seconds between look arounds
         this.currentDirection = new THREE.Vector3(1, 0, 0); // Current movement direction
         this.desiredDirection = new THREE.Vector3(1, 0, 0); // Desired direction toward player
-        this.directionChangeSpeed = 2.0; // How fast direction changes (smooth rotation)
+        this.directionChangeSpeed = 1.2;
         
         // Animation
         this.soldierData = null; // Store soldier model data for animation
@@ -73,7 +72,7 @@ export class Enemy {
         this.isMoving = false; // Track if enemy is moving
         this.targetRotationY = 0; // Target Y rotation for smooth interpolation
         this.currentRotationY = 0; // Current Y rotation
-        this.rotationSpeed = 5.0; // Rotation interpolation speed
+        this.rotationSpeed = 3.0;
         
         // Shooting properties
         this.shootRange = 150; // Maximum shooting range
@@ -746,7 +745,7 @@ export class Enemy {
                 : toPlayer.clone().multiplyScalar(0.15);
 
             desiredPosition.copy(this.position)
-                .add(strafe.multiplyScalar(5))
+                .add(strafe.multiplyScalar(3.5))
                 .add(spacing);
             desiredPosition.y = 0;
         }
@@ -912,8 +911,8 @@ export class Enemy {
                 const advance = toPlayer.clone().multiplyScalar(0.25);
 
                 targetPos = this.position.clone()
-                    .add(strafe.multiplyScalar(6))
-                    .add(advance.multiplyScalar(4));
+                    .add(strafe.multiplyScalar(4))
+                    .add(advance.multiplyScalar(2.5));
                 targetPos.y = 0;
             } else if (distanceToPlayer <= 3) {
                 const awayFromPlayer = new THREE.Vector3()
