@@ -5,6 +5,7 @@ import { AudioManager } from '../core/audioManager.js';
 import { WEAPON_ICONS, getWeaponIcon, getWeaponIconByType } from '../config/weaponIcons.js';
 import { showAlert } from './dialogManager.js';
 import { LoadingManager } from './loadingManager.js';
+import { t } from '../i18n/locale.js';
 
 export class MenuManager {
     constructor() {
@@ -725,12 +726,12 @@ export class MenuManager {
         if (window._preloadedGameModule) {
             // Use preloaded module - instant!
             GameModule = window._preloadedGameModule;
-            this.loadingManager.completeStep('Game modules ready');
+            this.loadingManager.completeStep(t('gameModulesReady'));
         } else {
             // Fallback: load if not preloaded
             GameModule = await this.loadingManager.loadWithProgress(
                 import('../core/game.js'),
-                'Loading game modules...'
+                t('loadingGameModules')
             );
         }
         const { Game } = GameModule;
@@ -747,7 +748,7 @@ export class MenuManager {
         }
         
         // Hide loading screen
-        this.loadingManager.updateProgress(100, 'Ready!');
+        this.loadingManager.updateProgress(100, t('ready'));
         setTimeout(() => {
             this.loadingManager.hide();
             // Start battlefield music after loading

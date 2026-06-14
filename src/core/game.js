@@ -10,6 +10,7 @@ import { UIManager } from '../ui/uiManager.js';
 import { showAlert } from '../ui/dialogManager.js';
 import { OrientationLock } from '../ui/orientationLock.js';
 import { PostProcessingManager } from '../effects/postProcessing.js';
+import { t } from '../i18n/locale.js';
 
 export class Game {
     constructor(audioManager = null) {
@@ -44,7 +45,7 @@ export class Game {
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 this.engine.init(),
-                'Initializing engine...'
+                t('initializingEngine')
             );
         } else {
             await this.engine.init();
@@ -69,7 +70,7 @@ export class Game {
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 this.battlefield.init(),
-                'Loading battlefield...'
+                t('loadingBattlefield')
             );
         } else {
             await this.battlefield.init();
@@ -81,7 +82,7 @@ export class Game {
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 Promise.resolve(this.teamManager.init()),
-                'Spawning teams...'
+                t('spawningTeams')
             );
         } else {
             this.teamManager.init();
@@ -96,7 +97,7 @@ export class Game {
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 Promise.resolve(this.player.init()),
-                'Initializing player...'
+                t('initializingPlayer')
             );
         } else {
             this.player.init();
@@ -138,7 +139,7 @@ export class Game {
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 this.weaponManager.init(),
-                'Loading weapons...'
+                t('loadingWeapons')
             );
         } else {
             await this.weaponManager.init();
@@ -177,7 +178,7 @@ export class Game {
         if (loadingManager) {
             await loadingManager.loadWithProgress(
                 Promise.resolve(this.uiManager.init()),
-                'Initializing UI...'
+                t('initializingUI')
             );
         } else {
             this.uiManager.init();

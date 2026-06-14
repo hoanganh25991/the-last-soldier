@@ -1,6 +1,6 @@
 {
-  "name": "Người Lính Cuối",
-  "short_name": "Người Lính Cuối",
+  "name": "The Last Soldier",
+  "short_name": "The Last Soldier",
   "description": "A 3D browser-based first-person shooter game built with Three.js",
   "start_url": "/",
   "display": "standalone",

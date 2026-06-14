@@ -1,3 +1,5 @@
+import { t } from '../i18n/locale.js';
+
 export class LoadingManager {
     constructor() {
         this.progress = 0;
@@ -26,7 +28,7 @@ export class LoadingManager {
         
         // Track HTML load
         this.resourceProgress.html = true;
-        this.updateProgress(10, 'Loading HTML...');
+        this.updateProgress(10, t('loadingHTML'));
         
         // Track CSS load
         this.trackCSSLoad();
@@ -54,7 +56,7 @@ export class LoadingManager {
             
             if (loaded || document.readyState === 'complete') {
                 this.resourceProgress.css = true;
-                this.updateProgress(30, 'Loading CSS...');
+                this.updateProgress(30, t('loadingCSS'));
             } else {
                 setTimeout(checkCSS, 50);
             }
@@ -69,11 +71,11 @@ export class LoadingManager {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 this.resourceProgress.js = true;
-                this.updateProgress(50, 'Loading JavaScript modules...');
+                this.updateProgress(50, t('loadingJS'));
             });
         } else {
             this.resourceProgress.js = true;
-            this.updateProgress(50, 'Loading JavaScript modules...');
+            this.updateProgress(50, t('loadingJS'));
         }
     }
 
@@ -86,7 +88,7 @@ export class LoadingManager {
         
         this.progress = 0;
         this.completedSteps = 0;
-        this.updateProgress(0, 'Initializing...');
+        this.updateProgress(0, t('initializing'));
     }
 
     hide() {
@@ -121,7 +123,10 @@ export class LoadingManager {
     completeStep(stepText = null) {
         this.completedSteps++;
         const percentage = (this.completedSteps / this.totalSteps) * 100;
-        this.updateProgress(percentage, stepText || `Loading... ${this.completedSteps}/${this.totalSteps}`);
+        this.updateProgress(percentage, stepText || t('loadingStep', {
+            current: this.completedSteps,
+            total: this.totalSteps
+        }));
     }
 
     async loadWithProgress(promise, stepText) {
